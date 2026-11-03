@@ -21,7 +21,23 @@ export const navItems: NavItem[] = [
   { key: 'logins', label: '登录日志', path: '/system/logs/logins', icon: 'login', permission: 'system:log:login', group: '审计' },
 ]
 
-export const contextGroups = ['工作台', '人员与权限', '系统', '审计']
+export interface RailGroup {
+  key: string
+  label: string
+  icon: string
+  group: string
+}
+
+export const railGroups: RailGroup[] = [
+  { key: 'workspace', label: '工作台', icon: 'grid', group: '工作台' },
+  { key: 'people', label: '人员与权限', icon: 'users', group: '人员与权限' },
+  { key: 'system', label: '系统', icon: 'sliders', group: '系统' },
+  { key: 'audit', label: '审计', icon: 'file', group: '审计' },
+]
+
+export function itemsOfGroup(group: string): NavItem[] {
+  return navItems.filter((item) => item.group === group)
+}
 
 export const quickActions = [
   { label: '新建用户', path: '/system/users?new=1', icon: 'plus', hint: 'N' },

@@ -1,7 +1,7 @@
 import { Dropdown } from 'antd'
 import type { MenuProps } from 'antd'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { navItems } from '../../config/nav'
+import { navByPath, navItems, railGroups } from '../../config/nav'
 import { useAuth } from '../../stores/auth'
 import { useTabs } from '../../stores/tabs'
 import { useUi } from '../../stores/ui'
@@ -17,8 +17,13 @@ export function Rail() {
   const theme = useUi((state) => state.theme)
   const toggleTheme = useUi((state) => state.toggleTheme)
 
-  const items = navItems.filter((item) => can(item.permission))
-  const active = (path: string) => location.pathname === path || location.pathname.startsWith(`${path}/`)
+  const currentGroup = navByPath(location.pathname).group
+  const modules = railGroups
+    .map((module) => ({
+      ...module,
+      first: navItems.find((item) => item.group === module.group && can(item.permission)),
+    }))
+    .filter((module) => module.first)
 
   const userMenu: MenuProps['items'] = [
     { key: 'profile', icon: <Icon name="user" size={14} />, label: '个人中心' },
@@ -31,15 +36,15 @@ export function Rail() {
       <button className="rail-logo" type="button" onClick={() => navigate('/dashboard')} title="x-admin">
         X
       </button>
-      {items.map((item) => (
+      {modules.map((module) => (
         <button
-          key={item.key}
+          key={module.key}
           type="button"
-          className={`rail-btn ${active(item.path) ? 'active' : ''}`}
-          title={item.label}
-          onClick={() => navigate(item.path)}
+          className={`rail-btn ${currentGroup === module.group ? 'active' : ''}`}
+          title={module.label}
+          onClick={() => module.first && navigate(module.first.path)}
         >
-          <Icon name={item.icon} size={17} />
+          <Icon name={module.icon} size={17} />
         </button>
       ))}
       <div className="rail-spacer" />

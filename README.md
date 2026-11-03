@@ -142,6 +142,7 @@ make lint               # go vet + oxlint
 
 ![登录](docs/screenshots/login.jpg)
 ![看板](docs/screenshots/dashboard.jpg)
+![两级导航](docs/screenshots/users.jpg)
 ![深色模式](docs/screenshots/profile-dark.jpg)
 
 视觉样张保留在 `design-preview/`，实现以 `frontend/src/styles/global.css` 为准：

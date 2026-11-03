@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { contextGroups, navByPath, navItems } from '../../config/nav'
+import { itemsOfGroup, navByPath, profileNav, railGroups } from '../../config/nav'
 import { api, isMock } from '../../api/client'
 import type { DashboardSummary } from '../../api/types'
 import { useAuth } from '../../stores/auth'
@@ -11,6 +11,15 @@ export function ContextBar() {
   const location = useLocation()
   const can = useAuth((state) => state.can)
   const activeItem = navByPath(location.pathname)
+  const moduleMeta = railGroups.find((module) => module.group === activeItem.group)
+  const isAccount = activeItem.group === '账号'
+  const items = isAccount ? [profileNav] : itemsOfGroup(activeItem.group).filter((item) => can(item.permission))
+  const title = isAccount ? '个人中心' : activeItem.group
+  const subtitle = isAccount
+    ? 'WORKSPACE / ACCOUNT'
+    : activeItem.group === '工作台'
+      ? 'WORKSPACE / OVERVIEW'
+      : `LEVEL 1 / ${moduleMeta?.key.toUpperCase() ?? 'MODULE'}`
 
   const summary = useQuery({
     queryKey: ['dashboard-summary'],
@@ -45,33 +54,25 @@ export function ContextBar() {
     <aside className="context glass">
       <div className="ctx-head">
         <div className="ctx-kicker">Workspace</div>
-        <strong>{activeItem.group === '工作台' ? '工作台' : activeItem.group === '账号' ? '个人中心' : '系统管理'}</strong>
-        <span className="ctx-sub">{activeItem.group === '工作台' ? 'WORKSPACE / OVERVIEW' : activeItem.group === '账号' ? 'WORKSPACE / ACCOUNT' : 'WORKSPACE / SYS-01'}</span>
+        <strong>{title}</strong>
+        <span className="ctx-sub">{subtitle}</span>
       </div>
       <nav className="ctx-nav">
-        {contextGroups.map((group) => {
-          const items = navItems.filter((item) => item.group === group && can(item.permission))
-          if (items.length === 0) return null
-          return (
-            <div key={group}>
-              <div className="ctx-label">{group}</div>
-              {items.map((item) => (
-                <a
-                  key={item.key}
-                  href={item.path}
-                  className={`ctx-item ${activeItem.key === item.key ? 'active' : ''}`}
-                  onClick={(event) => {
-                    event.preventDefault()
-                    navigate(item.path)
-                  }}
-                >
-                  <span>{item.label}</span>
-                  <span className="count">{counts[item.key] ?? ''}</span>
-                </a>
-              ))}
-            </div>
-          )
-        })}
+        <div className="ctx-label">{activeItem.group === '工作台' ? 'OVERVIEW' : 'MODULES'}</div>
+        {items.map((item) => (
+          <a
+            key={item.key}
+            href={item.path}
+            className={`ctx-item ${activeItem.key === item.key ? 'active' : ''}`}
+            onClick={(event) => {
+              event.preventDefault()
+              navigate(item.path)
+            }}
+          >
+            <span>{item.label}</span>
+            <span className="count">{counts[item.key] ?? ''}</span>
+          </a>
+        ))}
       </nav>
       <div className="ctx-foot">
         <span className={`dot ${health.isError ? 'bad' : ''}`} />
