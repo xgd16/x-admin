@@ -10,7 +10,8 @@ import { useUi } from '../../stores/ui'
  * Auto behaviour: a module with zero or one page does not need a second-level
  * panel, so it stays collapsed and the canvas gets the full width. A module
  * with several pages opens automatically. The collapse button stores a manual
- * preference per module; switching modules resets it to the automatic rule.
+ * preference for that module for the current session; modules that have not
+ * been touched keep following the automatic rule.
  */
 export function useContextNav() {
   const location = useLocation()
