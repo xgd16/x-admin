@@ -1413,6 +1413,14 @@ html.ambient-live .blob {
   color: var(--ink-soft);
   transition: background 0.18s;
 }
+.ant-table-wrapper .ant-table-thead > tr > th:first-child,
+.ant-table-wrapper .ant-table-tbody > tr > td:first-child {
+  padding-left: 14px !important;
+}
+.ant-table-wrapper .ant-table-thead > tr > th:last-child,
+.ant-table-wrapper .ant-table-tbody > tr > td:last-child {
+  padding-right: 14px !important;
+}
 .ant-table-wrapper .ant-table-tbody > tr:last-child > td {
   border-bottom: 0 !important;
 }
@@ -1437,6 +1445,7 @@ html.ambient-live .blob {
 }
 .ant-table-wrapper .ant-table-cell-scrollbar {
   box-shadow: none;
+  padding: 0 !important;
 }
 .cell-user {
   display: flex;
@@ -1960,7 +1969,7 @@ html.ambient-live .blob {
 }
 .panel .ant-table-wrapper,
 .data-panel .ant-table-wrapper {
-  margin: 0 -4px;
+  margin: 0;
 }
 .toolbar-actions {
   display: flex;
