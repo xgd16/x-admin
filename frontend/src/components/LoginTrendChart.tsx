@@ -54,10 +54,10 @@ export function LoginTrendChart({ trend }: LoginTrendChartProps) {
             </feMerge>
           </filter>
         </defs>
-        <g stroke="rgba(12,32,51,.07)" strokeWidth="1">
+        <g stroke="var(--chart-grid)" strokeWidth="1">
           <path d="M42 30h700M42 70h700M42 110h700M42 150h700M42 190h700" />
         </g>
-        <g fill="rgba(12,32,51,.35)" fontSize="8" fontFamily="monospace">
+        <g fill="var(--chart-axis)" fontSize="8" fontFamily="monospace">
           <text x="4" y="33">100%</text>
           <text x="4" y="73">75%</text>
           <text x="4" y="113">50%</text>
@@ -81,7 +81,7 @@ export function LoginTrendChart({ trend }: LoginTrendChartProps) {
             cx={point.x}
             cy={point.y}
             r="2.6"
-            fill="#fff"
+            fill="var(--chart-dot)"
             stroke="#ff5f33"
             strokeWidth="1.6"
           />
