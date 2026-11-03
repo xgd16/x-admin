@@ -38,6 +38,14 @@ func (r *Redis) Get(ctx context.Context, key string) (string, error) {
 	return v, err
 }
 
+func (r *Redis) Take(ctx context.Context, key string) (string, error) {
+	v, err := r.client.GetDel(ctx, key).Result()
+	if err == redis.Nil {
+		return "", ErrNotFound
+	}
+	return v, err
+}
+
 func (r *Redis) Del(ctx context.Context, keys ...string) error {
 	if len(keys) == 0 {
 		return nil

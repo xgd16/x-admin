@@ -134,14 +134,13 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*TokenP
 	if refreshToken == "" {
 		return nil, apperr.New(apperr.CodeTokenExpired, "登录已过期，请重新登录")
 	}
-	raw, err := s.store.Get(ctx, refreshKey(refreshToken))
+	raw, err := s.store.Take(ctx, refreshKey(refreshToken))
 	if err != nil {
 		if err == cache.ErrNotFound {
 			return nil, apperr.New(apperr.CodeTokenExpired, "登录已过期，请重新登录")
 		}
 		return nil, err
 	}
-	_ = s.store.Del(ctx, refreshKey(refreshToken))
 	userID, err := strconv.ParseUint(raw, 10, 64)
 	if err != nil || userID == 0 {
 		return nil, apperr.New(apperr.CodeTokenExpired, "登录已过期，请重新登录")

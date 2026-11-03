@@ -15,6 +15,8 @@ var ErrNotFound = errors.New("cache: key not found")
 type Store interface {
 	Set(ctx context.Context, key, value string, ttl time.Duration) error
 	Get(ctx context.Context, key string) (string, error)
+	// Take atomically reads and deletes a key (refresh token rotation).
+	Take(ctx context.Context, key string) (string, error)
 	Del(ctx context.Context, keys ...string) error
 	Exists(ctx context.Context, key string) (bool, error)
 	Incr(ctx context.Context, key string, ttl time.Duration) (int64, error)
@@ -61,6 +63,18 @@ func (m *Memory) Get(_ context.Context, key string) (string, error) {
 		delete(m.data, key)
 		return "", ErrNotFound
 	}
+	return e.value, nil
+}
+
+func (m *Memory) Take(_ context.Context, key string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	e, ok := m.data[key]
+	if !ok || m.expired(e) {
+		delete(m.data, key)
+		return "", ErrNotFound
+	}
+	delete(m.data, key)
 	return e.value, nil
 }
 

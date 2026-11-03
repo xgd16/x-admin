@@ -42,6 +42,13 @@ func TestMemoryStore(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), n)
 
+	require.NoError(t, m.Set(ctx, "take", "one", time.Minute))
+	v, err = m.Take(ctx, "take")
+	require.NoError(t, err)
+	assert.Equal(t, "one", v)
+	_, err = m.Take(ctx, "take")
+	require.ErrorIs(t, err, cache.ErrNotFound)
+
 	require.NoError(t, m.Del(ctx, "counter"))
 	ok, _ = m.Exists(ctx, "counter")
 	assert.False(t, ok)
@@ -85,6 +92,13 @@ func TestRedisStore(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), n)
 	assert.Greater(t, mr.TTL("counter"), time.Duration(0))
+
+	require.NoError(t, store.Set(ctx, "take", "one", time.Minute))
+	v, err = store.Take(ctx, "take")
+	require.NoError(t, err)
+	assert.Equal(t, "one", v)
+	_, err = store.Take(ctx, "take")
+	require.ErrorIs(t, err, cache.ErrNotFound)
 
 	require.NoError(t, store.Del(ctx, "k", "counter"))
 	ok, _ = store.Exists(ctx, "k")

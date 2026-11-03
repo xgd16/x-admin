@@ -76,7 +76,10 @@ func (failingStore) Set(context.Context, string, string, time.Duration) error {
 	return errors.New("set failed")
 }
 func (failingStore) Get(context.Context, string) (string, error) { return "", cache.ErrNotFound }
-func (failingStore) Del(context.Context, ...string) error        { return nil }
+func (failingStore) Take(context.Context, string) (string, error) {
+	return "", cache.ErrNotFound
+}
+func (failingStore) Del(context.Context, ...string) error { return nil }
 func (failingStore) Exists(context.Context, string) (bool, error) {
 	return false, nil
 }
