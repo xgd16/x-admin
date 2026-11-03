@@ -1,0 +1,431 @@
+openapi: 3.0.3
+info:
+  title: x-admin API
+  description: 通用 RBAC 管理后台 API。所有响应统一为 `{code,message,data,request_id}`。
+  version: 1.0.0
+servers:
+  - url: /
+    description: Same origin (Nginx / Vite proxy)
+tags:
+  - name: Auth
+    description: 验证码、登录、刷新、当前用户
+  - name: Dashboard
+  - name: User
+  - name: Role
+  - name: Menu
+  - name: Department
+  - name: Dictionary
+  - name: Parameter
+  - name: File
+  - name: Job
+  - name: Audit
+  - name: Profile
+security:
+  - bearerAuth: []
+paths:
+  /admin/v1/auth/captcha:
+    get:
+      tags: [Auth]
+      summary: 获取 SVG 验证码
+      security: []
+      responses:
+        '200':
+          description: captcha_id 与 data URL 图片
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /admin/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: 登录（10 次/分/IP）
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password, captcha_id, captcha_code]
+              properties:
+                username: { type: string, example: admin }
+                password: { type: string, example: Admin@123456 }
+                captcha_id: { type: string }
+                captcha_code: { type: string }
+      responses:
+        '200':
+          description: access/refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+        '423':
+          description: 连续失败 5 次，账号锁定 15 分钟
+  /admin/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: 轮换 refresh token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token: { type: string }
+      responses:
+        '200':
+          description: 新 token 对
+  /admin/v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: 退出并删除 refresh 白名单
+  /admin/v1/auth/me:
+    get:
+      tags: [Auth]
+      summary: 当前用户、权限码与菜单树
+      responses:
+        '200':
+          description: MeResult
+  /admin/v1/dashboard/summary:
+    get:
+      tags: [Dashboard]
+      summary: 看板汇总、7 日登录趋势、最近操作
+      responses:
+        '200':
+          description: DashboardSummary
+  /admin/v1/users:
+    get:
+      tags: [User]
+      summary: 用户分页列表
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Keyword'
+        - { name: dept_id, in: query, schema: { type: integer } }
+        - { name: status, in: query, schema: { type: integer, enum: [0, 1] } }
+        - { name: role_id, in: query, schema: { type: integer } }
+      responses:
+        '200':
+          description: 用户分页
+    post:
+      tags: [User]
+      summary: 创建用户
+    delete:
+      tags: [User]
+      summary: 批量删除用户
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items: { type: integer }
+  /admin/v1/users/{id}:
+    get:
+      tags: [User]
+      summary: 用户详情
+      parameters:
+        - $ref: '#/components/parameters/ID'
+    put:
+      tags: [User]
+      summary: 更新用户
+      parameters:
+        - $ref: '#/components/parameters/ID'
+  /admin/v1/users/{id}/status:
+    put:
+      tags: [User]
+      summary: 启用 / 停用用户
+      parameters:
+        - $ref: '#/components/parameters/ID'
+  /admin/v1/users/{id}/password:
+    put:
+      tags: [User]
+      summary: 重置密码
+      parameters:
+        - $ref: '#/components/parameters/ID'
+  /admin/v1/users/{id}/roles:
+    put:
+      tags: [User]
+      summary: 分配角色
+      parameters:
+        - $ref: '#/components/parameters/ID'
+  /admin/v1/users/import:
+    post:
+      tags: [User]
+      summary: Excel 导入用户（最多 500 行）
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+  /admin/v1/users/export:
+    get:
+      tags: [User]
+      summary: 导出用户 xlsx
+  /admin/v1/users/template:
+    get:
+      tags: [User]
+      summary: 下载导入模板
+  /admin/v1/roles:
+    get:
+      tags: [Role]
+      summary: 角色分页
+    post:
+      tags: [Role]
+      summary: 创建角色
+  /admin/v1/roles/all:
+    get:
+      tags: [Role]
+      summary: 全部启用角色（下拉）
+  /admin/v1/roles/{id}:
+    put:
+      tags: [Role]
+      summary: 更新角色
+      parameters:
+        - $ref: '#/components/parameters/ID'
+    delete:
+      tags: [Role]
+      summary: 删除角色
+      parameters:
+        - $ref: '#/components/parameters/ID'
+  /admin/v1/roles/{id}/menus:
+    get:
+      tags: [Role]
+      summary: 角色已分配菜单 ID
+      parameters:
+        - $ref: '#/components/parameters/ID'
+    put:
+      tags: [Role]
+      summary: 分配菜单权限
+      parameters:
+        - $ref: '#/components/parameters/ID'
+  /admin/v1/menus/tree:
+    get:
+      tags: [Menu]
+      summary: 完整菜单树
+  /admin/v1/menus:
+    post:
+      tags: [Menu]
+      summary: 创建菜单 / 按钮
+  /admin/v1/menus/{id}:
+    put:
+      tags: [Menu]
+      summary: 更新菜单
+      parameters:
+        - $ref: '#/components/parameters/ID'
+    delete:
+      tags: [Menu]
+      summary: 删除菜单
+      parameters:
+        - $ref: '#/components/parameters/ID'
+  /admin/v1/departments/tree:
+    get:
+      tags: [Department]
+      summary: 部门树
+  /admin/v1/departments:
+    post:
+      tags: [Department]
+      summary: 创建部门
+  /admin/v1/departments/{id}:
+    put:
+      tags: [Department]
+      summary: 更新部门
+      parameters:
+        - $ref: '#/components/parameters/ID'
+    delete:
+      tags: [Department]
+      summary: 删除部门
+      parameters:
+        - $ref: '#/components/parameters/ID'
+  /admin/v1/dict/types:
+    get:
+      tags: [Dictionary]
+      summary: 字典类型分页
+    post:
+      tags: [Dictionary]
+      summary: 创建字典类型
+  /admin/v1/dict/types/{id}:
+    put:
+      tags: [Dictionary]
+      summary: 更新字典类型
+      parameters:
+        - $ref: '#/components/parameters/ID'
+    delete:
+      tags: [Dictionary]
+      summary: 删除字典类型
+      parameters:
+        - $ref: '#/components/parameters/ID'
+  /admin/v1/dict/types/{id}/items:
+    get:
+      tags: [Dictionary]
+      summary: 字典项列表
+      parameters:
+        - $ref: '#/components/parameters/ID'
+    post:
+      tags: [Dictionary]
+      summary: 创建字典项
+      parameters:
+        - $ref: '#/components/parameters/ID'
+  /admin/v1/dict/items/{id}:
+    put:
+      tags: [Dictionary]
+      summary: 更新字典项
+      parameters:
+        - $ref: '#/components/parameters/ID'
+    delete:
+      tags: [Dictionary]
+      summary: 删除字典项
+      parameters:
+        - $ref: '#/components/parameters/ID'
+  /admin/v1/parameters:
+    get:
+      tags: [Parameter]
+      summary: 参数分页
+    post:
+      tags: [Parameter]
+      summary: 创建参数
+  /admin/v1/parameters/{id}:
+    put:
+      tags: [Parameter]
+      summary: 更新参数
+      parameters:
+        - $ref: '#/components/parameters/ID'
+    delete:
+      tags: [Parameter]
+      summary: 删除参数
+      parameters:
+        - $ref: '#/components/parameters/ID'
+  /admin/v1/files:
+    get:
+      tags: [File]
+      summary: 文件分页
+    post:
+      tags: [File]
+      summary: 上传文件
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+  /admin/v1/files/{id}/download:
+    get:
+      tags: [File]
+      summary: 下载文件
+      parameters:
+        - $ref: '#/components/parameters/ID'
+  /admin/v1/files/{id}:
+    delete:
+      tags: [File]
+      summary: 删除文件
+      parameters:
+        - $ref: '#/components/parameters/ID'
+  /admin/v1/jobs:
+    get:
+      tags: [Job]
+      summary: 定时任务分页
+    post:
+      tags: [Job]
+      summary: 创建任务
+  /admin/v1/jobs/{id}:
+    put:
+      tags: [Job]
+      summary: 更新任务
+      parameters:
+        - $ref: '#/components/parameters/ID'
+    delete:
+      tags: [Job]
+      summary: 删除任务
+      parameters:
+        - $ref: '#/components/parameters/ID'
+  /admin/v1/jobs/{id}/status:
+    put:
+      tags: [Job]
+      summary: 启停任务
+      parameters:
+        - $ref: '#/components/parameters/ID'
+  /admin/v1/jobs/{id}/run:
+    post:
+      tags: [Job]
+      summary: 立即执行任务
+      parameters:
+        - $ref: '#/components/parameters/ID'
+  /admin/v1/logs/operations:
+    get:
+      tags: [Audit]
+      summary: 操作日志分页
+    delete:
+      tags: [Audit]
+      summary: 删除指定操作日志
+  /admin/v1/logs/operations/clear:
+    delete:
+      tags: [Audit]
+      summary: 清空操作日志
+  /admin/v1/logs/logins:
+    get:
+      tags: [Audit]
+      summary: 登录日志分页
+  /admin/v1/logs/logins/clear:
+    delete:
+      tags: [Audit]
+      summary: 清空登录日志
+  /admin/v1/profile:
+    get:
+      tags: [Profile]
+      summary: 个人资料
+    put:
+      tags: [Profile]
+      summary: 更新个人资料
+  /admin/v1/profile/password:
+    put:
+      tags: [Profile]
+      summary: 修改密码
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    ID:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, default: 1 }
+    PageSize:
+      name: page_size
+      in: query
+      schema: { type: integer, default: 20, maximum: 200 }
+    Keyword:
+      name: keyword
+      in: query
+      schema: { type: string }
+  schemas:
+    Envelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: ok }
+        data: { type: object }
+        request_id: { type: string }
+    Page:
+      type: object
+      properties:
+        list:
+          type: array
+          items: { type: object }
+        total: { type: integer }
+        page: { type: integer }
+        page_size: { type: integer }

@@ -1,0 +1,24 @@
+# dependencies / build output
+node_modules/
+frontend/node_modules/
+frontend/dist/
+bin/
+coverage.out
+coverage.html
+
+# runtime data
+data/uploads/*
+!data/uploads/.gitkeep
+*.log
+tmp/
+
+# env / local config
+.env
+.env.*
+!.env.example
+configs/local.yaml
+
+# editor / OS
+.DS_Store
+.idea/
+.vscode/

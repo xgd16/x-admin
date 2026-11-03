@@ -1,0 +1,47 @@
+app:
+  name: x-admin
+  version: 1.0.0
+  env: development
+
+server:
+  host: 0.0.0.0
+  port: 8080
+  read_timeout: 15s
+  write_timeout: 30s
+  shutdown_timeout: 10s
+
+database:
+  dsn: xadmin:xadmin@tcp(127.0.0.1:3306)/xadmin?charset=utf8mb4&parseTime=True&loc=Local
+  max_open_conns: 50
+  max_idle_conns: 10
+  conn_max_lifetime: 1h
+  auto_migrate: true
+
+redis:
+  driver: redis
+  addr: 127.0.0.1:6379
+  password: ""
+  db: 0
+
+jwt:
+  secret: x-admin-dev-secret-change-me
+  issuer: x-admin
+  access_ttl: 2h
+  refresh_ttl: 168h
+
+security:
+  bcrypt_cost: 10
+  max_login_fails: 5
+  lock_duration: 15m
+  captcha_ttl: 5m
+  password_min_len: 8
+  permission_cache: 5m
+
+storage:
+  root: data/uploads
+  url_prefix: /uploads
+  max_upload_mb: 20
+
+cors:
+  origins:
+    - http://localhost:5173

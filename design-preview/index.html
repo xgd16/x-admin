@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>x-admin · 三套视觉方向</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    background: #14130f;
+    color: #f1ebdd;
+    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 34px 36px 60px; }
+  .top { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; padding-bottom: 18px; border-bottom: 1px solid #3a342b; }
+  .brand { display: flex; align-items: baseline; gap: 9px; }
+  .brand .mark { font-family: "Songti SC", Georgia, serif; font-size: 28px; color: #e8a33d; line-height: 1; }
+  .brand b { font-size: 14px; font-weight: 600; letter-spacing: .02em; }
+  .brand span { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 8px; letter-spacing: .08em; color: #756d5f; text-transform: uppercase; }
+  .top .meta { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 8px; letter-spacing: .06em; color: #756d5f; text-transform: uppercase; }
+
+  h1 {
+    margin: 54px 0 0; max-width: 860px;
+    font-family: "Songti SC", "Noto Serif SC", Georgia, serif;
+    font-size: clamp(42px, 6vw, 78px); font-weight: 500;
+    line-height: 1.04; letter-spacing: -.045em;
+  }
+  .lede { max-width: 560px; margin: 20px 0 0; color: #a79e8c; font-size: 12.5px; line-height: 1.9; }
+
+  .rows { margin-top: 46px; border-top: 1px solid #4a443a; }
+  .row {
+    display: grid; grid-template-columns: 54px minmax(0, 1fr) 190px 84px;
+    gap: 26px; align-items: center;
+    padding: 24px 0; border-bottom: 1px solid #332f28;
+    text-decoration: none; color: inherit;
+  }
+  .row:hover { background: rgba(232, 163, 61, .035); }
+  .row .num { font-family: "Songti SC", Georgia, serif; font-size: 22px; color: #e8a33d; }
+  .row h2 { margin: 0; font-family: "Songti SC", "Noto Serif SC", Georgia, serif; font-size: 27px; font-weight: 600; letter-spacing: -.02em; }
+  .row .tagline { margin: 4px 0 0; font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 8px; letter-spacing: .04em; color: #756d5f; }
+  .row .desc { margin: 10px 0 0; max-width: 520px; color: #a79e8c; font-size: 11.5px; line-height: 1.75; }
+  .swatches { display: flex; gap: 5px; }
+  .swatches i { width: 30px; height: 30px; display: block; border: 1px solid rgba(241, 235, 221, .12); }
+  .go { justify-self: end; font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 9px; letter-spacing: .06em; color: #e8a33d; }
+  .row:hover .go { text-decoration: underline; }
+
+  footer { margin-top: 26px; display: flex; justify-content: space-between; gap: 20px; font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 8px; letter-spacing: .05em; color: #756d5f; }
+  footer b { color: #e8a33d; font-weight: 400; }
+
+  @media (max-width: 860px) {
+    .wrap { padding: 26px 20px 44px; }
+    .row { grid-template-columns: 40px minmax(0, 1fr); gap: 16px; }
+    .swatches { grid-column: 2; }
+    .go { grid-column: 2; justify-self: start; }
+    .top .meta { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <span class="mark">X</span>
+      <b>x-admin</b>
+      <span>Visual directions / 2026.11</span>
+    </div>
+    <span class="meta">3 directions · login / dashboard / users</span>
+  </header>
+
+  <h1>三套方向，<br>三种工作方式。</h1>
+  <p class="lede">不是同一套壳换配色。每套都从布局、字体、信息密度和操作方式重新设计。点进去可以用顶部切换登录页、看板、用户管理。</p>
+
+  <section class="rows">
+    <a class="row" href="01-ledger.html">
+      <span class="num">01</span>
+      <div>
+        <h2>Ledger 账簿</h2>
+        <p class="tagline">TOP MASTHEAD / PRINTED LEDGER / NO SIDEBAR</p>
+        <p class="desc">顶部报头，无侧栏。用分隔线、行号和衬线标题建立秩序，像一本被认真维护的账。适合希望后台有“机构感”而不是“软件感”的团队。</p>
+      </div>
+      <div class="swatches">
+        <i style="background:#f3f2ec"></i>
+        <i style="background:#15170f"></i>
+        <i style="background:#1d4d39"></i>
+        <i style="background:#c8452d"></i>
+        <i style="background:#d7a13f"></i>
+      </div>
+      <span class="go">查看 →</span>
+    </a>
+
+    <a class="row" href="02-workbench.html">
+      <span class="num">02</span>
+      <div>
+        <h2>Workbench Liquid Glass</h2>
+        <p class="tagline">ICON RAIL / LIQUID GLASS / LIGHT FIELD</p>
+        <p class="desc">图标轨 + 上下文栏 + 右侧检查器，外层换成悬浮的液态玻璃。极光色场、随鼠标移动的高光、发光图表，像一件会呼吸的精密工具。</p>
+      </div>
+      <div class="swatches">
+        <i style="background:#edf3f9"></i>
+        <i style="background:#0b1c2c"></i>
+        <i style="background:#ff5f33"></i>
+        <i style="background:#8b7cf6"></i>
+        <i style="background:#2fb8d9"></i>
+      </div>
+      <span class="go">查看 →</span>
+    </a>
+
+    <a class="row" href="03-night-shift.html">
+      <span class="num">03</span>
+      <div>
+        <h2>Night Shift 夜班</h2>
+        <p class="tagline">WARM DARK / LARGE TYPE / AMBER</p>
+        <p class="desc">暖黑控制室，大字号和琥珀色。不追求霓虹科技感，而是让长时间盯屏的人舒服一点。适合运维、监控和需要值夜班的团队。</p>
+      </div>
+      <div class="swatches">
+        <i style="background:#12110f"></i>
+        <i style="background:#1a1815"></i>
+        <i style="background:#f1ebdd"></i>
+        <i style="background:#e8a33d"></i>
+        <i style="background:#8fb59a"></i>
+      </div>
+      <span class="go">查看 →</span>
+    </a>
+  </section>
+
+  <footer>
+    <span>品牌名 / Logo / 主色均为占位 · 选定方向后替换</span>
+    <span><b>x-admin</b> · SPEC PREVIEW</span>
+  </footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,13 @@
+DROP TABLE IF EXISTS `sys_login_logs`;
+DROP TABLE IF EXISTS `sys_operation_logs`;
+DROP TABLE IF EXISTS `sys_jobs`;
+DROP TABLE IF EXISTS `sys_files`;
+DROP TABLE IF EXISTS `sys_parameters`;
+DROP TABLE IF EXISTS `sys_dict_items`;
+DROP TABLE IF EXISTS `sys_dict_types`;
+DROP TABLE IF EXISTS `sys_role_menus`;
+DROP TABLE IF EXISTS `sys_user_roles`;
+DROP TABLE IF EXISTS `sys_menus`;
+DROP TABLE IF EXISTS `sys_roles`;
+DROP TABLE IF EXISTS `sys_users`;
+DROP TABLE IF EXISTS `sys_departments`;

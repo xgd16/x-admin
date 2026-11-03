@@ -1,0 +1,11 @@
+.git
+.gitignore
+design-preview
+frontend/node_modules
+frontend/dist
+data/uploads
+bin
+coverage.out
+coverage.html
+*.log
+.DS_Store
