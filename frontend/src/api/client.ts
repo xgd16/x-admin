@@ -1,4 +1,3 @@
-import { mockRequest } from '../mock'
 import type { Envelope } from './types'
 import { tokenStore } from './tokens'
 
@@ -10,10 +9,6 @@ export class ApiError extends Error {
     super(message)
     this.code = code
   }
-}
-
-export function isMock(): boolean {
-  return localStorage.getItem('x-admin.mock') === '1'
 }
 
 let refreshing: Promise<boolean> | null = null
@@ -56,9 +51,6 @@ async function parse<T>(res: Response): Promise<T> {
 }
 
 async function request<T>(method: string, path: string, body?: unknown, params?: Record<string, unknown>): Promise<T> {
-  if (isMock()) {
-    return mockRequest<T>(method, path, params, body)
-  }
   const url = `${BASE}${path}${queryString(params)}`
   const headers: Record<string, string> = {}
   if (body !== undefined && !(body instanceof FormData)) headers['Content-Type'] = 'application/json'
@@ -103,7 +95,6 @@ export const api = {
     return request<T>('DELETE', path, body)
   },
   async upload<T>(path: string, file: File): Promise<T> {
-    if (isMock()) return mockRequest<T>('POST', path, undefined, file)
     const form = new FormData()
     form.append('file', file)
     const res = await fetch(`${BASE}${path}`, {
@@ -114,7 +105,6 @@ export const api = {
     return parse<T>(res)
   },
   async download(path: string, params?: Record<string, unknown>): Promise<Blob> {
-    if (isMock()) return new Blob(['mock export'], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
     const res = await fetch(`${BASE}${path}${queryString(params)}`, {
       headers: tokenStore.access ? { Authorization: `Bearer ${tokenStore.access}` } : {},
     })

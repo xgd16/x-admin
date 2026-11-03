@@ -144,7 +144,7 @@ system:log:operation  system:log:login
 
 - 布局：悬浮深色玻璃图标轨 + 浅色玻璃上下文栏 + 玻璃内容面板。
 - 页面：登录、看板、用户、角色、菜单、部门、字典、参数、文件、任务、操作日志、登录日志、个人中心。
-- 交互：多标签页、暗色模式、表格列设置/密度、全局水印、Mock 开关。
+- 交互：多标签页、暗色模式、表格列设置/密度、全局水印。
 - 主题 token：`#edf3f9` 背景、`#0b1c2c` ink、`#ff5f33` 主色、`#8b7cf6` violet、`#2fb8d9` cyan、`#2fb98a` mint。
 - 字体：Avenir Next / SF Pro Display / PingFang SC；数字 `tabular-nums`。
 - 不做 i18n。

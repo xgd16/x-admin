@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useNavigate } from 'react-router-dom'
-import { api, isMock } from '../../api/client'
+import { api } from '../../api/client'
 import type { DashboardSummary } from '../../api/types'
 import { railGroups } from '../../config/nav'
 import { useAuth } from '../../stores/auth'
@@ -31,7 +31,6 @@ export function ContextBar() {
   const health = useQuery({
     queryKey: ['health'],
     queryFn: async () => {
-      if (isMock()) return 42
       const start = performance.now()
       const res = await fetch('/healthz')
       if (!res.ok) throw new Error('unhealthy')
@@ -112,7 +111,7 @@ export function ContextBar() {
             </nav>
             <div className="ctx-foot">
               <span className={`dot ${health.isError ? 'bad' : ''}`} />
-              {health.isError ? 'API 异常' : isMock() ? 'Mock 正常' : 'API 正常'}
+              {health.isError ? 'API 异常' : 'API 正常'}
               <span className="lat">{health.isError ? '--' : `${health.data ?? 42}ms`}</span>
             </div>
             <div className="ctx-note">

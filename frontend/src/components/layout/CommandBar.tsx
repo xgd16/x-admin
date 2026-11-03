@@ -21,8 +21,6 @@ export function CommandBar() {
   const setDensity = useUi((state) => state.setDensity)
   const watermark = useUi((state) => state.watermark)
   const toggleWatermark = useUi((state) => state.toggleWatermark)
-  const mock = useUi((state) => state.mock)
-  const setMock = useUi((state) => state.setMock)
 
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -85,21 +83,6 @@ export function CommandBar() {
       <div className="settings-row">
         <span className="label">全局水印</span>
         <Switch size="small" checked={watermark} onChange={toggleWatermark} />
-      </div>
-      <div className="settings-row">
-        <span className="label">Mock 数据</span>
-        <Switch
-          size="small"
-          checked={mock}
-          onChange={(checked) => {
-            setMock(checked)
-            setSettingsOpen(false)
-            void logout().finally(() => {
-              resetTabs()
-              navigate('/login')
-            })
-          }}
-        />
       </div>
       <div className="settings-row">
         <span className="label">快捷键</span>
