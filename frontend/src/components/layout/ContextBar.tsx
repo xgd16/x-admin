@@ -91,7 +91,21 @@ export function ContextBar() {
                     navigate(item.path)
                   }}
                 >
-                  <span>{item.label}</span>
+                  {activeItem.key === item.key && (
+                    <motion.span
+                      layoutId={`ctx-active-${activeItem.group}`}
+                      className="ctx-active"
+                      aria-hidden="true"
+                      transition={
+                        reduceMotion
+                          ? { duration: 0 }
+                          : { type: 'spring', stiffness: 600, damping: 45, mass: 0.6 }
+                      }
+                    >
+                      <span className="ctx-active-dot" />
+                    </motion.span>
+                  )}
+                  <span className="ctx-item-label">{item.label}</span>
                   <span className="count">{counts[item.key] ?? ''}</span>
                 </motion.a>
               ))}

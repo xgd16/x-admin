@@ -471,44 +471,60 @@ html.ambient-live .blob {
   color: var(--dim);
 }
 .ctx-item {
+  position: relative;
+  isolation: isolate;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 7px 10px;
+  padding: 7px 10px 7px 23px;
   border-radius: 11px;
   font-size: 11.5px;
   color: var(--muted);
-  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  transition: background 0.2s, color 0.2s;
 }
 .ctx-item:hover {
   background: var(--glass-soft);
   color: var(--ink);
 }
 .ctx-item.active {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.52));
   color: var(--ink);
   font-weight: 600;
+}
+.ctx-item-label,
+.ctx-item > .count {
+  position: relative;
+  z-index: 1;
+}
+.ctx-active {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: 11px;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.52));
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.7),
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
     0 1px 1px rgba(23, 43, 63, 0.04);
 }
-:root[data-theme='dark'] .ctx-item.active {
+:root[data-theme='dark'] .ctx-active {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.055));
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.14),
     inset 0 1px 0 rgba(255, 255, 255, 0.2),
     0 1px 1px rgba(0, 0, 0, 0.18);
 }
-.ctx-item.active::before {
-  content: '';
+.ctx-active-dot {
+  position: absolute;
+  left: 10px;
+  top: 50%;
   width: 5px;
   height: 5px;
+  margin-top: -2.5px;
   border-radius: 50%;
   background: var(--accent);
   box-shadow: 0 0 6px rgba(255, 95, 51, 0.55);
-  flex: none;
 }
 .ctx-item .count {
   font-family: var(--mono);
