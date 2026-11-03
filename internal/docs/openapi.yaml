@@ -306,6 +306,11 @@ paths:
     get:
       tags: [File]
       summary: 文件分页
+      parameters:
+        - name: kind
+          in: query
+          description: 文件类型，可逗号组合：image, video, audio, document, archive, other
+          schema: { type: string, example: image,video }
     post:
       tags: [File]
       summary: 上传文件

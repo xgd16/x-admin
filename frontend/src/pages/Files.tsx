@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { App, Button, Input, Upload } from 'antd'
+import { App, Button, Input, Select, Upload } from 'antd'
 import dayjs from 'dayjs'
 import { api, saveBlob } from '../api/client'
 import type { FileItem, PageResult } from '../api/types'
@@ -9,6 +9,7 @@ import { PageHeader } from '../components/PageHeader'
 import { DataTable } from '../components/DataTable'
 import { Icon } from '../components/Icon'
 import { formatSize } from '../utils/format'
+import { FILE_KIND_OPTIONS, fileKind, fileKindIcon, type FileKind } from '../utils/file'
 
 export function Files() {
   const { message, modal } = App.useApp()
@@ -18,10 +19,17 @@ export function Files() {
   const [pageSize, setPageSize] = useState(20)
   const [keyword, setKeyword] = useState('')
   const [keywordDraft, setKeywordDraft] = useState('')
+  const [kind, setKind] = useState<FileKind | 'all'>('all')
 
   const query = useQuery({
-    queryKey: ['files', page, pageSize, keyword],
-    queryFn: () => api.get<PageResult<FileItem>>('/files', { page, page_size: pageSize, keyword }),
+    queryKey: ['files', page, pageSize, keyword, kind],
+    queryFn: () =>
+      api.get<PageResult<FileItem>>('/files', {
+        page,
+        page_size: pageSize,
+        keyword,
+        kind: kind === 'all' ? undefined : kind,
+      }),
   })
 
   const invalidate = () => void queryClient.invalidateQueries({ queryKey: ['files'] })
@@ -89,17 +97,24 @@ export function Files() {
             title: '文件',
             key: 'name',
             width: 260,
-            render: (_, row) => (
-              <div className="file-name">
-                <span className="file-icon">
-                  <Icon name="file" size={13} />
-                </span>
-                <span>
-                  <b style={{ display: 'block', fontSize: 11 }}>{row.name}</b>
-                  <span className="mono">{row.mime || row.ext}</span>
-                </span>
-              </div>
-            ),
+            render: (_, row) => {
+              const rowKind = fileKind(row)
+              return (
+                <div className="file-name">
+                  <span className={`file-icon ${rowKind}`}>
+                    {rowKind === 'image' && row.url ? (
+                      <img src={row.url} alt="" loading="lazy" />
+                    ) : (
+                      <Icon name={fileKindIcon(row)} size={13} />
+                    )}
+                  </span>
+                  <span>
+                    <b style={{ display: 'block', fontSize: 11 }}>{row.name}</b>
+                    <span className="mono">{row.mime || row.ext}</span>
+                  </span>
+                </div>
+              )
+            },
           },
           { title: '大小', dataIndex: 'size', key: 'size', width: 100, render: (value: number) => <span className="mono">{formatSize(value)}</span> },
           { title: '上传时间', dataIndex: 'created_at', key: 'created_at', width: 150, render: (value: string) => <span className="mono">{dayjs(value).format('MM-DD HH:mm')}</span> },
@@ -136,6 +151,15 @@ export function Files() {
         ]}
         filters={
           <>
+            <Select
+              value={kind}
+              onChange={(value) => { setKind(value); setPage(1) }}
+              style={{ width: 118 }}
+              options={[
+                { value: 'all', label: '全部类型' },
+                ...FILE_KIND_OPTIONS.map((option) => ({ value: option.value, label: option.label })),
+              ]}
+            />
             <Input
               allowClear
               placeholder="搜索文件名 / MIME"

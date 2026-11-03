@@ -52,6 +52,41 @@ func TestFileUploadListDownloadDelete(t *testing.T) {
 	assert.Equal(t, apperr.CodeNotFound, apperr.From(err).Code)
 }
 
+func TestFileListFiltersByKind(t *testing.T) {
+	ctx := context.Background()
+	app := testsupport.New(t)
+
+	fixtures := []model.File{
+		{Name: "cover.png", Key: "cover.png", URL: "/uploads/cover.png", MIME: "image/png", Ext: "png"},
+		{Name: "clip.mp4", Key: "clip.mp4", URL: "/uploads/clip.mp4", MIME: "video/mp4", Ext: "mp4"},
+		{Name: "guide.pdf", Key: "guide.pdf", URL: "/uploads/guide.pdf", MIME: "application/pdf", Ext: "pdf"},
+		{Name: "report.docx", Key: "report.docx", URL: "/uploads/report.docx", MIME: "application/zip", Ext: "docx"},
+		{Name: "bundle.zip", Key: "bundle.zip", URL: "/uploads/bundle.zip", MIME: "application/zip", Ext: "zip"},
+		{Name: "blob.bin", Key: "blob.bin", URL: "/uploads/blob.bin", MIME: "application/octet-stream", Ext: "bin"},
+	}
+	for i := range fixtures {
+		require.NoError(t, app.Repos.Files.Create(ctx, &fixtures[i]))
+	}
+
+	names := func(kind string) []string {
+		list, _, err := app.Services.Files.List(ctx, model.FileFilter{Query: paginationQuery(), Kind: kind})
+		require.NoError(t, err)
+		result := make([]string, len(list))
+		for i, file := range list {
+			result[i] = file.Name
+		}
+		return result
+	}
+
+	assert.ElementsMatch(t, []string{"cover.png"}, names("image"))
+	assert.ElementsMatch(t, []string{"clip.mp4"}, names("video"))
+	assert.ElementsMatch(t, []string{"guide.pdf", "report.docx"}, names("document"))
+	assert.ElementsMatch(t, []string{"bundle.zip"}, names("archive"))
+	assert.ElementsMatch(t, []string{"blob.bin"}, names("other"))
+	assert.ElementsMatch(t, []string{"cover.png", "clip.mp4"}, names("image,video"))
+	assert.Len(t, names("all"), len(fixtures))
+}
+
 func TestFileUploadLimits(t *testing.T) {
 	ctx := context.Background()
 	app := testsupport.New(t)

@@ -109,7 +109,7 @@ deploy/                   Docker Compose、Nginx
 | 登录日志 | `/logs/logins`、`DELETE /logs/logins` | `system:log:login` |
 | 个人中心 | `GET/PUT /profile`、`PUT /profile/password` | 登录即可 |
 
-列表统一支持 `page`、`page_size`、`keyword`，按模块追加 `dept_id`、`status`、`role_id` 等。
+列表统一支持 `page`、`page_size`、`keyword`，按模块追加 `dept_id`、`status`、`role_id` 等。文件列表额外支持 `mime` 前缀和 `kind`（`image` / `video` / `audio` / `document` / `archive` / `other`，可逗号组合）。
 
 ## 5. 权限码
 
@@ -145,6 +145,7 @@ system:log:operation  system:log:login
 - 布局：悬浮玻璃图标轨（随主题切换浅色/深色）+ 浅色玻璃上下文栏 + 玻璃内容面板。
 - 页面：登录、看板、用户、角色、菜单、部门、字典、参数、文件、任务、操作日志、登录日志、个人中心。
 - 交互：多标签页、暗色模式、表格列设置/密度、全局水印。
+- 文件复用：`FilePicker`（选择弹窗，返回 `FileItem[]`）、`FileSelect`（antd Form 字段，返回 URL 或 URL[]），支持 `types` 限定类型、`multiple` / `limit` 控制多选。
 - 主题 token：`#edf3f9` 背景、`#0b1c2c` ink、`#ff5f33` 主色、`#8b7cf6` violet、`#2fb8d9` cyan、`#2fb98a` mint。
 - 字体：Avenir Next / SF Pro Display / PingFang SC；数字 `tabular-nums`。
 - 不做 i18n。

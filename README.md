@@ -67,11 +67,45 @@ design-preview/            三套视觉样张（02 已选定）
 - 部门：树形组织，删除前检查子级与成员
 - 字典：类型 + 字典项
 - 参数：键值配置，`public` 控制匿名读取
-- 文件：本地磁盘 `data/uploads`，存储层接口可替换
+- 文件：本地磁盘 `data/uploads`，`sys_files` 存元数据，支持按图片 / 视频 / 音频 / 文档 / 压缩包 / 其他筛选；提供可复用的文件库选择器
 - 定时任务：robfig/cron，启停、立即执行、最近结果
 - 操作日志 / 登录日志：分页、删除、清空
 - 个人中心：资料、密码
 - 前端：一级图标轨 / 二级上下文栏（单页模块自动收起并播放 motion 动画）、多标签页、暗色模式、列设置、密度、全局水印、⌘K 导航
+
+## 文件库与选择器
+
+文件管理由三部分组成：
+
+- `sys_files` 保存文件名、存储 key、访问 URL、MIME、扩展名、大小、上传人，业务表只存 URL。
+- `storage.Store` 负责落盘，默认 `data/uploads/YYYY/MM/uuid.ext`；Gin 将 `/uploads` 作为静态目录暴露，Nginx 同路径反代。
+- `GET /files` 支持 `keyword`、`mime`、`kind`（逗号组合）和分页；上传 / 删除仍走原有权限码 `system:file:upload` / `system:file:delete`。
+
+前端提供两个复用组件，位于 `frontend/src/components/`：
+
+```tsx
+// 表单字段：value / onChange 是 URL 或 URL[]，可直接交给 Form.Item
+<Form.Item name="avatar" label="头像">
+  <FileSelect types="image" />
+</Form.Item>
+
+// 多选：最多 8 个图片或视频
+<FileSelect types={['image', 'video']} multiple limit={8} />
+
+// 只要选择弹窗时，用 FilePicker 拿完整 FileItem[]
+<FilePicker
+  open={open}
+  types="image"
+  multiple={false}
+  onCancel={() => setOpen(false)}
+  onConfirm={(files) => save(files[0])}
+/>
+```
+
+- `types`：`image`、`video`、`audio`、`document`、`archive`、`other`，可传单值或数组。
+- `multiple`：是否多选；`limit`：多选上限。
+- `FilePicker` 内部可以直接上传新文件（受 `system:file:upload` 权限控制），上传后立即选中。
+- 选择弹窗只展示允许的类型，并支持搜索、分页、跨页保留已选、清除单项。
 
 ## 测试
 

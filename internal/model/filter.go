@@ -20,7 +20,10 @@ type RoleFilter struct {
 
 type FileFilter struct {
 	pagination.Query
-	MIME string `json:"mime"`
+	MIME string `form:"mime" json:"mime"`
+	// Kind filters by a comma-separated list of file kinds:
+	// image, video, audio, document, archive, other.
+	Kind string `form:"kind" json:"kind"`
 }
 
 type OperationLogFilter struct {

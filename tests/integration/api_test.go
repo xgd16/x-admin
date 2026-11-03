@@ -188,6 +188,10 @@ func TestAPIEndToEnd(t *testing.T) {
 	fileID := decodeID(t, rr)
 	rr = app.Do(http.MethodGet, "/admin/v1/files?page=1&page_size=10", nil, token)
 	assert.Contains(t, string(decodeData(t, rr)), "hello.txt")
+	rr = app.Do(http.MethodGet, "/admin/v1/files?page=1&page_size=10&kind=document", nil, token)
+	assert.Contains(t, string(decodeData(t, rr)), "hello.txt")
+	rr = app.Do(http.MethodGet, "/admin/v1/files?page=1&page_size=10&kind=image", nil, token)
+	assert.NotContains(t, string(decodeData(t, rr)), "hello.txt")
 	rr = app.Do(http.MethodGet, fmt.Sprintf("/admin/v1/files/%d/download", fileID), nil, token)
 	assert.Equal(t, "hello", rr.Body.String())
 

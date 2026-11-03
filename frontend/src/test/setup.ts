@@ -19,3 +19,7 @@ if (!window.matchMedia) {
 if (!Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = vi.fn()
 }
+
+// antd/rc-motion probes pseudo-elements; jsdom logs a noisy "Not implemented" warning.
+const getComputedStyle = window.getComputedStyle.bind(window)
+window.getComputedStyle = (element: Element) => getComputedStyle(element)

@@ -4,6 +4,7 @@ import { api } from '../api/client'
 import type { User } from '../api/types'
 import { useAuth } from '../stores/auth'
 import { PageHeader } from '../components/PageHeader'
+import { FileSelect } from '../components/FileSelect'
 import { Icon } from '../components/Icon'
 import { formatDate, initials } from '../utils/format'
 
@@ -18,6 +19,8 @@ export function Profile() {
   const { message } = App.useApp()
   const queryClient = useQueryClient()
   const storeUser = useAuth((state) => state.user)
+  const can = useAuth((state) => state.can)
+  const canUseFileLibrary = can('system:file:list')
   const [profileForm] = Form.useForm<ProfileValues>()
   const [passwordForm] = Form.useForm<{ old_password: string; new_password: string; confirm: string }>()
 
@@ -63,7 +66,13 @@ export function Profile() {
 
       <div className="profile-grid">
         <aside className="profile-card glass">
-          <div className="profile-avatar">{initials(user?.nickname || user?.username)}</div>
+          <div className="profile-avatar">
+            {user?.avatar ? (
+              <img src={user.avatar} alt={user.nickname || user.username} />
+            ) : (
+              initials(user?.nickname || user?.username)
+            )}
+          </div>
           <b style={{ display: 'block', fontSize: 16 }}>{user?.nickname || user?.username || '—'}</b>
           <span className="mono">{user?.email || '未设置邮箱'}</span>
           <div className="profile-meta">
@@ -118,8 +127,12 @@ export function Profile() {
                 <Form.Item name="phone" label="手机号">
                   <Input placeholder="13800000000" />
                 </Form.Item>
-                <Form.Item name="avatar" label="头像 URL">
-                  <Input placeholder="https://…" />
+                <Form.Item name="avatar" label="头像">
+                  {canUseFileLibrary ? (
+                    <FileSelect types="image" placeholder="选择头像" title="选择头像" />
+                  ) : (
+                    <Input placeholder="https://…" />
+                  )}
                 </Form.Item>
               </div>
               <Button type="primary" htmlType="submit" loading={updateMutation.isPending}>
