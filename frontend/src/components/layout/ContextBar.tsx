@@ -1,19 +1,19 @@
 import { useQuery } from '@tanstack/react-query'
-import { useLocation, useNavigate } from 'react-router-dom'
-import { itemsOfGroup, navByPath, profileNav, railGroups } from '../../config/nav'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { useNavigate } from 'react-router-dom'
 import { api, isMock } from '../../api/client'
 import type { DashboardSummary } from '../../api/types'
+import { railGroups } from '../../config/nav'
 import { useAuth } from '../../stores/auth'
 import { Icon } from '../Icon'
+import { useContextNav } from './useContextNav'
 
 export function ContextBar() {
   const navigate = useNavigate()
-  const location = useLocation()
   const can = useAuth((state) => state.can)
-  const activeItem = navByPath(location.pathname)
+  const reduceMotion = useReducedMotion()
+  const { active: activeItem, items, open, toggle, isAccount } = useContextNav()
   const moduleMeta = railGroups.find((module) => module.group === activeItem.group)
-  const isAccount = activeItem.group === '账号'
-  const items = isAccount ? [profileNav] : itemsOfGroup(activeItem.group).filter((item) => can(item.permission))
   const title = isAccount ? '个人中心' : activeItem.group
   const subtitle = isAccount
     ? 'WORKSPACE / ACCOUNT'
@@ -24,7 +24,7 @@ export function ContextBar() {
   const summary = useQuery({
     queryKey: ['dashboard-summary'],
     queryFn: () => api.get<DashboardSummary>('/dashboard/summary'),
-    enabled: can('dashboard:view'),
+    enabled: open && can('dashboard:view'),
     staleTime: 60_000,
   })
 
@@ -37,8 +37,9 @@ export function ContextBar() {
       if (!res.ok) throw new Error('unhealthy')
       return Math.round(performance.now() - start)
     },
+    enabled: open,
     retry: false,
-    refetchInterval: 30_000,
+    refetchInterval: open ? 30_000 : false,
   })
 
   const counts: Record<string, string> = {
@@ -50,39 +51,63 @@ export function ContextBar() {
     jobs: summary.data ? String(summary.data.jobs) : '',
   }
 
+  const transition = reduceMotion
+    ? { duration: 0 }
+    : { type: 'tween' as const, duration: 0.34, ease: [0.22, 0.8, 0.28, 1] as const }
+
   return (
-    <aside className="context glass">
-      <div className="ctx-head">
-        <div className="ctx-kicker">Workspace</div>
-        <strong>{title}</strong>
-        <span className="ctx-sub">{subtitle}</span>
-      </div>
-      <nav className="ctx-nav">
-        <div className="ctx-label">{activeItem.group === '工作台' ? 'OVERVIEW' : 'MODULES'}</div>
-        {items.map((item) => (
-          <a
-            key={item.key}
-            href={item.path}
-            className={`ctx-item ${activeItem.key === item.key ? 'active' : ''}`}
-            onClick={(event) => {
-              event.preventDefault()
-              navigate(item.path)
-            }}
-          >
-            <span>{item.label}</span>
-            <span className="count">{counts[item.key] ?? ''}</span>
-          </a>
-        ))}
-      </nav>
-      <div className="ctx-foot">
-        <span className={`dot ${health.isError ? 'bad' : ''}`} />
-        {health.isError ? 'API 异常' : isMock() ? 'Mock 正常' : 'API 正常'}
-        <span className="lat">{health.isError ? '--' : `${health.data ?? 42}ms`}</span>
-      </div>
-      <div style={{ display: 'flex', gap: 6, padding: '8px 10px 0', borderTop: '1px solid var(--line)', marginTop: 8 }}>
-        <Icon name="shield" size={13} />
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 7.5, color: 'var(--dim)' }}>RBAC · AUDIT ENABLED</span>
-      </div>
-    </aside>
+    <AnimatePresence initial={false}>
+      {open && (
+        <motion.aside
+          key="context"
+          aria-label={`${title}二级导航`}
+          className="context glass"
+          initial={{ width: 0, paddingLeft: 0, paddingRight: 0, opacity: 0, x: -14, marginRight: -10 }}
+          animate={{ width: 222, paddingLeft: 10, paddingRight: 10, opacity: 1, x: 0, marginRight: 0 }}
+          exit={{ width: 0, paddingLeft: 0, paddingRight: 0, opacity: 0, x: -14, marginRight: -10 }}
+          transition={transition}
+        >
+          <div className="ctx-inner">
+            <div className="ctx-head">
+              <div className="ctx-kicker">Workspace</div>
+              <strong>{title}</strong>
+              <span className="ctx-sub">{subtitle}</span>
+              <button type="button" className="ctx-collapse" onClick={toggle} title="收起二级导航" aria-label="收起二级导航">
+                <Icon name="chevronLeft" size={14} />
+              </button>
+            </div>
+            <nav className="ctx-nav">
+              <div className="ctx-label">{activeItem.group === '工作台' ? 'OVERVIEW' : 'MODULES'}</div>
+              {items.map((item, index) => (
+                <motion.a
+                  key={`${activeItem.group}-${item.key}`}
+                  href={item.path}
+                  className={`ctx-item ${activeItem.key === item.key ? 'active' : ''}`}
+                  initial={reduceMotion ? false : { opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.22, delay: index * 0.045, ease: [0.22, 0.8, 0.28, 1] }}
+                  onClick={(event) => {
+                    event.preventDefault()
+                    navigate(item.path)
+                  }}
+                >
+                  <span>{item.label}</span>
+                  <span className="count">{counts[item.key] ?? ''}</span>
+                </motion.a>
+              ))}
+            </nav>
+            <div className="ctx-foot">
+              <span className={`dot ${health.isError ? 'bad' : ''}`} />
+              {health.isError ? 'API 异常' : isMock() ? 'Mock 正常' : 'API 正常'}
+              <span className="lat">{health.isError ? '--' : `${health.data ?? 42}ms`}</span>
+            </div>
+            <div className="ctx-note">
+              <Icon name="shield" size={13} />
+              <span>RBAC · AUDIT ENABLED</span>
+            </div>
+          </div>
+        </motion.aside>
+      )}
+    </AnimatePresence>
   )
 }

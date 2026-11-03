@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Drawer, Dropdown, Input, Modal, Popover, Segmented, Switch } from 'antd'
 import type { MenuProps } from 'antd'
-import { useLocation, useNavigate } from 'react-router-dom'
-import { navByPath, navItems } from '../../config/nav'
+import { useNavigate } from 'react-router-dom'
+import { navItems } from '../../config/nav'
 import { useAuth } from '../../stores/auth'
 import { useTabs } from '../../stores/tabs'
 import { useUi } from '../../stores/ui'
 import { Icon } from '../Icon'
+import { useContextNav } from './useContextNav'
 
 export function CommandBar() {
   const navigate = useNavigate()
-  const location = useLocation()
-  const active = navByPath(location.pathname)
+  const { active, items: contextItems, open: contextOpen, toggle: toggleContext } = useContextNav()
   const user = useAuth((state) => state.user)
   const logout = useAuth((state) => state.logout)
   const resetTabs = useTabs((state) => state.reset)
@@ -114,6 +114,18 @@ export function CommandBar() {
         <button type="button" className="icon-btn mobile-nav-btn" onClick={() => setMobileNav(true)} aria-label="导航">
           <Icon name="menu" size={16} />
         </button>
+        {contextItems.length > 0 && (
+          <button
+            type="button"
+            className={`icon-btn ctx-toggle ${contextOpen ? 'on' : ''}`}
+            onClick={toggleContext}
+            title={contextOpen ? '收起二级导航' : '展开二级导航'}
+            aria-label={contextOpen ? '收起二级导航' : '展开二级导航'}
+            aria-expanded={contextOpen}
+          >
+            <Icon name="panel" size={16} />
+          </button>
+        )}
         <div className="crumb">
           {active.group} / <b>{active.label}</b>
         </div>

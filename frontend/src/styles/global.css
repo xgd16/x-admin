@@ -379,11 +379,46 @@ button {
   position: sticky;
   top: 10px;
   height: calc(100vh - 20px);
+  overflow: hidden;
+  will-change: width, opacity;
+}
+.ctx-inner {
+  width: 200px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+.ctx-inner::-webkit-scrollbar {
+  display: none;
 }
 .ctx-head {
-  padding: 4px 8px 12px;
+  position: relative;
+  padding: 4px 30px 12px 8px;
   border-bottom: 1px solid var(--line);
+}
+.ctx-collapse {
+  position: absolute;
+  top: 0;
+  right: 2px;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, border-color 0.18s;
+}
+.ctx-collapse:hover {
+  background: var(--glass-soft);
+  border-color: var(--line);
+  color: var(--ink);
 }
 .ctx-kicker {
   font-family: var(--mono);
@@ -484,6 +519,17 @@ button {
   margin-left: auto;
   color: var(--dim);
 }
+.ctx-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px 0;
+  border-top: 1px solid var(--line);
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: 7.5px;
+  color: var(--dim);
+}
 
 .canvas {
   flex: 1;
@@ -577,6 +623,14 @@ button {
 }
 .icon-btn.mobile-nav-btn {
   display: none;
+}
+.icon-btn.ctx-toggle {
+  color: var(--dim);
+}
+.icon-btn.ctx-toggle.on {
+  color: var(--ink);
+  background: var(--glass-soft);
+  border-color: var(--line);
 }
 .icon-btn:hover {
   background: var(--glass-soft);
@@ -1876,6 +1930,9 @@ button {
     grid-template-columns: 1fr;
   }
   .context {
+    display: none;
+  }
+  .icon-btn.ctx-toggle {
     display: none;
   }
   .login-stage {

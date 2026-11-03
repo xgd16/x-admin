@@ -22,3 +22,6 @@ configs/local.yaml
 .DS_Store
 .idea/
 .vscode/
+
+# TypeScript incremental build
+*.tsbuildinfo
