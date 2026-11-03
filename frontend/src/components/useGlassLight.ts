@@ -9,7 +9,7 @@ export function useGlassLight() {
     const apply = () => {
       frame = 0
       if (!lastEvent) return
-      const target = (lastEvent.target as HTMLElement | null)?.closest<HTMLElement>('.glass, .glass-dark')
+      const target = (lastEvent.target as HTMLElement | null)?.closest<HTMLElement>('.glass')
       if (!target) return
       const rect = target.getBoundingClientRect()
       target.style.setProperty('--mx', `${(((lastEvent.clientX - rect.left) / rect.width) * 100).toFixed(1)}%`)

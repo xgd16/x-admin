@@ -35,7 +35,7 @@ export function Rail() {
   ]
 
   return (
-    <aside className="rail glass-dark">
+    <aside className="rail glass">
       <button className="rail-logo" type="button" onClick={() => navigate('/dashboard')} title="x-admin">
         X
       </button>
