@@ -8,7 +8,7 @@
 ### Docker Compose（完整栈）
 
 ```bash
-cp .env.example .env            # 可选，覆盖密码 / JWT secret
+cp .env.example .env            # 可选，覆盖 MySQL 密码 / JWT secret
 docker compose -f deploy/docker-compose.yml up -d --build
 open http://localhost           # 前端
 open http://localhost:8080/swagger/index.html
