@@ -17,8 +17,8 @@
   --glass-soft: rgba(255, 255, 255, 0.32);
   --line: rgba(255, 255, 255, 0.55);
   --line-soft: rgba(255, 255, 255, 0.42);
-  --shadow-lg: 0 24px 60px rgba(23, 43, 63, 0.14), 0 4px 14px rgba(23, 43, 63, 0.06);
-  --shadow-sm: 0 10px 28px rgba(23, 43, 63, 0.1);
+  --shadow-lg: 0 2px 4px rgba(23, 43, 63, 0.05), 0 12px 32px -8px rgba(23, 43, 63, 0.14);
+  --shadow-sm: 0 1px 2px rgba(23, 43, 63, 0.04), 0 6px 16px -6px rgba(23, 43, 63, 0.1);
   --radius: 22px;
   --radius-sm: 14px;
   --chart-grid: rgba(12, 32, 51, 0.07);
@@ -41,8 +41,8 @@
   --glass-soft: rgba(255, 255, 255, 0.05);
   --line: rgba(156, 182, 210, 0.14);
   --line-soft: rgba(156, 182, 210, 0.085);
-  --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.45), 0 4px 14px rgba(0, 0, 0, 0.25);
-  --shadow-sm: 0 12px 30px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 2px 6px rgba(0, 0, 0, 0.28), 0 14px 34px -10px rgba(0, 0, 0, 0.42);
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.25), 0 8px 20px -8px rgba(0, 0, 0, 0.35);
   --chart-grid: rgba(176, 202, 230, 0.13);
   --chart-axis: rgba(190, 211, 233, 0.48);
   --chart-dot: #101827;
@@ -130,7 +130,6 @@ button {
 }
 /* Decorative layers run briefly after navigation, then settle. See Ambient.tsx. */
 html .blob,
-html .light-beam,
 html .login-orb {
   animation-play-state: paused;
 }
@@ -138,7 +137,6 @@ html .blob {
   will-change: auto;
 }
 html.ambient-live .blob,
-html.ambient-live .light-beam,
 html.ambient-live .login-orb {
   animation-play-state: running;
 }
@@ -193,28 +191,6 @@ html.ambient-live .blob {
   background: radial-gradient(circle, #0e7490 0%, rgba(14, 116, 144, 0) 66%);
 }
 
-.light-beam {
-  position: absolute;
-  top: -40%;
-  left: -32%;
-  width: 46%;
-  height: 180%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
-  transform: rotate(24deg);
-  filter: blur(34px);
-  opacity: 0.55;
-  animation: beam 17s ease-in-out infinite;
-}
-.light-beam.b {
-  left: 58%;
-  width: 24%;
-  opacity: 0.3;
-  animation-duration: 23s;
-  animation-delay: -9s;
-}
-:root[data-theme='dark'] .light-beam {
-  opacity: 0.08;
-}
 @keyframes drift-a {
   to {
     transform: translate3d(70px, 50px, 0) scale(1.08);
@@ -235,24 +211,12 @@ html.ambient-live .blob {
     transform: translate3d(60px, -40px, 0) scale(1.12);
   }
 }
-@keyframes beam {
-  0%,
-  100% {
-    transform: translateX(-8%) rotate(24deg);
-    opacity: 0.28;
-  }
-  50% {
-    transform: translateX(16%) rotate(24deg);
-    opacity: 0.58;
-  }
-}
-
 /* ---------------- glass ---------------- */
 .glass {
   position: relative;
   background:
     linear-gradient(115deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0) 26%, rgba(255, 255, 255, 0) 66%, rgba(255, 255, 255, 0.2) 100%),
-    radial-gradient(120% 90% at var(--mx, 22%) var(--my, 0%), rgba(255, 255, 255, 0.72), transparent 56%),
+    radial-gradient(circle 240px at var(--mx, 22%) var(--my, 0%), rgba(255, 255, 255, 0.38), transparent 70%),
     linear-gradient(135deg, rgba(255, 255, 255, 0.58), rgba(255, 255, 255, 0.3));
   backdrop-filter: blur(28px) saturate(170%);
   -webkit-backdrop-filter: blur(28px) saturate(170%);
@@ -263,15 +227,14 @@ html.ambient-live .blob {
   border-right-color: rgba(255, 255, 255, 0.46);
   box-shadow:
     var(--shadow-lg),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.35),
-    inset 0 24px 48px -42px rgba(255, 255, 255, 0.95);
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.28);
 }
 
 :root[data-theme='dark'] .glass {
   background:
     linear-gradient(115deg, rgba(255, 255, 255, 0.07) 0%, transparent 28%, transparent 68%, rgba(255, 255, 255, 0.025) 100%),
-    radial-gradient(120% 90% at var(--mx, 25%) var(--my, 0%), rgba(110, 165, 255, 0.1), transparent 58%),
+    radial-gradient(circle 240px at var(--mx, 25%) var(--my, 0%), rgba(110, 165, 255, 0.09), transparent 70%),
     linear-gradient(150deg, rgba(27, 38, 55, 0.88), rgba(14, 21, 33, 0.82));
   border-color: var(--glass-border);
   border-top-color: rgba(196, 218, 242, 0.22);
@@ -2222,6 +2185,20 @@ html.ambient-live .blob {
   font-weight: 500;
 }
 
+/* Body panels sit flat on the aurora; only the shell floats above it. */
+.canvas-body .glass,
+.canvas-body .glass:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.28);
+}
+:root[data-theme='dark'] .canvas-body .glass,
+:root[data-theme='dark'] .canvas-body .glass:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.03);
+}
+
 /* ---------------- responsive ---------------- */
 @media (max-width: 1200px) {
   .cmd {
@@ -2314,7 +2291,6 @@ html.ambient-live .blob {
     scroll-behavior: auto !important;
   }
   .blob,
-  .light-beam,
   .login-orb {
     animation: none !important;
   }
