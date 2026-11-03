@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from 'motion/react'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { navByPath } from '../../config/nav'
 import { useTabs } from '../../stores/tabs'
@@ -17,6 +17,11 @@ export function AppLayout() {
   const open = useTabs((state) => state.open)
   const refreshKey = useTabs((state) => state.refreshKey)
   const reduceMotion = useReducedMotion()
+  const canvasBodyRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    canvasBodyRef.current?.scrollTo({ top: 0 })
+  }, [location.pathname])
 
   useEffect(() => {
     if (location.pathname === '/login') return
@@ -38,7 +43,7 @@ export function AppLayout() {
         <div className="canvas">
           <CommandBar />
           <TabBar />
-          <div className="canvas-body">
+          <div className="canvas-body" ref={canvasBodyRef}>
             <motion.div
               key={`${location.pathname}::${refreshKey}`}
               className="page-stage"
