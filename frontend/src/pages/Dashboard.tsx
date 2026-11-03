@@ -1,12 +1,12 @@
-import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { api } from '../api/client'
-import type { DashboardSummary, TrendPoint } from '../api/types'
+import type { DashboardSummary } from '../api/types'
 import { useAuth } from '../stores/auth'
 import { PageHeader } from '../components/PageHeader'
 import { Icon } from '../components/Icon'
+import { LoginTrendChart } from '../components/LoginTrendChart'
 import { MethodTag } from '../components/StatusTag'
 import { quickActions } from '../config/nav'
 
@@ -29,27 +29,6 @@ function formatBytes(value: number): string {
   return `${size.toFixed(1)} ${units[unit]}`
 }
 
-function smooth(points: Array<{ x: number; y: number }>): string {
-  if (points.length === 0) return ''
-  let path = `M${points[0].x} ${points[0].y}`
-  for (let i = 1; i < points.length; i += 1) {
-    const prev = points[i - 1]
-    const current = points[i]
-    const cx = (prev.x + current.x) / 2
-    path += ` C ${cx} ${prev.y}, ${cx} ${current.y}, ${current.x} ${current.y}`
-  }
-  return path
-}
-
-function toPoints(trend: TrendPoint[]): Array<{ x: number; y: number }> {
-  const max = Math.max(...trend.map((point) => point.count), 1)
-  const width = 700
-  return trend.map((point, index) => ({
-    x: 42 + (index / Math.max(trend.length - 1, 1)) * width,
-    y: 200 - (point.count / max) * 160,
-  }))
-}
-
 export function Dashboard() {
   const navigate = useNavigate()
   const can = useAuth((state) => state.can)
@@ -60,9 +39,6 @@ export function Dashboard() {
   })
 
   const trend = data?.login_trend ?? []
-  const points = useMemo(() => toPoints(trend), [trend])
-  const line = smooth(points)
-  const area = points.length ? `${line} L${points[points.length - 1].x} 200 L${points[0].x} 200 Z` : ''
   const peak = trend.reduce((best, point) => (point.count > best.count ? point : best), { date: '', count: 0 })
   const last = trend[trend.length - 1]
   const prev = trend[trend.length - 2]
@@ -153,49 +129,7 @@ export function Dashboard() {
             <h2>登录趋势</h2>
             <span>7D / DAILY</span>
           </div>
-          <div className="chart-wrap">
-            <svg className="chart" viewBox="0 0 760 240" fill="none" preserveAspectRatio="none" aria-hidden="true">
-              <defs>
-                <linearGradient id="login-line" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="#ff9a6c" />
-                  <stop offset="55%" stopColor="#ff5f33" />
-                  <stop offset="100%" stopColor="#ff4d8d" />
-                </linearGradient>
-                <linearGradient id="login-area" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#ff6a3d" stopOpacity=".22" />
-                  <stop offset="100%" stopColor="#ff6a3d" stopOpacity="0" />
-                </linearGradient>
-                <filter id="login-glow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="2.5" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-              </defs>
-              <g stroke="rgba(12,32,51,.07)" strokeWidth="1">
-                <path d="M42 30h700M42 70h700M42 110h700M42 150h700M42 190h700" />
-              </g>
-              <g fill="rgba(12,32,51,.35)" fontSize="8" fontFamily="monospace">
-                <text x="4" y="33">100%</text>
-                <text x="4" y="73">75%</text>
-                <text x="4" y="113">50%</text>
-                <text x="4" y="153">25%</text>
-                <text x="4" y="193">0</text>
-              </g>
-              {area && <path d={area} fill="url(#login-area)" />}
-              {line && <path d={line} stroke="url(#login-line)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" filter="url(#login-glow)" />}
-              {points.map((point, index) => (
-                <circle key={`${point.x}-${index}`} cx={point.x} cy={point.y} r="2.6" fill="#fff" stroke="#ff5f33" strokeWidth="1.6" />
-              ))}
-            </svg>
-            {peak.count > 0 && (
-              <div className="chart-tooltip">
-                <b>{numberFormat.format(peak.count)} 次</b>
-                {dayjs(peak.date).format('MM-DD')} · 峰值
-              </div>
-            )}
-          </div>
+          <LoginTrendChart trend={trend} />
           <div className="chart-legend">
             <span>
               <i />登录次数

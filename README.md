@@ -75,14 +75,20 @@ design-preview/            三套视觉样张（02 已选定）
 
 ## 测试
 
-所有测试都在 `tests/`：
+所有后端测试都在 `tests/`，前端单测在 `frontend/src/**/*.test.ts(x)`：
 
 ```bash
 make test          # go test ./tests/...
+make frontend-test # vitest run
+make test-all      # 后端 + 前端
 make coverage      # 覆盖率汇总
 make coverage-html # 生成 coverage.html
 ```
 
+- `frontend/src/utils/chart.test.ts`：登录趋势坐标、曲线路径、最近点吸附、tooltip 定位
+- `frontend/src/components/LoginTrendChart.test.tsx`：默认峰值、鼠标悬停跟随、空数据
+- `frontend/src/components/layout/TabBar.test.tsx`：右键菜单、批量关闭、Escape / 外部点击关闭
+- `frontend/src/stores/tabs.test.ts`：标签页打开/关闭/批量关闭/刷新状态
 - `tests/unit/pkg`：错误、分页、JWT、密码、缓存（含 miniredis）、验证码、存储、Excel、树
 - `tests/unit/service`：认证、用户、角色、菜单、部门、字典、参数、文件、任务、日志、看板、个人中心
 - `tests/unit/middleware`：request-id、recovery、CORS、认证、权限、限流、审计脱敏

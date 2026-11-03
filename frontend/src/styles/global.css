@@ -1181,8 +1181,7 @@ html.ambient-live .blob {
 }
 .chart-tooltip {
   position: absolute;
-  right: 7%;
-  top: 13%;
+  z-index: 2;
   padding: 7px 10px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.68);
@@ -1193,6 +1192,11 @@ html.ambient-live .blob {
   font-size: 8px;
   color: var(--ink);
   white-space: nowrap;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+.chart-hit {
+  cursor: crosshair;
 }
 :root[data-theme='dark'] .chart-tooltip {
   background: rgba(15, 36, 55, 0.8);

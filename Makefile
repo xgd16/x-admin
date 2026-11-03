@@ -3,7 +3,7 @@ GO ?= go
 NPM ?= npm
 
 .PHONY: run build test coverage coverage-html lint fmt frontend frontend-build \
-	dev-infra dev-infra-down compose-up compose-down compose-logs tidy
+	frontend-test test-all dev-infra dev-infra-down compose-up compose-down compose-logs tidy
 
 run:
 	$(GO) run ./cmd/server -config configs/config.yaml
@@ -13,6 +13,11 @@ build:
 
 test:
 	$(GO) test ./tests/...
+
+frontend-test:
+	cd frontend && $(NPM) test
+
+test-all: test frontend-test
 
 coverage:
 	$(GO) test ./tests/... -coverpkg=./internal/... -coverprofile=coverage.out
