@@ -9,14 +9,17 @@ import (
 	"x-admin/internal/service"
 )
 
+// ParameterHandler 处理系统参数管理接口。
 type ParameterHandler struct {
 	params *service.ParameterService
 }
 
+// NewParameterHandler 创建参数处理器。
 func NewParameterHandler(params *service.ParameterService) *ParameterHandler {
 	return &ParameterHandler{params: params}
 }
 
+// List 分页查询系统参数。
 func (h *ParameterHandler) List(c *gin.Context) {
 	var q pagination.Query
 	if err := c.ShouldBindQuery(&q); err != nil {
@@ -32,6 +35,7 @@ func (h *ParameterHandler) List(c *gin.Context) {
 	response.Page(c, list, total, q.Page, q.PageSize)
 }
 
+// Create 新增系统参数。
 func (h *ParameterHandler) Create(c *gin.Context) {
 	var in service.ParameterInput
 	if !Bind(c, &in) {
@@ -45,6 +49,7 @@ func (h *ParameterHandler) Create(c *gin.Context) {
 	response.Created(c, p)
 }
 
+// Update 更新系统参数。
 func (h *ParameterHandler) Update(c *gin.Context) {
 	id, ok := PathID(c)
 	if !ok {
@@ -62,6 +67,7 @@ func (h *ParameterHandler) Update(c *gin.Context) {
 	response.OK(c, p)
 }
 
+// Delete 删除系统参数。
 func (h *ParameterHandler) Delete(c *gin.Context) {
 	id, ok := PathID(c)
 	if !ok {

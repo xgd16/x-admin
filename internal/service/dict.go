@@ -9,8 +9,10 @@ import (
 	"x-admin/internal/pkg/pagination"
 )
 
+// dictCodeRE 限制字典编码：小写字母开头，2-64 位小写字母、数字或下划线。
 var dictCodeRE = regexp.MustCompile(`^[a-z][a-z0-9_]{1,63}$`)
 
+// DictTypeInput 是创建/更新字典类型的输入。
 type DictTypeInput struct {
 	Name   string `json:"name"`
 	Code   string `json:"code"`
@@ -18,6 +20,7 @@ type DictTypeInput struct {
 	Remark string `json:"remark"`
 }
 
+// DictItemInput 是创建/更新字典项的输入。
 type DictItemInput struct {
 	DictTypeID uint64 `json:"dict_type_id"`
 	Label      string `json:"label"`
@@ -27,17 +30,21 @@ type DictItemInput struct {
 	TagColor   string `json:"tag_color"`
 }
 
+// DictService 实现字典类型与字典项的维护。
 type DictService struct {
 	dicts DictRepository
 }
 
+// NewDictService 创建字典服务。
 func NewDictService(dicts DictRepository) *DictService { return &DictService{dicts: dicts} }
 
+// ListTypes 分页查询字典类型。
 func (s *DictService) ListTypes(ctx context.Context, q pagination.Query, status *int8) ([]model.DictType, int64, error) {
 	q.Normalize()
 	return s.dicts.ListTypes(ctx, q, status)
 }
 
+// CreateType 校验并创建字典类型。
 func (s *DictService) CreateType(ctx context.Context, in DictTypeInput) (*model.DictType, error) {
 	if err := s.validateType(ctx, in, 0); err != nil {
 		return nil, err
@@ -49,6 +56,7 @@ func (s *DictService) CreateType(ctx context.Context, in DictTypeInput) (*model.
 	return t, nil
 }
 
+// UpdateType 更新字典类型，编码仍需保持唯一。
 func (s *DictService) UpdateType(ctx context.Context, id uint64, in DictTypeInput) (*model.DictType, error) {
 	t, err := s.dicts.GetType(ctx, id)
 	if err != nil {
@@ -70,6 +78,7 @@ func (s *DictService) UpdateType(ctx context.Context, id uint64, in DictTypeInpu
 	return t, nil
 }
 
+// DeleteType 删除字典类型及其全部字典项。
 func (s *DictService) DeleteType(ctx context.Context, id uint64) error {
 	if _, err := s.dicts.GetType(ctx, id); err != nil {
 		if IsNotFound(err) {
@@ -80,6 +89,7 @@ func (s *DictService) DeleteType(ctx context.Context, id uint64) error {
 	return s.dicts.DeleteType(ctx, id)
 }
 
+// Items 返回指定类型下的字典项，类型不存在时返回 404。
 func (s *DictService) Items(ctx context.Context, typeID uint64) ([]model.DictItem, error) {
 	if _, err := s.dicts.GetType(ctx, typeID); err != nil {
 		if IsNotFound(err) {
@@ -90,6 +100,7 @@ func (s *DictService) Items(ctx context.Context, typeID uint64) ([]model.DictIte
 	return s.dicts.Items(ctx, typeID)
 }
 
+// CreateItem 校验并创建字典项。
 func (s *DictService) CreateItem(ctx context.Context, in DictItemInput) (*model.DictItem, error) {
 	if err := s.validateItem(ctx, in); err != nil {
 		return nil, err
@@ -104,6 +115,7 @@ func (s *DictService) CreateItem(ctx context.Context, in DictItemInput) (*model.
 	return item, nil
 }
 
+// UpdateItem 更新字典项。
 func (s *DictService) UpdateItem(ctx context.Context, id uint64, in DictItemInput) (*model.DictItem, error) {
 	item, err := s.dicts.GetItem(ctx, id)
 	if err != nil {
@@ -127,6 +139,7 @@ func (s *DictService) UpdateItem(ctx context.Context, id uint64, in DictItemInpu
 	return item, nil
 }
 
+// DeleteItem 删除字典项。
 func (s *DictService) DeleteItem(ctx context.Context, id uint64) error {
 	if _, err := s.dicts.GetItem(ctx, id); err != nil {
 		if IsNotFound(err) {
@@ -137,6 +150,7 @@ func (s *DictService) DeleteItem(ctx context.Context, id uint64) error {
 	return s.dicts.DeleteItem(ctx, id)
 }
 
+// validateType 校验字典名称、编码格式、状态和编码唯一性。
 func (s *DictService) validateType(ctx context.Context, in DictTypeInput, excludeID uint64) error {
 	if trim(in.Name) == "" {
 		return apperr.New(apperr.CodeInvalidArgument, "字典名称不能为空")
@@ -157,6 +171,7 @@ func (s *DictService) validateType(ctx context.Context, in DictTypeInput, exclud
 	return nil
 }
 
+// validateItem 校验字典项的必填字段、状态以及所属字典类型是否存在。
 func (s *DictService) validateItem(ctx context.Context, in DictItemInput) error {
 	if in.DictTypeID == 0 {
 		return apperr.New(apperr.CodeInvalidArgument, "请选择字典类型")

@@ -7,18 +7,20 @@ import (
 	"x-admin/internal/model"
 )
 
+// DashboardSummary 是看板首页的聚合数据。
 type DashboardSummary struct {
-	Users      int64                `json:"users"`
-	Active     int64                `json:"active_users"`
-	Roles      int64                `json:"roles"`
-	Menus      int64                `json:"menus"`
-	Files      int64                `json:"files"`
-	FileSize   int64                `json:"file_size"`
-	Jobs       int64                `json:"jobs"`
-	LoginTrend []model.TrendPoint   `json:"login_trend"`
-	Recent     []model.OperationLog `json:"recent_operations"`
+	Users      int64                `json:"users"`             // 用户总数
+	Active     int64                `json:"active_users"`      // 启用用户数
+	Roles      int64                `json:"roles"`             // 角色数
+	Menus      int64                `json:"menus"`             // 菜单数
+	Files      int64                `json:"files"`             // 文件数
+	FileSize   int64                `json:"file_size"`         // 文件总大小（字节）
+	Jobs       int64                `json:"jobs"`              // 定时任务数
+	LoginTrend []model.TrendPoint   `json:"login_trend"`       // 最近 7 天登录趋势
+	Recent     []model.OperationLog `json:"recent_operations"` // 最近操作记录
 }
 
+// DashboardService 聚合多个仓储的数据生成看板。
 type DashboardService struct {
 	users UserRepository
 	roles RoleRepository
@@ -29,10 +31,12 @@ type DashboardService struct {
 	now   func() time.Time
 }
 
+// NewDashboardService 创建看板服务。now 可在测试中替换以固定时间。
 func NewDashboardService(users UserRepository, roles RoleRepository, menus MenuRepository, files FileRepository, jobs JobRepository, logs LogRepository) *DashboardService {
 	return &DashboardService{users: users, roles: roles, menus: menus, files: files, jobs: jobs, logs: logs, now: time.Now}
 }
 
+// Summary 并行依赖较多，这里按顺序查询；任一查询失败即返回错误。
 func (s *DashboardService) Summary(ctx context.Context) (*DashboardSummary, error) {
 	out := &DashboardSummary{}
 	var err error
@@ -68,12 +72,14 @@ func (s *DashboardService) Summary(ctx context.Context) (*DashboardSummary, erro
 		return nil, err
 	}
 	if recent == nil {
+		// 保证 JSON 输出是 [] 而不是 null，前端无需额外判空。
 		recent = []model.OperationLog{}
 	}
 	out.Recent = recent
 	return out, nil
 }
 
+// fillTrend 把稀疏的按天统计补齐为连续 days 天，缺失日期计数为 0。
 func fillTrend(points []model.TrendPoint, days int, now time.Time) []model.TrendPoint {
 	byDate := make(map[string]int64, len(points))
 	for _, p := range points {

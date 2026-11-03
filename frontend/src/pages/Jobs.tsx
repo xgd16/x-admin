@@ -199,6 +199,7 @@ export function Jobs() {
             <Select
               options={[
                 { label: 'clean_logs · 清理审计日志', value: 'clean_logs' },
+                { label: 'clean_notifications · 清理站内通知', value: 'clean_notifications' },
                 { label: 'noop · 空任务', value: 'noop' },
               ]}
             />

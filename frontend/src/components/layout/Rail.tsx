@@ -7,6 +7,7 @@ import { useAuth } from '../../stores/auth'
 import { useTabs } from '../../stores/tabs'
 import { useUi } from '../../stores/ui'
 import { SPRING } from '../../utils/motion'
+import { BrandMark } from '../BrandMark'
 import { Icon } from '../Icon'
 
 export function Rail() {
@@ -36,9 +37,12 @@ export function Rail() {
 
   return (
     <aside className="rail glass">
-      <button className="rail-logo" type="button" onClick={() => navigate('/dashboard')} title="x-admin">
-        X
-      </button>
+      <div className="rail-brand">
+        <button className="rail-logo" type="button" onClick={() => navigate('/dashboard')} title="x-admin" aria-label="x-admin 首页">
+          <BrandMark size={24} />
+        </button>
+      </div>
+      <span className="rail-sep" aria-hidden="true" />
       {modules.map((module) => {
         const active = currentGroup === module.group
         return (

@@ -266,7 +266,7 @@ func TestAuditMiddleware(t *testing.T) {
 	r.GET("/admin/v1/users", func(c *gin.Context) { c.String(200, "ok") })
 	r.POST("/admin/v1/auth/login", func(c *gin.Context) { c.String(200, "ok") })
 
-	body := `{"username":"alice","password":"secret","nested":{"refresh_token":"abc","ok":1}}`
+	body := `{"username":"alice","password":"secret","otp_code":"123456","nested":{"refresh_token":"abc","ok":1}}`
 	req := httptest.NewRequest(http.MethodPost, "/admin/v1/users", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer x")
@@ -279,6 +279,7 @@ func TestAuditMiddleware(t *testing.T) {
 	assert.Equal(t, http.StatusCreated, log.Status)
 	assert.NotContains(t, log.Body, "secret")
 	assert.NotContains(t, log.Body, "abc")
+	assert.NotContains(t, log.Body, "123456")
 	assert.Contains(t, log.Body, "***")
 	assert.NotEmpty(t, log.RequestID)
 

@@ -9,12 +9,15 @@ import (
 	"x-admin/internal/service"
 )
 
+// JobHandler 处理定时任务管理接口。
 type JobHandler struct {
 	jobs *service.JobService
 }
 
+// NewJobHandler 创建任务处理器。
 func NewJobHandler(jobs *service.JobService) *JobHandler { return &JobHandler{jobs: jobs} }
 
+// List 分页查询定时任务。
 func (h *JobHandler) List(c *gin.Context) {
 	var q pagination.Query
 	if err := c.ShouldBindQuery(&q); err != nil {
@@ -30,6 +33,7 @@ func (h *JobHandler) List(c *gin.Context) {
 	response.Page(c, list, total, q.Page, q.PageSize)
 }
 
+// Create 创建任务；启用状态下会立即注册到调度器。
 func (h *JobHandler) Create(c *gin.Context) {
 	var in service.JobInput
 	if !Bind(c, &in) {
@@ -43,6 +47,7 @@ func (h *JobHandler) Create(c *gin.Context) {
 	response.Created(c, job)
 }
 
+// Update 更新任务并重建调度。
 func (h *JobHandler) Update(c *gin.Context) {
 	id, ok := PathID(c)
 	if !ok {
@@ -60,6 +65,7 @@ func (h *JobHandler) Update(c *gin.Context) {
 	response.OK(c, job)
 }
 
+// Delete 删除任务并移除调度。
 func (h *JobHandler) Delete(c *gin.Context) {
 	id, ok := PathID(c)
 	if !ok {
@@ -72,6 +78,7 @@ func (h *JobHandler) Delete(c *gin.Context) {
 	response.OK(c, nil)
 }
 
+// SetStatus 启用或停用任务，同步增删调度。
 func (h *JobHandler) SetStatus(c *gin.Context) {
 	id, ok := PathID(c)
 	if !ok {
@@ -90,6 +97,7 @@ func (h *JobHandler) SetStatus(c *gin.Context) {
 	response.OK(c, nil)
 }
 
+// Run 立即执行一次任务，不影响原有调度计划。
 func (h *JobHandler) Run(c *gin.Context) {
 	id, ok := PathID(c)
 	if !ok {

@@ -1,10 +1,14 @@
+// Package docs 内嵌 OpenAPI 文档与 Swagger UI 页面。
 package docs
 
 import _ "embed"
 
+// OpenAPI 是构建时嵌入的 OpenAPI 3 描述文件（openapi.yaml）。
+//
 //go:embed openapi.yaml
 var OpenAPI []byte
 
+// IndexHTML 是 Swagger UI 页面，资源通过 CDN 加载，因此部署环境需要外网访问。
 const IndexHTML = `<!doctype html>
 <html lang="zh-CN">
 <head>

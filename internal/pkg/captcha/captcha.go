@@ -1,3 +1,6 @@
+// Package captcha 生成并校验 SVG 图形验证码。
+//
+// 答案保存在 cache.Store 中，校验一次后立即删除，防止重放。
 package captcha
 
 import (
@@ -15,20 +18,32 @@ import (
 	"x-admin/internal/pkg/cache"
 )
 
+// alphabet 去掉了容易混淆的 I、O、0、1。
 const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
+// Challenge 是生成验证码的响应。
 type Challenge struct {
 	ID        string `json:"captcha_id"`
-	Image     string `json:"image"`
-	ExpiresIn int    `json:"expires_in"`
+	Image     string `json:"image"`      // SVG data URL
+	ExpiresIn int    `json:"expires_in"` // 有效秒数
 }
 
+// Option 用于在测试中替换随机源、时钟和 ID 生成器。
 type Option func(*Generator)
 
-func WithReader(r io.Reader) Option         { return func(g *Generator) { g.reader = r } }
-func WithRand(r *mathrand.Rand) Option      { return func(g *Generator) { g.rand = r } }
+// WithReader 替换密码学随机源。
+func WithReader(r io.Reader) Option { return func(g *Generator) { g.reader = r } }
+
+// WithRand 替换用于绘制干扰线的伪随机源。
+func WithRand(r *mathrand.Rand) Option { return func(g *Generator) { g.rand = r } }
+
+// WithClock 替换时钟。
 func WithClock(now func() time.Time) Option { return func(g *Generator) { g.now = now } }
-func WithIDFunc(fn func() string) Option    { return func(g *Generator) { g.idFn = fn } }
+
+// WithIDFunc 替换挑战 ID 生成函数。
+func WithIDFunc(fn func() string) Option { return func(g *Generator) { g.idFn = fn } }
+
+// WithLength 设置验证码长度，仅接受 1-8。
 func WithLength(n int) Option {
 	return func(g *Generator) {
 		if n > 0 && n <= 8 {
@@ -37,7 +52,7 @@ func WithLength(n int) Option {
 	}
 }
 
-// Generator creates an SVG captcha and keeps the answer in a cache.Store.
+// Generator 生成 SVG 验证码并把答案保存在 cache.Store。
 type Generator struct {
 	store  cache.Store
 	ttl    time.Duration
@@ -48,6 +63,7 @@ type Generator struct {
 	idFn   func() string
 }
 
+// New 创建验证码生成器。默认长度 4，使用密码学随机源和进程级伪随机源。
 func New(store cache.Store, ttl time.Duration, opts ...Option) *Generator {
 	g := &Generator{
 		store:  store,
@@ -64,6 +80,7 @@ func New(store cache.Store, ttl time.Duration, opts ...Option) *Generator {
 	return g
 }
 
+// Generate 生成验证码，返回挑战 ID 和可直接用于 <img src> 的 data URL。
 func (g *Generator) Generate(ctx context.Context) (*Challenge, error) {
 	code, err := g.randomString(g.length)
 	if err != nil {
@@ -81,8 +98,7 @@ func (g *Generator) Generate(ctx context.Context) (*Challenge, error) {
 	}, nil
 }
 
-// Verify consumes the challenge regardless of the outcome, so a code cannot be
-// replayed after a failed attempt.
+// Verify 校验验证码。无论成功与否都会消费挑战，失败后不能重试同一张图。
 func (g *Generator) Verify(ctx context.Context, id, answer string) bool {
 	if id == "" || answer == "" {
 		return false
@@ -95,8 +111,10 @@ func (g *Generator) Verify(ctx context.Context, id, answer string) bool {
 	return strings.EqualFold(strings.TrimSpace(answer), expected)
 }
 
+// key 生成验证码在缓存中的键。
 func key(id string) string { return "captcha:" + id }
 
+// randomString 从 alphabet 中均匀抽取 n 个字符。
 func (g *Generator) randomString(n int) (string, error) {
 	out := make([]byte, n)
 	for i := range out {
@@ -109,6 +127,7 @@ func (g *Generator) randomString(n int) (string, error) {
 	return string(out), nil
 }
 
+// svg 绘制带渐变、干扰曲线和噪点的验证码图片。
 func (g *Generator) svg(code string) string {
 	var b strings.Builder
 	b.WriteString(`<svg xmlns="http://www.w3.org/2000/svg" width="120" height="40" viewBox="0 0 120 40">`)
@@ -137,6 +156,7 @@ func (g *Generator) svg(code string) string {
 	return b.String()
 }
 
+// randomID 生成 12 字节随机挑战 ID，失败时退回时间戳。
 func randomID() string {
 	var b [12]byte
 	if _, err := rand.Read(b[:]); err != nil {

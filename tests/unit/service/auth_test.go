@@ -22,12 +22,12 @@ func (s stubCaptcha) Verify(context.Context, string, string) bool { return s.ok 
 
 func newAuth(app *testsupport.App, captchaOK bool) *service.AuthService {
 	return service.NewAuthService(app.Repos.Users, app.Repos.Menus, app.Repos.Logs, app.Cache, app.Tokens,
-		app.Hasher, stubCaptcha{ok: captchaOK}, service.AuthOptions{
+		app.Hasher, stubCaptcha{ok: captchaOK}, app.Services.Notifications, service.AuthOptions{
 			MaxLoginFails: 5, LockDuration: 15 * time.Minute, RefreshTTL: time.Hour,
 		})
 }
 
-func login(app *testsupport.App, auth *service.AuthService, username, password string) (*service.TokenPair, error) {
+func login(app *testsupport.App, auth *service.AuthService, username, password string) (*service.LoginResult, error) {
 	return auth.Login(context.Background(), service.LoginInput{
 		Username: username, Password: password, CaptchaID: "id", CaptchaCode: "code",
 	}, service.LoginMeta{IP: "127.0.0.1", UserAgent: "test"})

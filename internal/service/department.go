@@ -8,11 +8,13 @@ import (
 	"x-admin/internal/pkg/tree"
 )
 
+// DepartmentNode 是部门树的节点，内嵌部门数据并附带子节点。
 type DepartmentNode struct {
 	model.Department
 	Children []*DepartmentNode `json:"children,omitempty"`
 }
 
+// DepartmentInput 是创建/更新部门的输入。
 type DepartmentInput struct {
 	ParentID uint64 `json:"parent_id"`
 	Name     string `json:"name"`
@@ -23,14 +25,17 @@ type DepartmentInput struct {
 	Status   int8   `json:"status"`
 }
 
+// DepartmentService 实现部门树维护与校验。
 type DepartmentService struct {
 	depts DepartmentRepository
 }
 
+// NewDepartmentService 创建部门服务。
 func NewDepartmentService(depts DepartmentRepository) *DepartmentService {
 	return &DepartmentService{depts: depts}
 }
 
+// Tree 返回部门树。仓储已按 sort/id 排序，tree.Build 会保持该顺序。
 func (s *DepartmentService) Tree(ctx context.Context) ([]*DepartmentNode, error) {
 	rows, err := s.depts.All(ctx)
 	if err != nil {
@@ -49,6 +54,7 @@ func (s *DepartmentService) Tree(ctx context.Context) ([]*DepartmentNode, error)
 	}), nil
 }
 
+// Create 校验并创建部门。
 func (s *DepartmentService) Create(ctx context.Context, in DepartmentInput) (*model.Department, error) {
 	if err := s.validate(ctx, in, 0); err != nil {
 		return nil, err
@@ -63,6 +69,7 @@ func (s *DepartmentService) Create(ctx context.Context, in DepartmentInput) (*mo
 	return dept, nil
 }
 
+// Update 更新部门，并阻止形成自引用或环。
 func (s *DepartmentService) Update(ctx context.Context, id uint64, in DepartmentInput) (*model.Department, error) {
 	dept, err := s.depts.Get(ctx, id)
 	if err != nil {
@@ -77,6 +84,7 @@ func (s *DepartmentService) Update(ctx context.Context, id uint64, in Department
 	if in.ParentID == id {
 		return nil, apperr.New(apperr.CodeInvalidArgument, "上级部门不能是自己")
 	}
+	// 需要完整树才能判断新的上级是否位于自己的子树中。
 	all, err := s.depts.All(ctx)
 	if err != nil {
 		return nil, err
@@ -97,6 +105,7 @@ func (s *DepartmentService) Update(ctx context.Context, id uint64, in Department
 	return dept, nil
 }
 
+// Delete 删除部门。存在子部门或下属用户时返回冲突错误。
 func (s *DepartmentService) Delete(ctx context.Context, id uint64) error {
 	if _, err := s.depts.Get(ctx, id); err != nil {
 		if IsNotFound(err) {
@@ -121,6 +130,7 @@ func (s *DepartmentService) Delete(ctx context.Context, id uint64) error {
 	return s.depts.Delete(ctx, id)
 }
 
+// validate 校验部门字段以及上级部门是否存在。
 func (s *DepartmentService) validate(ctx context.Context, in DepartmentInput, excludeID uint64) error {
 	if trim(in.Name) == "" {
 		return apperr.New(apperr.CodeInvalidArgument, "部门名称不能为空")
@@ -145,6 +155,8 @@ func (s *DepartmentService) validate(ctx context.Context, in DepartmentInput, ex
 	return nil
 }
 
+// isDeptDescendant 判断 candidate 是否位于 ancestor 的子树中。
+// 最多向上追溯 len(all) 步，即使数据存在环也能安全退出。
 func isDeptDescendant(all []model.Department, candidate, ancestor uint64) bool {
 	if candidate == 0 {
 		return false

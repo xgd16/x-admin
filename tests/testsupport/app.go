@@ -13,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
+	"github.com/go-webauthn/webauthn/webauthn"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
@@ -31,30 +32,34 @@ import (
 )
 
 type Repos struct {
-	Users  *repository.UserRepo
-	Roles  *repository.RoleRepo
-	Menus  *repository.MenuRepo
-	Depts  *repository.DepartmentRepo
-	Dicts  *repository.DictRepo
-	Params *repository.ParameterRepo
-	Files  *repository.FileRepo
-	Jobs   *repository.JobRepo
-	Logs   *repository.LogRepo
+	Users         *repository.UserRepo
+	Roles         *repository.RoleRepo
+	Menus         *repository.MenuRepo
+	Depts         *repository.DepartmentRepo
+	Dicts         *repository.DictRepo
+	Params        *repository.ParameterRepo
+	Files         *repository.FileRepo
+	Jobs          *repository.JobRepo
+	Logs          *repository.LogRepo
+	Notifications *repository.NotificationRepo
+	Passkeys      *repository.PasskeyRepo
 }
 
 type Services struct {
-	Auth      *service.AuthService
-	Users     *service.UserService
-	Roles     *service.RoleService
-	Menus     *service.MenuService
-	Depts     *service.DepartmentService
-	Dicts     *service.DictService
-	Params    *service.ParameterService
-	Files     *service.FileService
-	Jobs      *service.JobService
-	Logs      *service.LogService
-	Dashboard *service.DashboardService
-	Profile   *service.ProfileService
+	Auth          *service.AuthService
+	Users         *service.UserService
+	Roles         *service.RoleService
+	Menus         *service.MenuService
+	Depts         *service.DepartmentService
+	Dicts         *service.DictService
+	Params        *service.ParameterService
+	Files         *service.FileService
+	Jobs          *service.JobService
+	Logs          *service.LogService
+	Dashboard     *service.DashboardService
+	Profile       *service.ProfileService
+	Notifications *service.NotificationService
+	Passkeys      *service.PasskeyService
 }
 
 type App struct {
@@ -112,35 +117,49 @@ func New(t *testing.T) *App {
 		Menus: repository.NewMenuRepo(db), Depts: repository.NewDepartmentRepo(db),
 		Dicts: repository.NewDictRepo(db), Params: repository.NewParameterRepo(db),
 		Files: repository.NewFileRepo(db), Jobs: repository.NewJobRepo(db), Logs: repository.NewLogRepo(db),
+		Notifications: repository.NewNotificationRepo(db), Passkeys: repository.NewPasskeyRepo(db),
 	}
 	logs := service.NewLogService(repos.Logs, 64)
 	t.Cleanup(logs.Close)
+	notifications := service.NewNotificationService(repos.Notifications)
 
-	authSvc := service.NewAuthService(repos.Users, repos.Menus, repos.Logs, store, tokens, hasher, captchaGen,
+	authSvc := service.NewAuthService(repos.Users, repos.Menus, repos.Logs, store, tokens, hasher, captchaGen, notifications,
 		service.AuthOptions{MaxLoginFails: 5, LockDuration: 15 * time.Minute, RefreshTTL: cfg.JWT.RefreshTTL})
+	wa, err := webauthn.New(&webauthn.Config{
+		RPDisplayName: cfg.WebAuthn.RPDisplayName,
+		RPID:          cfg.WebAuthn.RPID,
+		RPOrigins:     cfg.WebAuthn.RPOrigins,
+	})
+	if err != nil {
+		t.Fatalf("webauthn: %v", err)
+	}
+	passkeySvc := service.NewPasskeyService(repos.Users, repos.Passkeys, hasher, store, wa, 5*time.Minute, notifications)
 	services := Services{
-		Auth:      authSvc,
-		Users:     service.NewUserService(repos.Users, repos.Roles, repos.Depts, hasher, 8),
-		Roles:     service.NewRoleService(repos.Roles, repos.Menus),
-		Menus:     service.NewMenuService(repos.Menus),
-		Depts:     service.NewDepartmentService(repos.Depts),
-		Dicts:     service.NewDictService(repos.Dicts),
-		Params:    service.NewParameterService(repos.Params),
-		Files:     service.NewFileService(repos.Files, local, cfg.Storage.MaxUploadMB),
-		Profile:   service.NewProfileService(repos.Users, hasher, 8),
-		Dashboard: service.NewDashboardService(repos.Users, repos.Roles, repos.Menus, repos.Files, repos.Jobs, repos.Logs),
+		Auth:          authSvc,
+		Users:         service.NewUserService(repos.Users, repos.Roles, repos.Depts, hasher, 8, notifications),
+		Roles:         service.NewRoleService(repos.Roles, repos.Menus),
+		Menus:         service.NewMenuService(repos.Menus),
+		Depts:         service.NewDepartmentService(repos.Depts),
+		Dicts:         service.NewDictService(repos.Dicts),
+		Params:        service.NewParameterService(repos.Params),
+		Files:         service.NewFileService(repos.Files, local, cfg.Storage.MaxUploadMB),
+		Profile:       service.NewProfileService(repos.Users, hasher, 8, cfg.App.Name, notifications),
+		Notifications: notifications,
+		Passkeys:      passkeySvc,
+		Dashboard:     service.NewDashboardService(repos.Users, repos.Roles, repos.Menus, repos.Files, repos.Jobs, repos.Logs),
 	}
 	scheduler := jobs.New()
 	services.Jobs = service.NewJobService(repos.Jobs, scheduler, func(context.Context, *model.Job) error { return nil })
 	services.Logs = logs
 
 	handlers := router.Handlers{
-		Auth: handler.NewAuthHandler(authSvc, captchaGen), Dashboard: handler.NewDashboardHandler(services.Dashboard),
+		Auth: handler.NewAuthHandler(authSvc, captchaGen, passkeySvc), Dashboard: handler.NewDashboardHandler(services.Dashboard),
 		User: handler.NewUserHandler(services.Users), Role: handler.NewRoleHandler(services.Roles),
 		Menu: handler.NewMenuHandler(services.Menus), Department: handler.NewDepartmentHandler(services.Depts),
 		Dict: handler.NewDictHandler(services.Dicts), Parameter: handler.NewParameterHandler(services.Params),
 		File: handler.NewFileHandler(services.Files), Job: handler.NewJobHandler(services.Jobs),
-		Log: handler.NewLogHandler(logs), Profile: handler.NewProfileHandler(services.Profile),
+		Log: handler.NewLogHandler(logs), Profile: handler.NewProfileHandler(services.Profile, passkeySvc, authSvc),
+		Notification: handler.NewNotificationHandler(notifications),
 	}
 	engine := router.New(router.Deps{
 		Config: cfg, Tokens: tokens, Auth: authSvc, Captcha: captchaGen, Cache: store,

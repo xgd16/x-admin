@@ -12,6 +12,8 @@ import (
 	"x-admin/internal/pkg/response"
 )
 
+// Recovery 捕获处理链中的 panic，记录堆栈并返回统一的 500 响应。
+// 如果响应已经写出，则只中止后续处理，避免重复写响应头。
 func Recovery() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
@@ -31,6 +33,7 @@ func Recovery() gin.HandlerFunc {
 	}
 }
 
+// AccessLog 在请求结束后输出一条结构化访问日志，包含请求 ID、状态码和耗时。
 func AccessLog() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()

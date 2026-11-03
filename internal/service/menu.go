@@ -8,15 +8,17 @@ import (
 	"x-admin/internal/pkg/tree"
 )
 
+// MenuNode 是菜单树的节点，内嵌菜单数据并附带子节点。
 type MenuNode struct {
 	model.Menu
 	Children []*MenuNode `json:"children,omitempty"`
 }
 
+// MenuInput 是创建/更新菜单的输入。
 type MenuInput struct {
 	ParentID   uint64 `json:"parent_id"`
 	Name       string `json:"name"`
-	Type       int8   `json:"type"`
+	Type       int8   `json:"type"` // 1 目录 / 2 菜单 / 3 按钮
 	Path       string `json:"path"`
 	Component  string `json:"component"`
 	Permission string `json:"permission"`
@@ -26,14 +28,17 @@ type MenuInput struct {
 	Status     int8   `json:"status"`
 }
 
+// MenuService 实现菜单树维护与校验。
 type MenuService struct {
 	menus MenuRepository
 }
 
+// NewMenuService 创建菜单服务。
 func NewMenuService(menus MenuRepository) *MenuService {
 	return &MenuService{menus: menus}
 }
 
+// Tree 返回完整菜单树（含按钮节点），供菜单管理页使用。
 func (s *MenuService) Tree(ctx context.Context) ([]*MenuNode, error) {
 	menus, err := s.menus.All(ctx)
 	if err != nil {
@@ -42,6 +47,7 @@ func (s *MenuService) Tree(ctx context.Context) ([]*MenuNode, error) {
 	return buildMenuTree(menus), nil
 }
 
+// Create 校验并创建菜单节点。
 func (s *MenuService) Create(ctx context.Context, in MenuInput) (*model.Menu, error) {
 	if err := s.validate(ctx, in, 0); err != nil {
 		return nil, err
@@ -57,6 +63,7 @@ func (s *MenuService) Create(ctx context.Context, in MenuInput) (*model.Menu, er
 	return menu, nil
 }
 
+// Update 更新菜单节点，并阻止形成自引用或环。
 func (s *MenuService) Update(ctx context.Context, id uint64, in MenuInput) (*model.Menu, error) {
 	menu, err := s.menus.Get(ctx, id)
 	if err != nil {
@@ -94,6 +101,7 @@ func (s *MenuService) Update(ctx context.Context, id uint64, in MenuInput) (*mod
 	return menu, nil
 }
 
+// Delete 删除菜单；存在子节点时返回冲突错误。
 func (s *MenuService) Delete(ctx context.Context, id uint64) error {
 	if _, err := s.menus.Get(ctx, id); err != nil {
 		if IsNotFound(err) {
@@ -111,6 +119,7 @@ func (s *MenuService) Delete(ctx context.Context, id uint64) error {
 	return s.menus.Delete(ctx, id)
 }
 
+// validate 校验菜单名称、类型、路径/权限码以及上级菜单是否存在。
 func (s *MenuService) validate(ctx context.Context, in MenuInput, excludeID uint64) error {
 	if trim(in.Name) == "" {
 		return apperr.New(apperr.CodeInvalidArgument, "菜单名称不能为空")
@@ -118,6 +127,7 @@ func (s *MenuService) validate(ctx context.Context, in MenuInput, excludeID uint
 	if in.Type < model.MenuDirectory || in.Type > model.MenuButton {
 		return apperr.New(apperr.CodeInvalidArgument, "菜单类型不合法")
 	}
+	// 菜单必须有前端路由路径；按钮必须提供权限码。
 	if in.Type == model.MenuMenu && trim(in.Path) == "" {
 		return apperr.New(apperr.CodeInvalidArgument, "菜单路径不能为空")
 	}
@@ -141,6 +151,7 @@ func (s *MenuService) validate(ctx context.Context, in MenuInput, excludeID uint
 	return nil
 }
 
+// buildMenuTree 把扁平菜单列表转换为树。
 func buildMenuTree(menus []model.Menu) []*MenuNode {
 	nodes := make([]*MenuNode, 0, len(menus))
 	for _, m := range menus {
@@ -155,6 +166,8 @@ func buildMenuTree(menus []model.Menu) []*MenuNode {
 	})
 }
 
+// isDescendant 判断 candidate 是否位于 ancestor 的子树中。
+// 最多向上追溯 len(all) 步，即使数据存在环也能安全退出。
 func isDescendant(all []model.Menu, candidate, ancestor uint64) bool {
 	if candidate == 0 {
 		return false

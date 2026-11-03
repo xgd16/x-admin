@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Ambient } from '../components/Ambient'
+import { BrandMark } from '../components/BrandMark'
 import { Icon } from '../components/Icon'
 
 export function NotFound() {
@@ -9,10 +10,12 @@ export function NotFound() {
       <div className="login-stage" style={{ gridTemplateColumns: '1fr', maxWidth: 680 }}>
         <section className="login-hero glass" style={{ minHeight: 420, alignItems: 'flex-start' }}>
           <div className="brand">
-            <span className="logo">X</span>
+            <span className="logo">
+              <BrandMark size={23} />
+            </span>
             <span>
               <b>x-admin</b>
-              <span>OPERATIONS WORKBENCH</span>
+              <span>EVERYDAY WORKSPACE</span>
             </span>
           </div>
           <h1 style={{ fontSize: 64, marginTop: 40 }}>404</h1>

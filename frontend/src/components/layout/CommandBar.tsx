@@ -7,6 +7,7 @@ import { useAuth } from '../../stores/auth'
 import { useTabs } from '../../stores/tabs'
 import { useUi } from '../../stores/ui'
 import { Icon } from '../Icon'
+import { NotificationCenter } from './NotificationCenter'
 import { useContextNav } from './useContextNav'
 
 export function CommandBar() {
@@ -117,10 +118,7 @@ export function CommandBar() {
           <kbd>⌘K</kbd>
         </button>
         <div className="cmd-actions">
-          <button type="button" className="icon-btn" title="通知">
-            <Icon name="bell" size={16} />
-            <span className="badge">3</span>
-          </button>
+          <NotificationCenter />
           <Popover
             trigger="click"
             open={settingsOpen}
@@ -167,12 +165,24 @@ export function CommandBar() {
         footer={null}
         width={560}
         title={null}
+        closable={false}
         styles={{ body: { paddingTop: 8 } }}
       >
         <Input
           autoFocus
           variant="borderless"
           prefix={<Icon name="search" size={16} />}
+          suffix={
+            <button
+              type="button"
+              className="palette-esc"
+              onClick={() => setPaletteOpen(false)}
+              aria-label="关闭快速导航"
+              title="关闭快速导航（Esc）"
+            >
+              ESC
+            </button>
+          }
           placeholder="搜索页面、模块…"
           value={query}
           onChange={(event) => setQuery(event.target.value)}

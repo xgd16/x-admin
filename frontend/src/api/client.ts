@@ -62,7 +62,15 @@ async function request<T>(method: string, path: string, body?: unknown, params?:
     body: body instanceof FormData ? body : body === undefined ? undefined : JSON.stringify(body),
   })
 
-  if (res.status === 401 && tokenStore.refresh && path !== '/auth/login' && path !== '/auth/refresh') {
+  if (
+    res.status === 401 &&
+    tokenStore.refresh &&
+    path !== '/auth/login' &&
+    path !== '/auth/login/mfa' &&
+    path !== '/auth/passkey/login/begin' &&
+    path !== '/auth/passkey/login/finish' &&
+    path !== '/auth/refresh'
+  ) {
     refreshing ??= refreshToken().finally(() => { refreshing = null })
     const ok = await refreshing
     if (ok) {

@@ -25,6 +25,7 @@ export interface User {
   last_login_at: string | null
   last_login_ip: string
   remark: string
+  totp_enabled: boolean
   roles?: Role[]
   created_at: string
 }
@@ -144,6 +145,18 @@ export interface LoginLog {
   created_at: string
 }
 
+export interface Notification {
+  id: number
+  user_id: number
+  title: string
+  content: string
+  type: 'info' | 'success' | 'warning' | 'error'
+  link: string
+  actor_id: number
+  read_at: string | null
+  created_at: string
+}
+
 export interface TrendPoint {
   date: string
   count: number
@@ -178,6 +191,73 @@ export interface TokenPair {
   refresh_token: string
   token_type: string
   expires_in: number
+}
+
+export interface LoginResult extends Partial<TokenPair> {
+  mfa_required?: boolean
+  mfa_token?: string
+  mfa_expires_in?: number
+}
+
+export interface TOTPStatus {
+  enabled: boolean
+  recovery_codes_left: number
+}
+
+export interface TOTPSetup {
+  secret: string
+  otpauth_url: string
+  qr_code: string
+  issuer: string
+  account: string
+}
+
+export interface PasskeyCredentialDescriptorJSON {
+  id: string
+  type?: string
+  transports?: string[]
+}
+
+export interface PasskeyCreationOptionsJSON {
+  rp: { id: string; name: string }
+  user: { id: string; name: string; displayName: string }
+  challenge: string
+  pubKeyCredParams: Array<{ type: string; alg: number }>
+  timeout?: number
+  excludeCredentials?: PasskeyCredentialDescriptorJSON[]
+  authenticatorSelection?: {
+    authenticatorAttachment?: string
+    requireResidentKey?: boolean
+    residentKey?: string
+    userVerification?: string
+  }
+  attestation?: string
+}
+
+export interface PasskeyRequestOptionsJSON {
+  challenge: string
+  timeout?: number
+  rpId?: string
+  allowCredentials?: PasskeyCredentialDescriptorJSON[]
+  userVerification?: string
+}
+
+export interface PasskeyRegistrationOptions {
+  session_id: string
+  options: { publicKey: PasskeyCreationOptionsJSON; mediation?: string }
+}
+
+export interface PasskeyLoginOptions {
+  session_id: string
+  options: { publicKey: PasskeyRequestOptionsJSON; mediation?: string }
+}
+
+export interface PasskeyItem {
+  id: number
+  name: string
+  created_at: string
+  updated_at: string
+  last_used_at: string | null
 }
 
 export interface ImportResult {

@@ -8,6 +8,7 @@ import (
 	"x-admin/internal/pkg/pagination"
 )
 
+// ParameterInput 是创建/更新系统参数的输入。
 type ParameterInput struct {
 	Key    string `json:"key"`
 	Value  string `json:"value"`
@@ -16,19 +17,23 @@ type ParameterInput struct {
 	Remark string `json:"remark"`
 }
 
+// ParameterService 实现系统参数的维护与读取。
 type ParameterService struct {
 	params ParameterRepository
 }
 
+// NewParameterService 创建参数服务。
 func NewParameterService(params ParameterRepository) *ParameterService {
 	return &ParameterService{params: params}
 }
 
+// List 分页查询系统参数。
 func (s *ParameterService) List(ctx context.Context, q pagination.Query) ([]model.Parameter, int64, error) {
 	q.Normalize()
 	return s.params.List(ctx, q)
 }
 
+// GetByKey 按 key 读取公开参数；非公开参数对外表现为不存在。
 func (s *ParameterService) GetByKey(ctx context.Context, key string) (*model.Parameter, error) {
 	p, err := s.params.GetByKey(ctx, key)
 	if err != nil {
@@ -43,6 +48,7 @@ func (s *ParameterService) GetByKey(ctx context.Context, key string) (*model.Par
 	return p, nil
 }
 
+// Create 校验并创建系统参数。
 func (s *ParameterService) Create(ctx context.Context, in ParameterInput) (*model.Parameter, error) {
 	if err := s.validate(ctx, in, 0); err != nil {
 		return nil, err
@@ -54,6 +60,7 @@ func (s *ParameterService) Create(ctx context.Context, in ParameterInput) (*mode
 	return p, nil
 }
 
+// Update 更新系统参数，Key 改动后仍需保持唯一。
 func (s *ParameterService) Update(ctx context.Context, id uint64, in ParameterInput) (*model.Parameter, error) {
 	p, err := s.params.Get(ctx, id)
 	if err != nil {
@@ -76,6 +83,7 @@ func (s *ParameterService) Update(ctx context.Context, id uint64, in ParameterIn
 	return p, nil
 }
 
+// Delete 删除系统参数。
 func (s *ParameterService) Delete(ctx context.Context, id uint64) error {
 	if _, err := s.params.Get(ctx, id); err != nil {
 		if IsNotFound(err) {
@@ -86,6 +94,7 @@ func (s *ParameterService) Delete(ctx context.Context, id uint64) error {
 	return s.params.Delete(ctx, id)
 }
 
+// validate 校验参数名称、Key 格式和 Key 唯一性。
 func (s *ParameterService) validate(ctx context.Context, in ParameterInput, excludeID uint64) error {
 	if trim(in.Name) == "" {
 		return apperr.New(apperr.CodeInvalidArgument, "参数名称不能为空")

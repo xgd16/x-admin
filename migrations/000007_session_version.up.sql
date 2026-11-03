@@ -1,0 +1,2 @@
+ALTER TABLE `sys_users`
+  ADD COLUMN `session_version` BIGINT NOT NULL DEFAULT 0 AFTER `totp_recovery_codes`;

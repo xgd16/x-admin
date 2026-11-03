@@ -9,6 +9,8 @@ import (
 	"x-admin/internal/config"
 )
 
+// CORS 根据配置的来源白名单写入跨域响应头，并直接响应 OPTIONS 预检请求。
+// 白名单包含 "*" 时允许任意来源，但不会再回显具体 Origin。
 func CORS(cfg config.CORSConfig) gin.HandlerFunc {
 	allowed := make(map[string]struct{}, len(cfg.Origins))
 	wildcard := false
@@ -26,6 +28,7 @@ func CORS(cfg config.CORSConfig) gin.HandlerFunc {
 					origin = "*"
 				}
 				c.Header("Access-Control-Allow-Origin", origin)
+				// 响应随 Origin 变化，缓存需要按该头区分。
 				c.Header("Vary", "Origin")
 				c.Header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
 				c.Header("Access-Control-Allow-Headers", "Authorization,Content-Type,X-Request-ID")

@@ -9,19 +9,24 @@ import (
 	"x-admin/internal/pkg/pagination"
 )
 
+// ParameterRepo 提供系统参数的数据访问。
 type ParameterRepo struct {
 	*Base[model.Parameter]
 	db *gorm.DB
 }
 
+// NewParameterRepo 创建参数仓储。
 func NewParameterRepo(db *gorm.DB) *ParameterRepo {
 	return &ParameterRepo{Base: NewBase[model.Parameter](db), db: db}
 }
 
+// Get 按 ID 查询参数。
 func (r *ParameterRepo) Get(ctx context.Context, id uint64) (*model.Parameter, error) {
 	return r.FindByID(ctx, id)
 }
 
+// List 分页查询参数，支持按 key/名称模糊搜索。
+// key 是 MySQL 保留字，因此使用反引号转义。
 func (r *ParameterRepo) List(ctx context.Context, q pagination.Query) ([]model.Parameter, int64, error) {
 	query := r.db.WithContext(ctx).Model(&model.Parameter{})
 	if q.Keyword != "" {
@@ -40,6 +45,7 @@ func (r *ParameterRepo) List(ctx context.Context, q pagination.Query) ([]model.P
 	return rows, total, nil
 }
 
+// GetByKey 按参数键查询。
 func (r *ParameterRepo) GetByKey(ctx context.Context, key string) (*model.Parameter, error) {
 	var p model.Parameter
 	if err := r.db.WithContext(ctx).Where("`key` = ?", key).First(&p).Error; err != nil {
@@ -48,6 +54,7 @@ func (r *ParameterRepo) GetByKey(ctx context.Context, key string) (*model.Parame
 	return &p, nil
 }
 
+// ExistsKey 判断参数键是否已存在；excludeID > 0 时排除自身。
 func (r *ParameterRepo) ExistsKey(ctx context.Context, key string, excludeID uint64) (bool, error) {
 	q := r.db.WithContext(ctx).Model(&model.Parameter{}).Where("`key` = ?", key)
 	if excludeID > 0 {
@@ -60,6 +67,7 @@ func (r *ParameterRepo) ExistsKey(ctx context.Context, key string, excludeID uin
 	return count > 0, nil
 }
 
+// Delete 按 ID 批量删除参数。
 func (r *ParameterRepo) Delete(ctx context.Context, ids ...uint64) error {
 	return r.Base.Delete(ctx, ids...)
 }

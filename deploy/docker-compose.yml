@@ -46,6 +46,9 @@ services:
       X_ADMIN_JWT_SECRET: ${JWT_SECRET:-change-me-x-admin-production-secret-2026}
       X_ADMIN_STORAGE_ROOT: /app/data/uploads
       X_ADMIN_CORS_ORIGINS: http://localhost,http://127.0.0.1
+      X_ADMIN_WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:-localhost}
+      X_ADMIN_WEBAUTHN_RP_DISPLAY_NAME: ${WEBAUTHN_RP_DISPLAY_NAME:-x-admin}
+      X_ADMIN_WEBAUTHN_RP_ORIGINS: ${WEBAUTHN_RP_ORIGINS:-http://localhost,http://localhost:5173}
     volumes:
       - uploads:/app/data/uploads
     ports:

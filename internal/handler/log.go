@@ -9,12 +9,15 @@ import (
 	"x-admin/internal/service"
 )
 
+// LogHandler 处理操作日志与登录日志查询、清理接口。
 type LogHandler struct {
 	logs *service.LogService
 }
 
+// NewLogHandler 创建日志处理器。
 func NewLogHandler(logs *service.LogService) *LogHandler { return &LogHandler{logs: logs} }
 
+// Operations 分页查询操作日志。
 func (h *LogHandler) Operations(c *gin.Context) {
 	var f model.OperationLogFilter
 	if err := c.ShouldBindQuery(&f); err != nil {
@@ -30,6 +33,7 @@ func (h *LogHandler) Operations(c *gin.Context) {
 	response.Page(c, list, total, f.Page, f.PageSize)
 }
 
+// DeleteOperations 按 ID 批量删除操作日志。
 func (h *LogHandler) DeleteOperations(c *gin.Context) {
 	var in idsInput
 	if !Bind(c, &in) {
@@ -42,6 +46,7 @@ func (h *LogHandler) DeleteOperations(c *gin.Context) {
 	response.OK(c, nil)
 }
 
+// ClearOperations 清空全部操作日志。
 func (h *LogHandler) ClearOperations(c *gin.Context) {
 	if err := h.logs.ClearOperations(c.Request.Context()); err != nil {
 		response.Error(c, err)
@@ -50,6 +55,7 @@ func (h *LogHandler) ClearOperations(c *gin.Context) {
 	response.OK(c, nil)
 }
 
+// Logins 分页查询登录日志。
 func (h *LogHandler) Logins(c *gin.Context) {
 	var f model.LoginLogFilter
 	if err := c.ShouldBindQuery(&f); err != nil {
@@ -65,6 +71,7 @@ func (h *LogHandler) Logins(c *gin.Context) {
 	response.Page(c, list, total, f.Page, f.PageSize)
 }
 
+// ClearLogins 清空全部登录日志。
 func (h *LogHandler) ClearLogins(c *gin.Context) {
 	if err := h.logs.ClearLogins(c.Request.Context()); err != nil {
 		response.Error(c, err)

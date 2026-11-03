@@ -1,3 +1,4 @@
+// Package excel 封装单工作表的 xlsx 读写，用于用户导入导出。
 package excel
 
 import (
@@ -8,7 +9,7 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-// Write builds a single-sheet xlsx with a styled header row.
+// Write 生成单工作表 xlsx，第一行是带样式的表头。
 func Write(sheet string, headers []string, rows [][]string) ([]byte, error) {
 	if sheet == "" {
 		sheet = "Sheet1"
@@ -31,6 +32,7 @@ func Write(sheet string, headers []string, rows [][]string) ([]byte, error) {
 			return nil, err
 		}
 	}
+	// 表头样式：加粗、浅蓝底、水平垂直居中。
 	style, err := f.NewStyle(&excelize.Style{
 		Font:      &excelize.Font{Bold: true, Color: "0B1C2C"},
 		Fill:      excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{"EAF2FA"}},
@@ -61,7 +63,7 @@ func Write(sheet string, headers []string, rows [][]string) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// Read returns the first sheet's rows, trimming fully-empty trailing rows.
+// Read 读取第一个工作表的全部行，并去掉末尾的空行。
 func Read(r io.Reader) ([][]string, error) {
 	f, err := excelize.OpenReader(r)
 	if err != nil {
@@ -82,6 +84,7 @@ func Read(r io.Reader) ([][]string, error) {
 	return rows, nil
 }
 
+// isEmpty 判断一行是否所有单元格都为空。
 func isEmpty(row []string) bool {
 	for _, cell := range row {
 		if cell != "" {

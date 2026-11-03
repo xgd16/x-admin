@@ -12,8 +12,8 @@ import (
 	"x-admin/internal/pkg/response"
 )
 
-// RateLimit uses a fixed window counter. Store failures fail open so a Redis
-// outage degrades protection instead of taking the API down.
+// RateLimit 使用固定窗口计数器按 IP 限流。
+// 缓存故障时选择“放行”（fail-open），避免 Redis 故障导致整个 API 不可用。
 func RateLimit(store cache.Store, prefix string, limit int, window time.Duration) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if limit <= 0 {

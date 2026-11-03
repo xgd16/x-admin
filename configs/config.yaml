@@ -42,6 +42,13 @@ storage:
   url_prefix: /uploads
   max_upload_mb: 20
 
+webauthn:
+  rp_display_name: x-admin
+  rp_id: localhost
+  rp_origins:
+    - http://localhost
+    - http://localhost:5173
+
 cors:
   origins:
     - http://localhost:5173

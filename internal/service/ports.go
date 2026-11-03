@@ -1,7 +1,12 @@
+// Package service 实现 x-admin 的业务规则。
+//
+// 服务层只依赖本文件定义的仓储接口，不接触 gin.Context 或 GORM；
+// 仓储实现由 bootstrap 在启动时注入，测试时可用 fake 替换。
 package service
 
 import (
 	"context"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -9,9 +14,10 @@ import (
 	"x-admin/internal/pkg/pagination"
 )
 
-// ErrRecordNotFound is shared by repositories and services.
+// ErrRecordNotFound 是仓储与 service 共享的“记录不存在”错误。
 var ErrRecordNotFound = gorm.ErrRecordNotFound
 
+// UserRepository 定义用户数据的读写能力。
 type UserRepository interface {
 	Create(ctx context.Context, user *model.User) error
 	Update(ctx context.Context, user *model.User) error
@@ -25,6 +31,7 @@ type UserRepository interface {
 	CountByStatus(ctx context.Context, status *int8) (int64, error)
 }
 
+// RoleRepository 定义角色数据的读写能力。
 type RoleRepository interface {
 	Create(ctx context.Context, role *model.Role) error
 	Update(ctx context.Context, role *model.Role) error
@@ -39,6 +46,7 @@ type RoleRepository interface {
 	Delete(ctx context.Context, ids ...uint64) error
 }
 
+// MenuRepository 定义菜单与角色授权数据的读写能力。
 type MenuRepository interface {
 	All(ctx context.Context) ([]model.Menu, error)
 	ForUser(ctx context.Context, userID uint64) ([]model.Menu, error)
@@ -51,6 +59,7 @@ type MenuRepository interface {
 	CountAll(ctx context.Context) (int64, error)
 }
 
+// DepartmentRepository 定义部门数据的读写能力。
 type DepartmentRepository interface {
 	All(ctx context.Context) ([]model.Department, error)
 	Get(ctx context.Context, id uint64) (*model.Department, error)
@@ -61,6 +70,7 @@ type DepartmentRepository interface {
 	CountUsers(ctx context.Context, deptID uint64) (int64, error)
 }
 
+// DictRepository 定义字典类型与字典项数据的读写能力。
 type DictRepository interface {
 	CreateType(ctx context.Context, t *model.DictType) error
 	UpdateType(ctx context.Context, t *model.DictType) error
@@ -75,6 +85,7 @@ type DictRepository interface {
 	DeleteItem(ctx context.Context, id uint64) error
 }
 
+// ParameterRepository 定义系统参数数据的读写能力。
 type ParameterRepository interface {
 	Create(ctx context.Context, p *model.Parameter) error
 	Update(ctx context.Context, p *model.Parameter) error
@@ -85,6 +96,7 @@ type ParameterRepository interface {
 	Delete(ctx context.Context, ids ...uint64) error
 }
 
+// FileRepository 定义文件元数据的数据访问能力。
 type FileRepository interface {
 	Create(ctx context.Context, f *model.File) error
 	List(ctx context.Context, filter model.FileFilter) ([]model.File, int64, error)
@@ -94,6 +106,7 @@ type FileRepository interface {
 	CountAll(ctx context.Context) (int64, error)
 }
 
+// JobRepository 定义定时任务数据的读写能力。
 type JobRepository interface {
 	Create(ctx context.Context, job *model.Job) error
 	Update(ctx context.Context, job *model.Job) error
@@ -105,6 +118,35 @@ type JobRepository interface {
 	CountAll(ctx context.Context) (int64, error)
 }
 
+// Notifier 让各业务服务可以推送站内消息，而不依赖通知模块的实现。
+type Notifier interface {
+	Notify(ctx context.Context, in NotificationInput) error
+}
+
+// NotificationRepository 定义站内通知数据的读写能力。
+type NotificationRepository interface {
+	Create(ctx context.Context, n *model.Notification) error
+	List(ctx context.Context, userID uint64, unreadOnly bool, page, pageSize int) ([]model.Notification, int64, error)
+	CountUnread(ctx context.Context, userID uint64) (int64, error)
+	MarkRead(ctx context.Context, userID, id uint64, at time.Time) error
+	MarkAllRead(ctx context.Context, userID uint64, at time.Time) (int64, error)
+	CleanBefore(ctx context.Context, days int) error
+}
+
+// PasskeyRepository 定义 WebAuthn 凭据数据的读写能力。
+type PasskeyRepository interface {
+	ListByUser(ctx context.Context, userID uint64) ([]model.Passkey, error)
+	GetByCredentialID(ctx context.Context, credentialID string) (*model.Passkey, error)
+	GetForUser(ctx context.Context, userID, id uint64) (*model.Passkey, error)
+	CountByUser(ctx context.Context, userID uint64) (int64, error)
+	CountAll(ctx context.Context) (int64, error)
+	Create(ctx context.Context, passkey *model.Passkey) error
+	RenameForUser(ctx context.Context, userID, id uint64, name string) error
+	DeleteForUser(ctx context.Context, userID, id uint64) error
+	UpdateCredential(ctx context.Context, id uint64, credential string, usedAt time.Time) error
+}
+
+// LogRepository 定义审计日志数据的读写能力。
 type LogRepository interface {
 	CreateOperation(ctx context.Context, log *model.OperationLog) error
 	ListOperations(ctx context.Context, filter model.OperationLogFilter) ([]model.OperationLog, int64, error)

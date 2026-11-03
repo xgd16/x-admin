@@ -8,6 +8,8 @@ import (
 	"x-admin/internal/pkg/requestid"
 )
 
+// RequestID 复用上游传入的请求 ID，缺失或过长时生成新的 ID。
+// ID 同时写入响应头和请求上下文，方便日志与审计关联。
 func RequestID() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := strings.TrimSpace(c.GetHeader(requestid.Header))

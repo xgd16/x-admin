@@ -20,6 +20,15 @@ if (!Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = vi.fn()
 }
 
+// antd overlays (Popover/Segmented) observe their trigger size in jsdom.
+if (!globalThis.ResizeObserver) {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver
+}
+
 // antd/rc-motion probes pseudo-elements; jsdom logs a noisy "Not implemented" warning.
 const getComputedStyle = window.getComputedStyle.bind(window)
 window.getComputedStyle = (element: Element) => getComputedStyle(element)

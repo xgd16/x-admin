@@ -14,12 +14,13 @@ import (
 	"x-admin/internal/pkg/requestid"
 )
 
+// OperationRecorder 接收审计记录。实现方应当异步落库，不能阻塞请求。
 type OperationRecorder interface {
 	RecordOperation(log *model.OperationLog)
 }
 
-// Audit captures mutating JSON requests and hands them to the async recorder.
-// Bodies are captured while the handler reads them, never re-read.
+// Audit 捕获会修改数据的 JSON 请求，并交给异步记录器。
+// 请求体在处理器读取时顺带复制，不会二次读取或改变请求语义。
 func Audit(recorder OperationRecorder) gin.HandlerFunc {
 	const maxBody = 4096
 	return func(c *gin.Context) {
@@ -27,6 +28,7 @@ func Audit(recorder OperationRecorder) gin.HandlerFunc {
 			c.Next()
 			return
 		}
+		// 最多保留 64KB 原始请求体，最终写入数据库时再截断到 4KB。
 		capture := newBodyCapture(c.Request.Body, 64*1024)
 		c.Request.Body = capture
 		start := time.Now()
@@ -53,6 +55,7 @@ func Audit(recorder OperationRecorder) gin.HandlerFunc {
 	}
 }
 
+// shouldAudit 只审计写操作，并排除认证接口，避免记录密码、验证码和令牌。
 func shouldAudit(c *gin.Context) bool {
 	switch c.Request.Method {
 	case "POST", "PUT", "PATCH", "DELETE":
@@ -63,6 +66,7 @@ func shouldAudit(c *gin.Context) bool {
 	return !strings.HasPrefix(path, "/admin/v1/auth/")
 }
 
+// bodyCapture 在读取请求体的同时把内容复制到缓冲区，超过上限后停止复制。
 type bodyCapture struct {
 	rc     io.ReadCloser
 	buf    bytes.Buffer
@@ -94,6 +98,8 @@ func (b *bodyCapture) Close() error { return b.rc.Close() }
 
 func (b *bodyCapture) Bytes() []byte { return b.buf.Bytes() }
 
+// sanitizeBody 把敏感字段替换为 *** 后重新序列化。
+// 非 JSON 请求体不记录内容，避免把文件或二进制写进审计表。
 func sanitizeBody(raw []byte) string {
 	if len(bytes.TrimSpace(raw)) == 0 {
 		return ""
@@ -110,6 +116,7 @@ func sanitizeBody(raw []byte) string {
 	return string(out)
 }
 
+// mask 递归遍历 JSON 结构，替换敏感键的值。
 func mask(value any) {
 	switch v := value.(type) {
 	case map[string]any:
@@ -127,12 +134,17 @@ func mask(value any) {
 	}
 }
 
+// isSensitive 判断字段名是否包含密码、令牌、密钥或验证码等敏感信息。
 func isSensitive(key string) bool {
 	key = strings.ToLower(key)
+	if key == "otp_code" {
+		return true
+	}
 	return strings.Contains(key, "password") || strings.Contains(key, "token") ||
 		strings.Contains(key, "secret") || strings.Contains(key, "captcha")
 }
 
+// truncate 按字节截断字符串，调用方需保证不会切断多字节字符的场景可接受。
 func truncate(s string, n int) string {
 	if len(s) <= n {
 		return s

@@ -10,12 +10,15 @@ import (
 	"x-admin/internal/service"
 )
 
+// UserHandler 处理用户管理相关接口。
 type UserHandler struct {
 	users *service.UserService
 }
 
+// NewUserHandler 创建用户处理器。
 func NewUserHandler(users *service.UserService) *UserHandler { return &UserHandler{users: users} }
 
+// List 分页查询用户，支持关键字、部门、状态和角色过滤。
 func (h *UserHandler) List(c *gin.Context) {
 	var f model.UserFilter
 	if err := c.ShouldBindQuery(&f); err != nil {
@@ -31,6 +34,7 @@ func (h *UserHandler) List(c *gin.Context) {
 	response.Page(c, list, total, f.Page, f.PageSize)
 }
 
+// Get 查询单个用户详情。
 func (h *UserHandler) Get(c *gin.Context) {
 	id, ok := PathID(c)
 	if !ok {
@@ -44,6 +48,7 @@ func (h *UserHandler) Get(c *gin.Context) {
 	response.OK(c, user)
 }
 
+// Create 创建用户，可选地绑定部门与角色。
 func (h *UserHandler) Create(c *gin.Context) {
 	var in service.CreateUserInput
 	if !Bind(c, &in) {
@@ -57,6 +62,7 @@ func (h *UserHandler) Create(c *gin.Context) {
 	response.Created(c, user)
 }
 
+// Update 更新用户资料、部门、状态与角色。
 func (h *UserHandler) Update(c *gin.Context) {
 	id, ok := PathID(c)
 	if !ok {
@@ -74,6 +80,7 @@ func (h *UserHandler) Update(c *gin.Context) {
 	response.OK(c, user)
 }
 
+// Delete 批量删除用户；内置管理员和当前登录账号不可删除。
 func (h *UserHandler) Delete(c *gin.Context) {
 	var in idsInput
 	if !Bind(c, &in) {
@@ -86,6 +93,7 @@ func (h *UserHandler) Delete(c *gin.Context) {
 	response.OK(c, nil)
 }
 
+// SetStatus 启用或停用用户；不能停用内置管理员和自己。
 func (h *UserHandler) SetStatus(c *gin.Context) {
 	id, ok := PathID(c)
 	if !ok {
@@ -104,6 +112,7 @@ func (h *UserHandler) SetStatus(c *gin.Context) {
 	response.OK(c, nil)
 }
 
+// ResetPassword 管理员重置指定用户的密码。
 func (h *UserHandler) ResetPassword(c *gin.Context) {
 	id, ok := PathID(c)
 	if !ok {
@@ -122,6 +131,7 @@ func (h *UserHandler) ResetPassword(c *gin.Context) {
 	response.OK(c, nil)
 }
 
+// AssignRoles 整体替换用户的角色列表。
 func (h *UserHandler) AssignRoles(c *gin.Context) {
 	id, ok := PathID(c)
 	if !ok {
@@ -140,6 +150,7 @@ func (h *UserHandler) AssignRoles(c *gin.Context) {
 	response.OK(c, nil)
 }
 
+// Import 从上传的 Excel 批量创建用户，逐行返回失败原因。
 func (h *UserHandler) Import(c *gin.Context) {
 	header, err := c.FormFile("file")
 	if err != nil {
@@ -157,6 +168,7 @@ func (h *UserHandler) Import(c *gin.Context) {
 		response.Error(c, apperr.Wrap(err, apperr.CodeInvalidArgument, "Excel 解析失败"))
 		return
 	}
+	// 第一行是表头，至少需要一行数据。
 	if len(rows) < 2 {
 		response.Error(c, apperr.New(apperr.CodeInvalidArgument, "导入文件没有数据"))
 		return
@@ -173,6 +185,7 @@ func (h *UserHandler) Import(c *gin.Context) {
 	response.OK(c, result)
 }
 
+// Export 按当前筛选条件导出全部用户为 Excel。
 func (h *UserHandler) Export(c *gin.Context) {
 	var f model.UserFilter
 	if err := c.ShouldBindQuery(&f); err != nil {
@@ -187,6 +200,7 @@ func (h *UserHandler) Export(c *gin.Context) {
 	Attachment(c, "users.xlsx", data)
 }
 
+// Template 下载用户导入模板。
 func (h *UserHandler) Template(c *gin.Context) {
 	data, err := h.users.Template()
 	if err != nil {

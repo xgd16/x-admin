@@ -12,12 +12,15 @@ import (
 	"x-admin/internal/service"
 )
 
+// FileHandler 处理文件上传、列表、下载与删除接口。
 type FileHandler struct {
 	files *service.FileService
 }
 
+// NewFileHandler 创建文件处理器。
 func NewFileHandler(files *service.FileService) *FileHandler { return &FileHandler{files: files} }
 
+// List 分页查询文件，支持关键字、MIME 前缀和文件大类过滤。
 func (h *FileHandler) List(c *gin.Context) {
 	var f model.FileFilter
 	if err := c.ShouldBindQuery(&f); err != nil {
@@ -33,6 +36,8 @@ func (h *FileHandler) List(c *gin.Context) {
 	response.Page(c, list, total, f.Page, f.PageSize)
 }
 
+// Upload 接收 multipart 文件并保存，请求体硬上限为 64MB。
+// 业务层的单文件大小限制由 FileService 按配置再次校验。
 func (h *FileHandler) Upload(c *gin.Context) {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 64<<20)
 	header, err := c.FormFile("file")
@@ -54,6 +59,7 @@ func (h *FileHandler) Upload(c *gin.Context) {
 	response.Created(c, record)
 }
 
+// Download 以流式方式返回文件内容，并设置中文兼容的下载文件名。
 func (h *FileHandler) Download(c *gin.Context) {
 	id, ok := PathID(c)
 	if !ok {
@@ -71,6 +77,7 @@ func (h *FileHandler) Download(c *gin.Context) {
 	})
 }
 
+// Delete 删除文件记录及磁盘上的物理文件。
 func (h *FileHandler) Delete(c *gin.Context) {
 	id, ok := PathID(c)
 	if !ok {

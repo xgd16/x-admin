@@ -1,3 +1,4 @@
+// Package cache 定义应用依赖的最小缓存接口及两种实现。
 package cache
 
 import (
@@ -8,14 +9,15 @@ import (
 	"time"
 )
 
+// ErrNotFound 表示缓存键不存在或已过期。
 var ErrNotFound = errors.New("cache: key not found")
 
-// Store is the small Redis surface the application depends on. Keeping it
-// narrow makes services testable with the in-memory implementation.
+// Store 是应用依赖的 Redis 能力子集。
+// 接口保持狭窄，便于用内存实现做单元测试。
 type Store interface {
 	Set(ctx context.Context, key, value string, ttl time.Duration) error
 	Get(ctx context.Context, key string) (string, error)
-	// Take atomically reads and deletes a key (refresh token rotation).
+	// Take 原子地读取并删除键，用于 refresh token 的一次性轮换。
 	Take(ctx context.Context, key string) (string, error)
 	Del(ctx context.Context, keys ...string) error
 	Exists(ctx context.Context, key string) (bool, error)
@@ -24,26 +26,30 @@ type Store interface {
 	Close() error
 }
 
+// entry 是内存缓存中的一条记录；expiresAt 为零值表示永不过期。
 type entry struct {
 	value     string
 	expiresAt time.Time
 }
 
-// Memory is a concurrency-safe Store used by tests and by `cache.driver=memory`.
+// Memory 是并发安全的进程内缓存，用于测试或 cache.driver=memory。
 type Memory struct {
 	mu   sync.Mutex
 	data map[string]entry
 	now  func() time.Time
 }
 
+// NewMemory 创建内存缓存。
 func NewMemory() *Memory {
 	return &Memory{data: make(map[string]entry), now: time.Now}
 }
 
+// expired 判断记录是否已过期。
 func (m *Memory) expired(e entry) bool {
 	return !e.expiresAt.IsZero() && !m.now().Before(e.expiresAt)
 }
 
+// Set 写入键值，ttl <= 0 表示不过期。
 func (m *Memory) Set(_ context.Context, key, value string, ttl time.Duration) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -55,6 +61,7 @@ func (m *Memory) Set(_ context.Context, key, value string, ttl time.Duration) er
 	return nil
 }
 
+// Get 读取键值；不存在或过期时返回 ErrNotFound 并顺手清理。
 func (m *Memory) Get(_ context.Context, key string) (string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -66,6 +73,7 @@ func (m *Memory) Get(_ context.Context, key string) (string, error) {
 	return e.value, nil
 }
 
+// Take 原子地读取并删除键。
 func (m *Memory) Take(_ context.Context, key string) (string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -78,6 +86,7 @@ func (m *Memory) Take(_ context.Context, key string) (string, error) {
 	return e.value, nil
 }
 
+// Del 删除一个或多个键。
 func (m *Memory) Del(_ context.Context, keys ...string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -87,6 +96,7 @@ func (m *Memory) Del(_ context.Context, keys ...string) error {
 	return nil
 }
 
+// Exists 判断键是否存在且未过期。
 func (m *Memory) Exists(_ context.Context, key string) (bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -98,6 +108,8 @@ func (m *Memory) Exists(_ context.Context, key string) (bool, error) {
 	return true, nil
 }
 
+// Incr 原子自增。键不存在时从 1 开始并按 ttl 设置过期时间；
+// 已存在的键保持原过期时间，从而形成固定计数窗口。
 func (m *Memory) Incr(_ context.Context, key string, ttl time.Duration) (int64, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -119,8 +131,11 @@ func (m *Memory) Incr(_ context.Context, key string, ttl time.Duration) (int64, 
 	return n, nil
 }
 
+// Ping 对内存实现始终成功。
 func (m *Memory) Ping(context.Context) error { return nil }
-func (m *Memory) Close() error               { return nil }
+
+// Close 对内存实现无需释放资源。
+func (m *Memory) Close() error { return nil }
 
 func parseInt(s string) (int64, error) { return strconv.ParseInt(s, 10, 64) }
 func formatInt(n int64) string         { return strconv.FormatInt(n, 10) }

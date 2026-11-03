@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
@@ -6,9 +7,13 @@ import type { DashboardSummary } from '../api/types'
 import { useAuth } from '../stores/auth'
 import { PageHeader } from '../components/PageHeader'
 import { Icon } from '../components/Icon'
-import { LoginTrendChart } from '../components/LoginTrendChart'
 import { MethodTag } from '../components/StatusTag'
 import { quickActions } from '../config/nav'
+
+// ECharts only ships with the dashboard, not the login entry bundle.
+const LoginTrendChart = lazy(() =>
+  import('../components/LoginTrendChart').then((module) => ({ default: module.LoginTrendChart })),
+)
 
 const numberFormat = new Intl.NumberFormat('zh-CN')
 
@@ -129,13 +134,12 @@ export function Dashboard() {
             <h2>登录趋势</h2>
             <span>7D / DAILY</span>
           </div>
-          <LoginTrendChart trend={trend} />
+          <Suspense fallback={<div className="chart chart-skeleton" aria-hidden="true" />}>
+            <LoginTrendChart trend={trend} />
+          </Suspense>
           <div className="chart-legend">
             <span>
               <i />登录次数
-            </span>
-            <span className="dash">
-              <i />活跃用户
             </span>
             <span className="spacer">{isLoading ? '加载中…' : `近 7 天 · 峰值 ${numberFormat.format(peak.count)}`}</span>
           </div>
@@ -150,18 +154,18 @@ export function Dashboard() {
             <div className="signal">
               <span className="orb" />
               <span>
-                <b>MySQL 8.4</b>
-                <span>连接池正常 · 慢查询 0</span>
+                <b>账号安全</b>
+                <span>登录提醒 · 密码变更通知</span>
               </span>
-              <span className="pill">正常</span>
+              <span className="pill">已开启</span>
             </div>
             <div className="signal">
               <span className="orb blue" />
               <span>
-                <b>Redis 7.4</b>
-                <span>验证码 · 令牌 · 限流</span>
+                <b>操作审计</b>
+                <span>写操作自动留痕</span>
               </span>
-              <span className="pill">正常</span>
+              <span className="pill">已开启</span>
             </div>
             <div className="signal">
               <span className="orb amber" />

@@ -20,6 +20,7 @@ tags:
   - name: Job
   - name: Audit
   - name: Profile
+  - name: Notification
 security:
   - bearerAuth: []
 paths:
@@ -54,13 +55,65 @@ paths:
                 captcha_code: { type: string }
       responses:
         '200':
-          description: access/refresh token
+          description: |
+            账号未开启双重验证时返回 access/refresh token；
+            开启后返回 `{mfa_required:true, mfa_token, mfa_expires_in}`，需继续调用 `/auth/login/mfa`。
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Envelope'
         '423':
           description: 连续失败 5 次，账号锁定 15 分钟
+  /admin/v1/auth/login/mfa:
+    post:
+      tags: [Auth]
+      summary: 完成 Google Authenticator 二次验证（20 次/分/IP）
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mfa_token, otp_code]
+              properties:
+                mfa_token: { type: string, description: 登录第一步返回的临时令牌 }
+                otp_code: { type: string, description: 6 位动态验证码或一次性恢复码 }
+      responses:
+        '200':
+          description: access/refresh token
+        '401':
+          description: 验证码错误或验证会话过期
+        '429':
+          description: 单个验证会话错误次数过多，需要重新登录
+  /admin/v1/auth/passkey/login/begin:
+    post:
+      tags: [Auth]
+      summary: 开始通行密钥（Passkey）登录（20 次/分/IP）
+      security: []
+      responses:
+        '200':
+          description: 返回 `session_id` 与 WebAuthn PublicKeyCredentialRequestOptions
+  /admin/v1/auth/passkey/login/finish:
+    post:
+      tags: [Auth]
+      summary: 完成通行密钥登录并签发 token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [session_id, credential]
+              properties:
+                session_id: { type: string }
+                credential: { type: object, description: navigator.credentials.get 序列化结果 }
+      responses:
+        '200':
+          description: access/refresh token
+        '401':
+          description: 通行密钥验证失败或验证会话过期
   /admin/v1/auth/refresh:
     post:
       tags: [Auth]
@@ -393,6 +446,127 @@ paths:
     put:
       tags: [Profile]
       summary: 修改密码
+  /admin/v1/profile/totp:
+    get:
+      tags: [Profile]
+      summary: Google Authenticator 绑定状态与剩余恢复码
+    delete:
+      tags: [Profile]
+      summary: 关闭双重验证（需当前密码 + 动态验证码或恢复码）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password, otp_code]
+              properties:
+                password: { type: string }
+                otp_code: { type: string, description: 6 位动态验证码或一次性恢复码 }
+  /admin/v1/profile/totp/setup:
+    post:
+      tags: [Profile]
+      summary: 生成 TOTP 密钥、otpauth 链接和二维码（未启用时可用）
+      responses:
+        '200':
+          description: 返回 secret、otpauth_url、qr_code（PNG data URL）
+  /admin/v1/profile/totp/enable:
+    post:
+      tags: [Profile]
+      summary: 校验动态验证码并启用双重验证
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password, otp_code]
+              properties:
+                password: { type: string }
+                otp_code: { type: string, description: 6 位动态验证码 }
+                refresh_token: { type: string, description: 当前会话 refresh token，用于在开启双重验证后保持本机登录 }
+      responses:
+        '200':
+          description: 返回 10 个一次性恢复码（仅此一次）
+  /admin/v1/profile/passkeys:
+    get:
+      tags: [Profile]
+      summary: 当前用户的通行密钥设备列表
+  /admin/v1/profile/passkeys/begin:
+    post:
+      tags: [Profile]
+      summary: 开始绑定通行密钥（需当前密码）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string }
+      responses:
+        '200':
+          description: 返回 `session_id` 与 WebAuthn PublicKeyCredentialCreationOptions
+  /admin/v1/profile/passkeys/finish:
+    post:
+      tags: [Profile]
+      summary: 完成通行密钥绑定
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [session_id, credential]
+              properties:
+                session_id: { type: string }
+                name: { type: string, description: 设备名称 }
+                credential: { type: object, description: navigator.credentials.create 序列化结果 }
+  /admin/v1/profile/passkeys/{id}:
+    put:
+      tags: [Profile]
+      summary: 重命名通行密钥设备
+      parameters:
+        - $ref: '#/components/parameters/ID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+    delete:
+      tags: [Profile]
+      summary: 删除通行密钥设备
+      parameters:
+        - $ref: '#/components/parameters/ID'
+  /admin/v1/notifications:
+    get:
+      tags: [Notification]
+      summary: 当前用户通知分页（unread=1 只看未读）
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: unread
+          in: query
+          schema: { type: integer, enum: [0, 1] }
+  /admin/v1/notifications/unread-count:
+    get:
+      tags: [Notification]
+      summary: 未读通知数量
+  /admin/v1/notifications/read-all:
+    put:
+      tags: [Notification]
+      summary: 全部标记为已读
+  /admin/v1/notifications/{id}/read:
+    put:
+      tags: [Notification]
+      summary: 标记单条通知为已读
+      parameters:
+        - $ref: '#/components/parameters/ID'
 components:
   securitySchemes:
     bearerAuth:

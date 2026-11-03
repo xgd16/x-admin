@@ -50,7 +50,7 @@ deploy/                   Docker Compose、Nginx
 
 | 表 | 说明 |
 | --- | --- |
-| `sys_users` | 账号、密码哈希、部门、状态、最后登录 |
+| `sys_users` | 账号、密码哈希、部门、状态、最后登录、TOTP 密钥与恢复码摘要 |
 | `sys_roles` | 角色，`code` 唯一；`super_admin` 拥有全部权限 |
 | `sys_menus` | 目录/菜单/按钮，`permission` 为权限码 |
 | `sys_departments` | 部门树 |
@@ -62,6 +62,8 @@ deploy/                   Docker Compose、Nginx
 | `sys_jobs` | 定时任务定义 |
 | `sys_operation_logs` | 操作审计 |
 | `sys_login_logs` | 登录审计 |
+| `sys_notifications` | 站内通知，按 `user_id` 归属，`read_at` 判未读 |
+| `sys_passkeys` | WebAuthn 通行密钥，一个用户可绑定多台设备，存公钥与签名计数器 |
 
 所有业务表带 `id / created_at / updated_at / deleted_at`，软删除。
 
@@ -87,10 +89,27 @@ deploy/                   Docker Compose、Nginx
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | GET | `/auth/captcha` | 返回 `captcha_id` + SVG data URL |
-| POST | `/auth/login` | 用户名/密码/验证码，10 次/分/IP |
+| POST | `/auth/login` | 用户名/密码/验证码，10 次/分/IP；开启双重验证时返回 `mfa_token` |
+| POST | `/auth/login/mfa` | 动态验证码或恢复码换取 token，20 次/分/IP |
+| POST | `/auth/passkey/login/begin` | 生成 discoverable credential 登录参数 |
+| POST | `/auth/passkey/login/finish` | 验证通行密钥签名并签发 token |
 | POST | `/auth/refresh` | refresh 轮换 |
 | POST | `/auth/logout` | 删除 refresh 白名单 |
 | GET | `/auth/me` | 当前用户 + 权限码 + 菜单树 |
+
+### 个人中心安全设置
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/profile/totp` | 绑定状态、剩余恢复码数量 |
+| POST | `/profile/totp/setup` | 生成 TOTP 密钥、otpauth 链接和二维码 |
+| POST | `/profile/totp/enable` | 当前密码 + 6 位验证码，返回 10 个一次性恢复码 |
+| DELETE | `/profile/totp` | 当前密码 + 动态验证码/恢复码，关闭双重验证 |
+| GET | `/profile/passkeys` | 当前用户已绑定的设备列表 |
+| POST | `/profile/passkeys/begin` | 当前密码校验通过后生成绑定参数 |
+| POST | `/profile/passkeys/finish` | 校验 attestation 并保存设备公钥 |
+| PUT | `/profile/passkeys/:id` | 重命名设备 |
+| DELETE | `/profile/passkeys/:id` | 删除设备（物理删除） |
 
 ### 业务
 
@@ -108,6 +127,7 @@ deploy/                   Docker Compose、Nginx
 | 操作日志 | `/logs/operations`、`DELETE /logs/operations`、`DELETE /logs/operations/:id` | `system:log:operation` |
 | 登录日志 | `/logs/logins`、`DELETE /logs/logins` | `system:log:login` |
 | 个人中心 | `GET/PUT /profile`、`PUT /profile/password` | 登录即可 |
+| 站内通知 | `/notifications`、`/notifications/unread-count`、`/notifications/read-all`、`/notifications/:id/read` | 登录即可 |
 
 列表统一支持 `page`、`page_size`、`keyword`，按模块追加 `dept_id`、`status`、`role_id` 等。文件列表额外支持 `mime` 前缀和 `kind`（`image` / `video` / `audio` / `document` / `archive` / `other`，可逗号组合）。
 
@@ -134,16 +154,22 @@ system:log:operation  system:log:login
 
 - bcrypt cost 10；密码最少 8 位，必须含字母和数字。
 - access token HS256，2h；claims 含 `uid`、`username`。
-- refresh token 为 32 字节随机串，Redis key `refresh:{token}` → uid，7d；每次刷新删除旧 token。
+- refresh token 为 32 字节随机串，Redis key `refresh:{token}` → `uid:session_version`，7d；每次刷新删除旧 token。
 - 验证码 5 分钟，Redis `captcha:{id}`，校验后立即删除。
 - 登录失败 `login:fail:{username}` 计数，5 次锁定 15 分钟；成功清零。
-- 限流：全局 100/min/IP，登录 10/min/IP，Redis 计数。
+- 双重验证：TOTP（RFC 6238，SHA1 / 6 位 / 30 秒，±1 步容差），密钥仅服务端可见；恢复码为 10 个一次性随机码，只存 SHA-256 摘要。
+- 两步登录：密码通过后签发 5 分钟 `mfa:challenge:{token}`，验证成功后立即删除；单个挑战错误 5 次即作废。开启 / 关闭双重验证都需要当前密码。
+- refresh token 值携带 `uid:session_version`；开启双重验证时递增版本，其他设备 refresh 立即失效，当前设备的 token 同步更新版本。
+- 通行密钥：WebAuthn / Passkey（go-webauthn），注册与登录挑战存 Redis 5 分钟且一次性使用；注册需当前密码，最多 10 台设备；只保存公钥、attestation 和签名计数器，私钥留在设备。
+- RP ID / Origin 由 `X_ADMIN_WEBAUTHN_RP_ID`、`X_ADMIN_WEBAUTHN_RP_ORIGINS` 配置；Passkey 仅在 localhost 或 HTTPS 域名下可用，不支持 IP 地址。
+- 限流：全局 100/min/IP，登录 10/min/IP，二次验证 20/min/IP，Passkey 20/min/IP，Redis 计数。
 - 审计：写操作自动记录操作人、路径、IP、状态、耗时、请求体（密码字段脱敏）。
 
 ## 7. 前端
 
 - 布局：悬浮玻璃图标轨（随主题切换浅色/深色）+ 浅色玻璃上下文栏 + 玻璃内容面板。
 - 页面：登录、看板、用户、角色、菜单、部门、字典、参数、文件、任务、操作日志、登录日志、个人中心。
+- 个人中心：资料、密码、Google Authenticator 双重验证、通行密钥（Passkey）设备列表 / 添加 / 重命名 / 删除；登录页支持密码 + 验证码或 Passkey 免密码进入。
 - 交互：多标签页、暗色模式、表格列设置/密度、全局水印。
 - 文件复用：`FilePicker`（选择弹窗，返回 `FileItem[]`）、`FileSelect`（antd Form 字段，返回 URL 或 URL[]），支持 `types` 限定类型、`multiple` / `limit` 控制多选。
 - 主题 token：`#edf3f9` 背景、`#0b1c2c` ink、`#ff5f33` 主色、`#8b7cf6` violet、`#2fb8d9` cyan、`#2fb98a` mint。
