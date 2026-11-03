@@ -108,6 +108,22 @@ button {
   border-radius: 50%;
   filter: blur(70px);
   opacity: 0.8;
+}
+/* Decorative layers run briefly after navigation, then settle. See Ambient.tsx. */
+html .blob,
+html .light-beam,
+html .login-orb {
+  animation-play-state: paused;
+}
+html .blob {
+  will-change: auto;
+}
+html.ambient-live .blob,
+html.ambient-live .light-beam,
+html.ambient-live .login-orb {
+  animation-play-state: running;
+}
+html.ambient-live .blob {
   will-change: transform;
 }
 .blob-a {
