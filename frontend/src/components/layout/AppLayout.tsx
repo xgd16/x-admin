@@ -15,6 +15,7 @@ export function AppLayout() {
   useGlassLight()
   const location = useLocation()
   const open = useTabs((state) => state.open)
+  const refreshKey = useTabs((state) => state.refreshKey)
   const reduceMotion = useReducedMotion()
 
   useEffect(() => {
@@ -39,7 +40,7 @@ export function AppLayout() {
           <TabBar />
           <div className="canvas-body">
             <motion.div
-              key={location.pathname}
+              key={`${location.pathname}::${refreshKey}`}
               className="page-stage"
               initial={reduceMotion ? false : { opacity: 0.55, y: 7 }}
               animate={{ opacity: 1, y: 0 }}
