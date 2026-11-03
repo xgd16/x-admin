@@ -32,18 +32,14 @@ afterEach(() => {
 })
 
 describe('LoginTrendChart', () => {
-  it('shows the peak by default', () => {
+  it('stays clean until the pointer enters the plot', () => {
     const { container } = render(<LoginTrendChart trend={trend} />)
-    const tooltip = container.querySelector('.chart-tooltip')
 
-    expect(tooltip).not.toBeNull()
-    expect(tooltip?.textContent).toContain('7 次')
-    expect(tooltip?.textContent).toContain('11-03')
-    expect(tooltip?.textContent).toContain('峰值')
-    expect(container.querySelectorAll('.chart circle')).toHaveLength(trend.length + 2)
+    expect(container.querySelector('.chart-tooltip')).toBeNull()
+    expect(container.querySelectorAll('.chart circle')).toHaveLength(trend.length)
   })
 
-  it('follows the pointer and restores the peak on leave', () => {
+  it('follows the pointer and hides on leave', () => {
     const { container } = render(<LoginTrendChart trend={trend} />)
     const svg = container.querySelector('svg') as SVGSVGElement
     const hit = container.querySelector('.chart-hit') as SVGRectElement
@@ -54,6 +50,7 @@ describe('LoginTrendChart', () => {
     expect(tooltip?.textContent).toContain('0 次')
     expect(tooltip?.textContent).toContain('10-28')
     expect(tooltip?.textContent).toContain('当日')
+    expect(container.querySelectorAll('.chart circle')).toHaveLength(trend.length + 2)
 
     fireEvent.mouseMove(hit, { clientX: 742, clientY: 120 })
     tooltip = container.querySelector('.chart-tooltip')
@@ -61,7 +58,8 @@ describe('LoginTrendChart', () => {
     expect(tooltip?.textContent).toContain('峰值')
 
     fireEvent.mouseLeave(hit)
-    expect(container.querySelector('.chart-tooltip')?.textContent).toContain('7 次')
+    expect(container.querySelector('.chart-tooltip')).toBeNull()
+    expect(container.querySelectorAll('.chart circle')).toHaveLength(trend.length)
   })
 
   it('has no tooltip or hit area without data', () => {

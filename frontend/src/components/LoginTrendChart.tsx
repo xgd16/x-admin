@@ -20,12 +20,11 @@ export function LoginTrendChart({ trend }: LoginTrendChartProps) {
     () => trend.reduce((best, point, index, all) => (point.count > all[best].count ? index : best), 0),
     [trend],
   )
-  const peak = trend[peakIndex]
-  const activeIndex = hoverIndex ?? (peak && peak.count > 0 ? peakIndex : null)
+  const activeIndex = hoverIndex
   const active = activeIndex === null ? undefined : trend[activeIndex]
   const activePoint = activeIndex === null ? undefined : points[activeIndex]
   const anchor = activePoint ? tooltipAnchor(activePoint) : null
-  const showTooltip = Boolean(active && activePoint && anchor && (hoverIndex !== null || active.count > 0))
+  const showTooltip = Boolean(active && activePoint && anchor)
 
   const handleMove = (event: ReactMouseEvent<SVGRectElement>) => {
     const svg = event.currentTarget.ownerSVGElement
