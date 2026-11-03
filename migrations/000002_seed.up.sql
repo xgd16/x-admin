@@ -13,7 +13,7 @@ INSERT IGNORE INTO `sys_roles`
 -- 密码：Admin@123456
 INSERT IGNORE INTO `sys_users`
 (`id`,`username`,`password`,`nickname`,`email`,`phone`,`dept_id`,`status`,`remark`,`created_at`,`updated_at`) VALUES
-(1,'admin','$2a$10$jQpu.NXktwX0g2pclC2k9.ph6cI6S71WO/NzZ7v.VW/8SVZnFEaTe','李经理','admin@x-admin.cn','13800000000',1,1,'系统内置账号',NOW(3),NOW(3));
+(1,'admin','$2a$10$jQpu.NXktwX0g2pclC2k9.ph6cI6S71WO/NzZ7v.VW/8SVZnFEaTe','管理员','admin@x-admin.cn','13800000000',1,1,'系统内置账号',NOW(3),NOW(3));
 
 INSERT IGNORE INTO `sys_user_roles` (`user_id`,`role_id`) VALUES (1,1);
 
