@@ -332,6 +332,16 @@ html.ambient-live .blob {
   font-size: 18px;
   font-weight: 700;
   box-shadow: 0 10px 24px rgba(255, 95, 51, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: transform 0.24s, box-shadow 0.24s, filter 0.24s;
+}
+.rail-logo:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+  box-shadow: 0 14px 30px rgba(255, 95, 51, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+.rail-logo:active {
+  transform: scale(0.96);
 }
 .rail-btn {
   width: 40px;
@@ -343,19 +353,35 @@ html.ambient-live .blob {
   display: grid;
   place-items: center;
   position: relative;
-  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.18s;
 }
 .rail-btn:hover {
   color: #fff;
   background: rgba(255, 255, 255, 0.08);
 }
+.rail-btn:active {
+  transform: scale(0.94);
+}
 .rail-btn.active {
   color: #ffd7c8;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+.rail-btn.active:hover {
+  background: transparent;
+}
+.rail-active {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: 14px;
+  pointer-events: none;
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.05));
-  border-color: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
-.rail-btn.active::before {
+.rail-active::before {
   content: '';
   position: absolute;
   left: 5px;
@@ -365,6 +391,35 @@ html.ambient-live .blob {
   border-radius: 3px;
   background: var(--accent);
   box-shadow: 0 0 12px rgba(255, 95, 51, 0.8);
+}
+.rail-glyph {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  transition: transform 0.22s;
+}
+.rail-btn.active .rail-glyph {
+  transform: scale(1.04);
+}
+.theme-swap {
+  position: relative;
+  display: block;
+  width: 17px;
+  height: 17px;
+}
+.theme-swap > span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transform: rotate(-55deg) scale(0.62);
+  transition: opacity 0.24s, transform 0.32s cubic-bezier(0.22, 0.8, 0.28, 1);
+}
+.theme-swap > span.on {
+  opacity: 1;
+  transform: rotate(0) scale(1);
 }
 .rail-spacer {
   margin-top: auto;
@@ -383,6 +438,14 @@ html.ambient-live .blob {
   box-shadow: 0 6px 16px rgba(139, 124, 246, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.45);
   margin-top: 4px;
   cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.rail-avatar:hover {
+  transform: scale(1.06);
+  box-shadow: 0 8px 20px rgba(139, 124, 246, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.rail-avatar:active {
+  transform: scale(0.96);
 }
 
 .context {
@@ -396,7 +459,6 @@ html.ambient-live .blob {
   top: 10px;
   height: calc(100vh - 20px);
   overflow: hidden;
-  will-change: width, opacity;
 }
 .ctx-inner {
   width: 200px;
@@ -617,10 +679,14 @@ html.ambient-live .blob {
   font-size: 10.5px;
   backdrop-filter: blur(12px);
   cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.16s;
 }
 .cmd:hover {
   background: rgba(255, 255, 255, 0.55);
   color: var(--ink);
+}
+.cmd:active {
+  transform: scale(0.99);
 }
 :root[data-theme='dark'] .cmd {
   background: rgba(255, 255, 255, 0.06);
@@ -656,7 +722,7 @@ html.ambient-live .blob {
   display: grid;
   place-items: center;
   position: relative;
-  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.16s;
   cursor: pointer;
 }
 .icon-btn.mobile-nav-btn {
@@ -674,6 +740,9 @@ html.ambient-live .blob {
   background: var(--glass-soft);
   border-color: var(--line);
   color: var(--ink);
+}
+.icon-btn:active {
+  transform: scale(0.92);
 }
 .icon-btn .badge {  position: absolute;
   top: 2px;
@@ -696,6 +765,10 @@ html.ambient-live .blob {
   border-left: 1px solid var(--line);
   font-size: 10.5px;
   cursor: pointer;
+  transition: opacity 0.2s;
+}
+.cmd-user:hover {
+  opacity: 0.82;
 }
 .cmd-user .avatar {
   width: 28px;
@@ -708,6 +781,10 @@ html.ambient-live .blob {
   font-size: 10px;
   font-weight: 700;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  transition: transform 0.2s;
+}
+.cmd-user:hover .avatar {
+  transform: scale(1.05);
 }
 .cmd-user .who {
   font-family: var(--mono);
@@ -723,7 +800,13 @@ html.ambient-live .blob {
   font-weight: 600;
 }
 
+.tab-strip-wrap {
+  position: relative;
+  overflow: hidden;
+  flex: none;
+}
 .tab-strip {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -745,6 +828,14 @@ html.ambient-live .blob {
   white-space: nowrap;
   cursor: pointer;
   backdrop-filter: blur(10px);
+  transition: background 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, filter 0.16s;
+}
+.tab-chip:hover {
+  background: var(--glass-strong);
+  color: var(--ink);
+}
+.tab-chip:active {
+  filter: brightness(0.97);
 }
 .tab-chip.active {
   color: var(--ink);
@@ -759,15 +850,20 @@ html.ambient-live .blob {
   color: var(--dim);
   padding: 0;
   cursor: pointer;
+  transition: color 0.18s, transform 0.18s;
 }
 .tab-chip .close:hover {
   color: var(--danger);
+  transform: scale(1.15);
 }
 
 .canvas-body {
   padding: 0 2px 6px;
   min-width: 0;
   flex: 1;
+}
+.page-stage {
+  min-width: 0;
 }
 
 /* ---------------- page ---------------- */
@@ -820,7 +916,7 @@ html.ambient-live .blob {
   justify-content: center;
   gap: 6px;
   backdrop-filter: blur(12px);
-  transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s, background 0.2s, border-color 0.2s, filter 0.2s;
   cursor: pointer;
 }
 .btn:hover {
@@ -837,6 +933,9 @@ html.ambient-live .blob {
 .btn.primary:hover {
   filter: brightness(1.04);
   box-shadow: 0 14px 30px rgba(255, 95, 51, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.btn:active {
+  transform: translateY(0) scale(0.98);
 }
 .btn.ghost {
   background: transparent;
@@ -1223,6 +1322,7 @@ html.ambient-live .blob {
   font-size: 10.5px;
   padding: 9px !important;
   color: var(--ink-soft);
+  transition: background 0.18s;
 }
 .ant-table-wrapper .ant-table-tbody > tr:last-child > td {
   border-bottom: 0 !important;
@@ -1454,6 +1554,9 @@ html.ambient-live .blob {
   transform: translateY(-2px);
   box-shadow: 0 10px 22px rgba(23, 43, 63, 0.1), inset 0 1px 0 #fff;
 }
+.quick:active {
+  transform: translateY(-1px) scale(0.985);
+}
 :root[data-theme='dark'] .quick {
   background: rgba(255, 255, 255, 0.06);
   border-color: var(--line);
@@ -1667,6 +1770,11 @@ html.ambient-live .blob {
 .form-meta a {
   color: var(--accent);
 }
+.form-error {
+  margin: -6px 0 12px;
+  font-size: 10.5px;
+  color: var(--danger);
+}
 .submit {
   width: 100%;
   height: 42px;
@@ -1692,6 +1800,9 @@ html.ambient-live .blob {
 .submit:disabled {
   opacity: 0.7;
   cursor: wait;
+}
+.submit:not(:disabled):active {
+  transform: translateY(0) scale(0.985);
 }
 .login-card .hint {
   margin: 13px 0 0;
@@ -1815,6 +1926,7 @@ html.ambient-live .blob {
   padding: 8px 9px;
   border-radius: 9px;
   font-size: 11px;
+  transition: background 0.18s;
 }
 .settings-row:hover {
   background: var(--glass-soft);
@@ -1854,11 +1966,15 @@ html.ambient-live .blob {
   padding: 9px 10px;
   cursor: pointer;
   text-align: left;
+  transition: background 0.16s, border-color 0.16s, transform 0.16s;
 }
 .palette button:hover,
 .palette button.active {
   background: var(--glass-strong);
   border-color: var(--line);
+}
+.palette button:active {
+  transform: scale(0.985);
 }
 .palette .meta {
   margin-left: auto;
@@ -2031,15 +2147,17 @@ html.ambient-live .blob {
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
   .blob,
   .light-beam,
   .login-orb {
     animation: none !important;
-  }
-  .kpi,
-  .btn,
-  .quick,
-  .submit {
-    transition: none;
   }
 }

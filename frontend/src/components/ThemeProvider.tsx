@@ -2,6 +2,7 @@ import { useEffect, type ReactNode } from 'react'
 import { App as AntdApp, ConfigProvider, Watermark, theme as antdTheme } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import dayjs from 'dayjs'
+import { useReducedMotion } from 'motion/react'
 import { useAuth } from '../stores/auth'
 import { useUi } from '../stores/ui'
 
@@ -12,6 +13,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const watermark = useUi((state) => state.watermark)
   const user = useAuth((state) => state.user)
   const dark = themeMode === 'dark'
+  const reduceMotion = useReducedMotion()
 
   useEffect(() => {
     document.documentElement.dataset.theme = themeMode
@@ -45,6 +47,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           controlHeight: 34,
           fontFamily,
           fontSize: 13,
+          motion: !reduceMotion,
           boxShadow: '0 10px 30px rgba(23, 43, 63, .1)',
           boxShadowSecondary: '0 24px 60px rgba(23, 43, 63, .16)',
         },

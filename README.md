@@ -148,6 +148,7 @@ make lint               # go vet + oxlint
 视觉样张保留在 `design-preview/`，实现以 `frontend/src/styles/global.css` 为准：
 
 - 两级导航：左侧图标轨是一级模块，右侧上下文栏只显示当前模块的二级页面；模块只有 0/1 个页面时自动收起，把 222px 让给内容区，展开/收起由 `motion` 驱动
+- 动效：一级图标轨与二级菜单的选中态共享 layout 滑动，标签页进出、内容区切换和登录卡片入场都使用短时一次性动画；系统开启“减少动态效果”时全部退化为静态
 - 性能：极光光场只在路由切换后播放约 3 秒，随后自动暂停；标签页隐藏或系统开启“减少动态效果”时也不播放，避免大尺寸 blur 与 backdrop-filter 持续占用 GPU
 - 背景 `#edf3f9` / 深色 `#07131f`
 - ink `#0b1c2c`、accent `#ff5f33`、violet `#8b7cf6`、cyan `#2fb8d9`、mint `#2fb98a`

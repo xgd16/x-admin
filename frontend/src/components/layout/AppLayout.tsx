@@ -1,7 +1,9 @@
+import { motion, useReducedMotion } from 'motion/react'
 import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { navByPath } from '../../config/nav'
 import { useTabs } from '../../stores/tabs'
+import { EASE_OUT } from '../../utils/motion'
 import { Ambient } from '../Ambient'
 import { useGlassLight } from '../useGlassLight'
 import { CommandBar } from './CommandBar'
@@ -13,6 +15,7 @@ export function AppLayout() {
   useGlassLight()
   const location = useLocation()
   const open = useTabs((state) => state.open)
+  const reduceMotion = useReducedMotion()
 
   useEffect(() => {
     if (location.pathname === '/login') return
@@ -35,7 +38,15 @@ export function AppLayout() {
           <CommandBar />
           <TabBar />
           <div className="canvas-body">
-            <Outlet />
+            <motion.div
+              key={location.pathname}
+              className="page-stage"
+              initial={reduceMotion ? false : { opacity: 0.55, y: 7 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.22, ease: EASE_OUT }}
+            >
+              <Outlet />
+            </motion.div>
           </div>
         </div>
       </div>

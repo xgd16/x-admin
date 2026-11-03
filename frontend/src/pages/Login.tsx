@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Checkbox, Input } from 'antd'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import type { Captcha } from '../api/types'
@@ -8,6 +9,7 @@ import { useAuth } from '../stores/auth'
 import { tokenStore } from '../api/tokens'
 import { Ambient } from '../components/Ambient'
 import { Icon } from '../components/Icon'
+import { EASE_OUT } from '../utils/motion'
 
 export function Login() {
   const navigate = useNavigate()
@@ -20,6 +22,7 @@ export function Login() {
   const [remember, setRemember] = useState(true)
   const [error, setError] = useState('')
   const [pending, setPending] = useState(false)
+  const reduceMotion = useReducedMotion()
 
   const captcha = useQuery({
     queryKey: ['captcha'],
@@ -60,7 +63,12 @@ export function Login() {
     <main className="lg-login">
       <Ambient />
       <div className="login-stage">
-        <section className="login-hero glass">
+        <motion.section
+          className="login-hero glass"
+          initial={reduceMotion ? false : { opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: EASE_OUT }}
+        >
           <div className="brand">
             <span className="logo">X</span>
             <span>
@@ -89,9 +97,15 @@ export function Login() {
               BUILD <b>v1.0.0</b>
             </span>
           </div>
-        </section>
+        </motion.section>
 
-        <form className="login-card glass" onSubmit={submit}>
+        <motion.form
+          className="login-card glass"
+          onSubmit={submit}
+          initial={reduceMotion ? false : { opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: reduceMotion ? 0 : 0.08, ease: EASE_OUT }}
+        >
           <div className="form-kicker">ACCESS / 内部系统</div>
           <h2>系统登录</h2>
           <p className="form-sub">仅限授权账号 · 操作会写入审计日志</p>
@@ -136,7 +150,18 @@ export function Login() {
                 title="点击刷新验证码"
                 style={{ padding: 0, background: 'transparent' }}
               >
-                {captcha.data ? <img src={captcha.data.image} alt="验证码" /> : <span className="mono">{captcha.isFetching ? '···' : '刷新'}</span>}
+                {captcha.data ? (
+                  <motion.img
+                    key={captcha.data.captcha_id}
+                    src={captcha.data.image}
+                    alt="验证码"
+                    initial={reduceMotion ? false : { opacity: 0, scale: 0.96 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.2, ease: EASE_OUT }}
+                  />
+                ) : (
+                  <span className="mono">{captcha.isFetching ? '···' : '刷新'}</span>
+                )}
               </button>
             </div>
           </div>
@@ -150,11 +175,20 @@ export function Login() {
             </a>
           </div>
 
-          {error && (
-            <div style={{ margin: '-6px 0 12px', fontSize: 10.5, color: 'var(--danger)' }} role="alert">
-              {error}
-            </div>
-          )}
+          <AnimatePresence initial={false}>
+            {error && (
+              <motion.div
+                className="form-error"
+                role="alert"
+                initial={reduceMotion ? false : { opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
+                transition={{ duration: 0.18, ease: EASE_OUT }}
+              >
+                {error}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <button className="submit" type="submit" disabled={pending}>
             {pending ? '正在进入…' : '进入工作台'}
@@ -163,7 +197,7 @@ export function Login() {
           <p className="hint">
             首次登录后请修改默认密码。<b>连续失败 5 次</b>将锁定 15 分钟。
           </p>
-        </form>
+        </motion.form>
       </div>
     </main>
   )

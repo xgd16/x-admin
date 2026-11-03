@@ -1,10 +1,12 @@
 import { Dropdown } from 'antd'
 import type { MenuProps } from 'antd'
+import { motion, useReducedMotion } from 'motion/react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { navByPath, navItems, railGroups } from '../../config/nav'
 import { useAuth } from '../../stores/auth'
 import { useTabs } from '../../stores/tabs'
 import { useUi } from '../../stores/ui'
+import { SPRING } from '../../utils/motion'
 import { Icon } from '../Icon'
 
 export function Rail() {
@@ -16,6 +18,7 @@ export function Rail() {
   const resetTabs = useTabs((state) => state.reset)
   const theme = useUi((state) => state.theme)
   const toggleTheme = useUi((state) => state.toggleTheme)
+  const reduceMotion = useReducedMotion()
 
   const currentGroup = navByPath(location.pathname).group
   const modules = railGroups
@@ -36,20 +39,45 @@ export function Rail() {
       <button className="rail-logo" type="button" onClick={() => navigate('/dashboard')} title="x-admin">
         X
       </button>
-      {modules.map((module) => (
-        <button
-          key={module.key}
-          type="button"
-          className={`rail-btn ${currentGroup === module.group ? 'active' : ''}`}
-          title={module.label}
-          onClick={() => module.first && navigate(module.first.path)}
-        >
-          <Icon name={module.icon} size={17} />
-        </button>
-      ))}
+      {modules.map((module) => {
+        const active = currentGroup === module.group
+        return (
+          <button
+            key={module.key}
+            type="button"
+            className={`rail-btn ${active ? 'active' : ''}`}
+            title={module.label}
+            onClick={() => module.first && navigate(module.first.path)}
+          >
+            {active && (
+              <motion.span
+                layoutId="rail-active"
+                className="rail-active"
+                aria-hidden="true"
+                transition={reduceMotion ? { duration: 0 } : SPRING}
+              />
+            )}
+            <span className="rail-glyph">
+              <Icon name={module.icon} size={17} />
+            </span>
+          </button>
+        )
+      })}
       <div className="rail-spacer" />
-      <button type="button" className="rail-btn" title={theme === 'dark' ? '切换到浅色' : '切换到深色'} onClick={toggleTheme}>
-        <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={17} />
+      <button
+        type="button"
+        className="rail-btn rail-theme"
+        title={theme === 'dark' ? '切换到浅色' : '切换到深色'}
+        onClick={toggleTheme}
+      >
+        <span className="theme-swap">
+          <span className={theme === 'dark' ? 'on' : ''}>
+            <Icon name="sun" size={17} />
+          </span>
+          <span className={theme === 'light' ? 'on' : ''}>
+            <Icon name="moon" size={17} />
+          </span>
+        </span>
       </button>
       <Dropdown
         trigger={['click']}
