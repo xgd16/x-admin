@@ -829,13 +829,16 @@ make lint          # go vet
 make fmt           # gofmt
 ```
 
-测试布局（`make test` 运行 `tests/` 下的用例；`internal/pkg/totp` 另有一个包内测试，`go test ./...` 会一并执行）：
+测试布局（所有 Go 测试都放在 `tests/` 下，`make test` 运行 `tests/` 下的用例）：
 
 - `tests/unit/pkg`：错误码、分页、JWT、密码、缓存（含 miniredis）、验证码、TOTP、存储、Excel、树。
 - `tests/unit/service`：认证、用户、角色、菜单、部门、字典、参数、文件、任务、日志、看板、个人中心、通知、Passkey。
 - `tests/unit/middleware`：request-id、recovery、CORS、认证、权限、限流、审计脱敏。
 - `tests/unit/database`：迁移辅助与健康检查。
 - `tests/unit/repository`：日志保留策略等仓储行为。
+- `tests/unit/bootstrap`：完整依赖装配、缓存不可用与任务执行器。
+- `tests/unit/handler`：处理器在数据库故障下的错误分支。
+- `tests/unit/jobs`：Cron 调度封装。
 - `tests/integration`：SQLite + 内存缓存跑完整 HTTP 登录与 CRUD 链路，含两步登录、恢复码、关闭双重验证、Passkey 设备管理与 WebAuthn 会话校验。
 - `tests/testsupport`：可复用的测试装配（SQLite / 内存缓存 / 完整 Router）。
 

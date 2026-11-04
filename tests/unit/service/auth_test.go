@@ -13,6 +13,7 @@ import (
 
 	"x-admin/internal/model"
 	"x-admin/internal/pkg/apperr"
+	"x-admin/internal/pkg/pagination"
 	"x-admin/internal/pkg/totp"
 	"x-admin/internal/service"
 	"x-admin/tests/testsupport"
@@ -420,4 +421,71 @@ func TestAuthLoginValidationAndLockout(t *testing.T) {
 	}))
 	_, err = login(app, auth, "totp_broken", "Passw0rd123")
 	assert.Equal(t, apperr.CodeForbidden, apperr.From(err).Code)
+}
+
+func TestAuthRefreshMalformedValues(t *testing.T) {
+	ctx := context.Background()
+	app := testsupport.New(t)
+	app.SeedAdmin(t)
+	auth := newAuth(app, true)
+
+	cases := []string{
+		"missing-parts",
+		"x:3:sid",
+		"1:x:sid",
+		"0:0:sid",
+		"1:0:",
+		"1:0",
+	}
+	for i, raw := range cases {
+		token := fmt.Sprintf("malformed-%d", i)
+		require.NoError(t, app.Cache.Set(ctx, "refresh:"+token, raw, time.Minute))
+		_, err := auth.Refresh(ctx, token, service.LoginMeta{})
+		assert.Equal(t, apperr.CodeTokenExpired, apperr.From(err).Code, raw)
+	}
+}
+
+func TestLoginNotificationDeviceLabels(t *testing.T) {
+	ctx := context.Background()
+	app := testsupport.New(t)
+	admin := app.SeedAdmin(t)
+	auth := newAuth(app, true)
+
+	cases := []struct {
+		ua    string
+		label string
+	}{
+		{"Mozilla/5.0 (iPhone; CPU iPhone OS 17_0) AppleWebKit/605.1.15 Version/17.0 Mobile Safari/604.1", "（移动端）"},
+		{"Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36", "（移动端）"},
+		{"Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 Chrome/120.0 Safari/537.36", "（macOS）"},
+		{"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Edg/120.0", "（Windows）"},
+		{"Mozilla/5.0 (X11; Linux x86_64) Gecko/20100101 Firefox/121.0", "（Linux）"},
+		{"curl/8.4.0", ""},
+		{"Mozilla/5.0 (Windows NT 10.0)", "（Windows）"},
+		{"Mozilla/5.0 Chrome/120.0", ""},
+	}
+	for _, tc := range cases {
+		_, err := auth.Login(ctx, service.LoginInput{
+			Username: "admin", Password: "Admin@123456", CaptchaID: "id", CaptchaCode: "code",
+		}, service.LoginMeta{IP: "127.0.0.1", UserAgent: tc.ua})
+		require.NoError(t, err, tc.ua)
+	}
+
+	rows, total, err := app.Services.Notifications.List(ctx, admin.ID,
+		pagination.Query{Page: 1, PageSize: 50}, false)
+	require.NoError(t, err)
+	require.Equal(t, int64(len(cases)), total)
+	var contents strings.Builder
+	for _, row := range rows {
+		contents.WriteString(row.Content)
+		contents.WriteString("\n")
+	}
+	joined := contents.String()
+	for _, tc := range cases {
+		if tc.label != "" {
+			assert.Contains(t, joined, tc.label, tc.ua)
+		}
+	}
+	// 无法识别的客户端不追加设备后缀。
+	assert.Equal(t, 2, strings.Count(joined, "127.0.0.1 登录"))
 }

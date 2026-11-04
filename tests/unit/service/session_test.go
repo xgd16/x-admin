@@ -145,3 +145,44 @@ func TestCheckFileAccessDisabledUser(t *testing.T) {
 	err := auth.CheckFileAccess(ctx, user.ID, 0, "sid")
 	assert.Equal(t, apperr.CodeForbidden, apperr.From(err).Code)
 }
+
+func TestSessionsDescribeDeviceLabels(t *testing.T) {
+	ctx := context.Background()
+	app := testsupport.New(t)
+	admin := app.SeedAdmin(t)
+	auth := newAuth(app, true)
+
+	cases := []struct {
+		ua     string
+		device string
+	}{
+		{"Mozilla/5.0 (iPhone; CPU iPhone OS 17_0) AppleWebKit/605.1.15 Version/17.0 Mobile Safari/604.1", "iPhone · Safari"},
+		{"Mozilla/5.0 (iPad; CPU OS 17_0) AppleWebKit/605.1.15 Version/17.0 Safari/604.1", "iPad · Safari"},
+		{"Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36", "Android · Chrome"},
+		{"Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 Chrome/120.0 Safari/537.36", "macOS · Chrome"},
+		{"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Edg/120.0", "Windows · Edge"},
+		{"Mozilla/5.0 (X11; Linux x86_64) Gecko/20100101 Firefox/121.0", "Linux · Firefox"},
+		{"curl/8.4.0", "未知设备"},
+		{"Mozilla/5.0 (Windows NT 10.0)", "Windows"},
+		{"Mozilla/5.0 Chrome/120.0", "Chrome"},
+	}
+	for _, tc := range cases {
+		_, err := auth.Login(ctx, service.LoginInput{
+			Username: "admin", Password: "Admin@123456", CaptchaID: "id", CaptchaCode: "code",
+		}, service.LoginMeta{IP: "10.0.0.1", UserAgent: tc.ua})
+		require.NoError(t, err, tc.ua)
+	}
+
+	rows, err := auth.Sessions(ctx, admin.ID, "")
+	require.NoError(t, err)
+	require.Len(t, rows, len(cases))
+	got := make([]string, 0, len(rows))
+	for _, row := range rows {
+		got = append(got, row.Device)
+	}
+	want := make([]string, 0, len(cases))
+	for _, tc := range cases {
+		want = append(want, tc.device)
+	}
+	assert.ElementsMatch(t, want, got)
+}

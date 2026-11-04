@@ -64,6 +64,8 @@ func TestPasskeyServiceErrorBranches(t *testing.T) {
 	opts, err := pk.BeginRegistration(ctx, admin.ID, "Admin@123456")
 	require.NoError(t, err)
 	require.NotEmpty(t, opts.SessionID)
+	assert.Equal(t, "admin", opts.Options.Response.User.Name)
+	assert.Equal(t, admin.Nickname, opts.Options.Response.User.DisplayName)
 
 	// 会话属于 admin，不能由其他用户完成。
 	other := app.CreateUser(t, "other-passkey", "Passw0rd123", model.StatusEnabled)
@@ -72,6 +74,14 @@ func TestPasskeyServiceErrorBranches(t *testing.T) {
 
 	_, err = pk.FinishRegistration(ctx, admin.ID, "", "设备", nil)
 	assert.Equal(t, apperr.CodeInvalidArgument, apperr.From(err).Code)
+
+	// 非法认证器响应返回可读的绑定失败提示。
+	fresh, err := pk.BeginRegistration(ctx, admin.ID, "Admin@123456")
+	require.NoError(t, err)
+	_, err = pk.FinishRegistration(ctx, admin.ID, fresh.SessionID, "设备", []byte(`{"id":"bad"}`))
+	require.Error(t, err)
+	assert.Equal(t, apperr.CodeInvalidArgument, apperr.From(err).Code)
+	assert.Contains(t, err.Error(), "通行密钥绑定失败")
 
 	require.NoError(t, app.Cache.Set(ctx, "passkey:register:broken", "not-json", time.Minute))
 	_, err = pk.FinishRegistration(ctx, admin.ID, "broken", "设备", nil)
@@ -129,4 +139,5 @@ func TestPasskeyManagementBranches(t *testing.T) {
 	assert.Equal(t, apperr.CodeInvalidArgument, apperr.From(err).Code)
 	_, err = pk.FinishLogin(ctx, login.SessionID, []byte(`{"id":"bad"}`))
 	assert.Equal(t, apperr.CodeUnauthorized, apperr.From(err).Code)
+	assert.Contains(t, err.Error(), "通行密钥验证失败")
 }

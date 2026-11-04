@@ -40,15 +40,13 @@ type App struct {
 	Router    *gin.Engine
 	Scheduler *jobs.Cron
 	Logs      *service.LogService
+	Jobs      *service.JobService
 }
-
-// openDB 是数据库连接入口，测试可替换为 SQLite 以覆盖完整装配流程。
-var openDB = database.Open
 
 // New 创建并装配整个应用。
 // 任一步骤失败都会按相反顺序回收已创建的资源，避免连接泄漏。
 func New(cfg config.Config) (*App, error) {
-	db, err := openDB(cfg.Database, cfg.App.Env)
+	db, err := database.Open(cfg.Database, cfg.App.Env)
 	if err != nil {
 		return nil, err
 	}
@@ -59,16 +57,29 @@ func New(cfg config.Config) (*App, error) {
 		}
 		slog.Info("database migrations applied")
 	}
-
-	store, err := newCache(cfg.Redis)
+	app, err := newApp(cfg, db)
 	if err != nil {
 		_ = database.Close(db)
+		return nil, err
+	}
+	return app, nil
+}
+
+// NewWithDB 使用调用方提供的数据库连接装配应用，便于测试和嵌入式启动。
+// 数据库迁移由调用方负责；App.Close 会关闭该连接。
+func NewWithDB(cfg config.Config, db *gorm.DB) (*App, error) {
+	return newApp(cfg, db)
+}
+
+// newApp 负责数据库连接之后的依赖装配，不接管数据库生命周期。
+func newApp(cfg config.Config, db *gorm.DB) (*App, error) {
+	store, err := newCache(cfg.Redis)
+	if err != nil {
 		return nil, err
 	}
 	local, err := storage.NewLocal(cfg.Storage.Root, cfg.Storage.URLPrefix)
 	if err != nil {
 		_ = store.Close()
-		_ = database.Close(db)
 		return nil, err
 	}
 
@@ -127,7 +138,6 @@ func New(cfg config.Config) (*App, error) {
 	if err := jobSvc.Boot(context.Background()); err != nil {
 		logs.Close()
 		_ = store.Close()
-		_ = database.Close(db)
 		return nil, err
 	}
 	scheduler.Start()
@@ -166,7 +176,7 @@ func New(cfg config.Config) (*App, error) {
 
 	return &App{
 		Config: cfg, DB: db, Cache: store, Storage: local, Tokens: tokens,
-		Router: engine, Scheduler: scheduler, Logs: logs,
+		Router: engine, Scheduler: scheduler, Logs: logs, Jobs: jobSvc,
 	}, nil
 }
 

@@ -1,4 +1,4 @@
-package totp
+package pkg_test
 
 import (
 	"encoding/base64"
@@ -6,18 +6,21 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"x-admin/internal/pkg/totp"
 )
 
 // RFC 4226 Appendix D test vectors (six digit HOTP).
 func TestHOTPVectors(t *testing.T) {
 	secret := "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ" // "12345678901234567890"
-	key, err := decodeSecret(secret)
-	if err != nil {
-		t.Fatalf("decode secret: %v", err)
-	}
 	want := []string{"755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583", "399871", "520489"}
 	for counter, expected := range want {
-		if got := hotp(key, uint64(counter), Digits); got != expected {
+		at := time.Unix(int64(counter)*30, 0)
+		got, err := totp.Code(secret, at)
+		if err != nil {
+			t.Fatalf("counter %d: code: %v", counter, err)
+		}
+		if got != expected {
 			t.Fatalf("counter %d: got %s want %s", counter, got, expected)
 		}
 	}
@@ -27,40 +30,40 @@ func TestCodeAndValidateWindow(t *testing.T) {
 	secret := "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
 	base := time.Unix(59, 0)
 
-	code, err := Code(secret, base)
+	code, err := totp.Code(secret, base)
 	if err != nil {
 		t.Fatalf("code: %v", err)
 	}
 	if code != "287082" {
 		t.Fatalf("unexpected code %s", code)
 	}
-	if !Validate(secret, code, base) {
+	if !totp.Validate(secret, code, base) {
 		t.Fatal("current code should validate")
 	}
 	// One step later the previous code is still inside the ±1 window.
-	if !Validate(secret, code, base.Add(30*time.Second)) {
+	if !totp.Validate(secret, code, base.Add(30*time.Second)) {
 		t.Fatal("adjacent step should validate with skew")
 	}
-	if ValidateSkew(secret, code, base.Add(90*time.Second), 1) {
+	if totp.ValidateSkew(secret, code, base.Add(90*time.Second), 1) {
 		t.Fatal("code three steps away must not validate")
 	}
-	if Validate(secret, "000000", base) && code != "000000" {
+	if totp.Validate(secret, "000000", base) && code != "000000" {
 		t.Fatal("wrong code accepted")
 	}
-	if Validate(secret, "not-a-code", base) {
+	if totp.Validate(secret, "not-a-code", base) {
 		t.Fatal("malformed code accepted")
 	}
-	if Validate("not-base32!!", code, base) {
+	if totp.Validate("not-base32!!", code, base) {
 		t.Fatal("malformed secret accepted")
 	}
 }
 
 func TestGenerateSecretIsRandom(t *testing.T) {
-	first, err := GenerateSecret()
+	first, err := totp.GenerateSecret()
 	if err != nil {
 		t.Fatalf("generate: %v", err)
 	}
-	second, err := GenerateSecret()
+	second, err := totp.GenerateSecret()
 	if err != nil {
 		t.Fatalf("generate: %v", err)
 	}
@@ -73,7 +76,7 @@ func TestGenerateSecretIsRandom(t *testing.T) {
 }
 
 func TestProvisioningURL(t *testing.T) {
-	raw := ProvisioningURL("x-admin", "admin@example.com", "JBSWY3DPEHPK3PXP")
+	raw := totp.ProvisioningURL("x-admin", "admin@example.com", "JBSWY3DPEHPK3PXP")
 	parsed, err := url.Parse(raw)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
@@ -91,7 +94,7 @@ func TestProvisioningURL(t *testing.T) {
 }
 
 func TestQRCodeDataURL(t *testing.T) {
-	dataURL, err := QRCodeDataURL("otpauth://totp/test")
+	dataURL, err := totp.QRCodeDataURL("otpauth://totp/test")
 	if err != nil {
 		t.Fatalf("qr: %v", err)
 	}
@@ -109,11 +112,11 @@ func TestQRCodeDataURL(t *testing.T) {
 }
 
 func TestRecoveryCodes(t *testing.T) {
-	codes, err := GenerateRecoveryCodes()
+	codes, err := totp.GenerateRecoveryCodes()
 	if err != nil {
 		t.Fatalf("generate: %v", err)
 	}
-	if len(codes) != RecoveryCodeCount {
+	if len(codes) != totp.RecoveryCodeCount {
 		t.Fatalf("unexpected count %d", len(codes))
 	}
 	seen := map[string]bool{}
@@ -125,7 +128,7 @@ func TestRecoveryCodes(t *testing.T) {
 			t.Fatalf("duplicate code %q", code)
 		}
 		seen[code] = true
-		if HashRecoveryCode(strings.ToLower(strings.ReplaceAll(code, "-", " "))) != HashRecoveryCode(code) {
+		if totp.HashRecoveryCode(strings.ToLower(strings.ReplaceAll(code, "-", " "))) != totp.HashRecoveryCode(code) {
 			t.Fatalf("normalization mismatch for %q", code)
 		}
 	}
