@@ -27,7 +27,13 @@ export function LoginTrendChart({ trend }: LoginTrendChartProps) {
     const chart = echarts.init(host, undefined, { renderer: 'canvas' })
     chartRef.current = chart
     const observer =
-      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => chart.resize())
+      typeof ResizeObserver === 'undefined'
+        ? null
+        : new ResizeObserver(() => {
+            // 页签保活时隐藏页的容器尺寸为 0，此时 resize 只会白跑一次绘制。
+            if (host.clientWidth === 0 || host.clientHeight === 0) return
+            chart.resize()
+          })
     observer?.observe(host)
     return () => {
       observer?.disconnect()

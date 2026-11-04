@@ -34,4 +34,21 @@
 }
 .page-stage {
   min-width: 0;
+  /* 首次挂载做一次短促入场；CSS 动画避免保活页长期维护额外的动画实例。 */
+  animation: page-stage-in 0.22s cubic-bezier(0.22, 0.8, 0.28, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-stage {
+    animation: none;
+  }
+}
+@keyframes page-stage-in {
+  from {
+    opacity: 0.55;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
