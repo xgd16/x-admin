@@ -1,0 +1,173 @@
+name: Release assets
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to rebuild assets for (e.g. v1.0.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Resolve version
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.vars.outputs.tag }}
+      version: ${{ steps.vars.outputs.version }}
+    steps:
+      - name: Resolve tag and version
+        id: vars
+        env:
+          TAG_INPUT: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          set -euo pipefail
+          tag="$TAG_INPUT"
+          if [ -z "$tag" ]; then
+            echo "No release tag provided" >&2
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+
+  backend:
+    name: Build ${{ matrix.target.goos }}/${{ matrix.target.goarch }}
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - { goos: linux, goarch: amd64 }
+          - { goos: linux, goarch: arm64 }
+          - { goos: darwin, goarch: amd64 }
+          - { goos: darwin, goarch: arm64 }
+          - { goos: windows, goarch: amd64 }
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      GOOS: ${{ matrix.target.goos }}
+      GOARCH: ${{ matrix.target.goarch }}
+      CGO_ENABLED: "0"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build and package
+        run: |
+          set -euo pipefail
+          ext=""
+          if [ "$GOOS" = "windows" ]; then
+            ext=".exe"
+          fi
+          name="x-admin_${VERSION}_${GOOS}_${GOARCH}"
+
+          go build -trimpath -ldflags="-s -w" -o "build/x-admin${ext}" ./cmd/server
+
+          mkdir -p stage/configs
+          cp "build/x-admin${ext}" "stage/x-admin${ext}"
+          cp configs/config.yaml stage/configs/
+          cp .env.example LICENSE README.md stage/
+
+          if [ "$GOOS" = "windows" ]; then
+            (cd stage && zip -qr "../${name}.zip" .)
+          else
+            tar -czf "${name}.tar.gz" -C stage .
+          fi
+          ls -lh "${name}".*
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: x-admin_${{ matrix.target.goos }}_${{ matrix.target.goarch }}
+          path: |
+            x-admin_*.tar.gz
+            x-admin_*.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  frontend:
+    name: Build frontend
+    needs: prepare
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Package
+        working-directory: frontend/dist
+        run: |
+          set -euo pipefail
+          zip -qr "../../x-admin-web_${VERSION}.zip" .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: x-admin-web
+          path: x-admin-web_*.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Attach assets to release
+    needs: [prepare, backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        working-directory: dist
+        run: |
+          set -euo pipefail
+          sha256sum *.tar.gz *.zip > checksums.txt
+          cat checksums.txt
+
+      - name: Upload assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh release view "$TAG" --repo "$REPO" >/dev/null
+          gh release upload "$TAG" dist/* --repo "$REPO" --clobber

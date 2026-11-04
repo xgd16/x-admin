@@ -13,6 +13,8 @@ x-admin 是一套可直接用于中后台系统的全栈脚手架：后端提供
 ![antd](https://img.shields.io/badge/antd-6-1677FF)
 ![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-blue)
+[![CI](https://github.com/xgd16/x-admin/actions/workflows/ci.yml/badge.svg)](https://github.com/xgd16/x-admin/actions/workflows/ci.yml)
+[![Release](https://github.com/xgd16/x-admin/actions/workflows/release.yml/badge.svg)](https://github.com/xgd16/x-admin/actions/workflows/release.yml)
 
 ## 目录
 
@@ -471,6 +473,7 @@ x-admin/
 │   ├── public/
 │   ├── vite.config.ts              # 开发代理 + Vitest 配置
 │   └── package.json
+├── .github/workflows/              # CI 测试与 Release 多平台产物自动化
 ├── deploy/                         # Dockerfile / Nginx / Compose
 ├── docs/screenshots/               # README 截图
 ├── design-preview/                 # 三套视觉样张（02-workbench 已选定）
@@ -862,6 +865,17 @@ make fmt
 make lint
 make test-all
 ```
+
+### 9.4 持续集成与发布
+
+仓库内置两条 GitHub Actions 工作流：
+
+| 工作流 | 触发条件 | 内容 |
+| --- | --- | --- |
+| `.github/workflows/ci.yml` | push 到 `main`、任意 Pull Request、手动触发 | 后端 `go vet` + Go 全量测试（含集成测试，输出覆盖率）；前端 `oxlint` + Vitest + 生产构建 |
+| `.github/workflows/release.yml` | 发布 Release、手动指定 tag | 交叉编译 Linux/macOS/Windows 共 5 个平台的后端产物，打包前端静态资源，生成 `checksums.txt` 并上传到对应 Release |
+
+Release 产物命名与手动构建保持一致（`x-admin_<version>_<os>_<arch>`），手动重跑时使用 `workflow_dispatch` 并填写已存在的 tag 即可覆盖旧资产。
 
 ---
 
