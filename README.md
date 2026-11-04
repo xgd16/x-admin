@@ -12,6 +12,7 @@ x-admin 是一套可直接用于中后台系统的全栈脚手架：后端提供
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![antd](https://img.shields.io/badge/antd-6-1677FF)
 ![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-blue)
 
 ## 目录
 
@@ -28,6 +29,7 @@ x-admin 是一套可直接用于中后台系统的全栈脚手架：后端提供
 - [11. 常见问题](#11-常见问题)
 - [12. 开发约定](#12-开发约定)
 - [13. 截图与设计](#13-截图与设计)
+- [14. 开源协议](#14-开源协议)
 
 ---
 
@@ -999,3 +1001,11 @@ Cron 在进程内运行，每个副本都会注册任务。改为单副本、主
 - `03-night-shift.html`：夜班模式
 
 实现细节以 `frontend/src/styles/index.scss`（样式拆分说明见 `frontend/src/styles/README.md`）与 `frontend/src/components/ThemeProvider.tsx` 为准。
+
+---
+
+## 14. 开源协议
+
+本项目基于 [MIT License](./LICENSE) 开源。
+
+Copyright (c) 2026 xgd16
