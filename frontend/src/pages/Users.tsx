@@ -1,3 +1,6 @@
+/**
+ * 用户管理：列表、检查器编辑、导入导出与密码重置。
+ */
 import { useEffect, useRef, useState, type Key } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Button, Form, Input, Modal, Select } from 'antd'
@@ -12,6 +15,7 @@ import { Icon } from '../components/Icon'
 import { StatusTag } from '../components/StatusTag'
 import { flattenTree, formatDate, initials } from '../utils/format'
 
+/** 新建用户表单字段。 */
 interface UserFormValues {
   username: string
   password?: string
@@ -24,6 +28,7 @@ interface UserFormValues {
   remark?: string
 }
 
+/** 右侧检查器可编辑的字段。 */
 interface InspectorValues {
   nickname: string
   email: string
@@ -53,6 +58,7 @@ export function Users() {
   const [inspectorForm] = Form.useForm<InspectorValues>()
   const fileInput = useRef<HTMLInputElement>(null)
 
+  // 用户列表按分页、搜索词、部门与状态组合查询。
   const usersQuery = useQuery({
     queryKey: ['users', page, pageSize, keyword, deptID, status],
     queryFn: () =>
@@ -65,6 +71,7 @@ export function Users() {
       }),
   })
 
+  // 部门与角色是筛选/表单的选项数据，只在有对应权限时加载。
   const deptsQuery = useQuery({
     queryKey: ['departments-tree'],
     queryFn: () => api.get<Department[]>('/departments/tree'),
@@ -83,11 +90,13 @@ export function Users() {
   const depts = flattenTree(deptsQuery.data ?? [])
   const roles = rolesQuery.data ?? []
 
+  // 保证右侧检查器始终有选中用户；列表变化后自动纠正失效的 id。
   useEffect(() => {
     if (!selectedID && list.length > 0) setSelectedID(list[0].id)
     if (selectedID && list.length > 0 && !list.some((user) => user.id === selectedID)) setSelectedID(list[0].id)
   }, [list, selectedID])
 
+  // 切换选中用户时，把资料与角色回填到检查器表单。
   useEffect(() => {
     if (selected) {
       inspectorForm.setFieldsValue({
@@ -101,6 +110,7 @@ export function Users() {
     }
   }, [selected?.id, inspectorForm, selected])
 
+  // 支持从仪表盘通过 ?new=1 直接打开“新建用户”弹窗。
   useEffect(() => {
     if (params.get('new') === '1' && can('system:user:create')) {
       setCreateOpen(true)
@@ -111,6 +121,7 @@ export function Users() {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['users'] })
 
+  // —— 用户增删改、密码重置与批量导入 ——
   const createMutation = useMutation({
     mutationFn: (values: UserFormValues) => api.post<User>('/users', values),
     onSuccess: () => {
@@ -163,6 +174,7 @@ export function Users() {
     onError: (error: Error) => message.error(error.message),
   })
 
+  // 导出与导入模板都走后端生成，前端负责触发下载。
   const exportUsers = async () => {
     try {
       const blob = await api.download('/users/export', { keyword, dept_id: deptID, status })
@@ -180,6 +192,7 @@ export function Users() {
     }
   }
 
+  // 删除前二次确认；历史操作日志不会被一并删除。
   const confirmDelete = (ids: number[]) => {
     if (ids.length === 0) {
       message.warning('请先选择用户')
@@ -226,6 +239,7 @@ export function Users() {
         }
       />
 
+      {/* 左侧列表 + 右侧检查器：点击行即可快速编辑，不必打开弹窗。 */}
       <div className="users-layout">
         <DataTable<User>
           storageKey="users"
@@ -451,6 +465,7 @@ export function Users() {
         </aside>
       </div>
 
+      {/* 新建用户弹窗 */}
       <FormModal
         open={createOpen}
         title="新建用户"
@@ -490,6 +505,7 @@ export function Users() {
         </div>
       </FormModal>
 
+      {/* 管理员重置密码弹窗 */}
       <Modal
         open={!!resetUser}
         title={`重置密码 · ${resetUser?.nickname ?? ''}`}

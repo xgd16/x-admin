@@ -1,3 +1,6 @@
+/**
+ * 表单内文件选择器，直接兼容 antd Form.Item。
+ */
 import { useState } from 'react'
 import type { FileItem } from '../api/types'
 import { FilePicker } from './FilePicker'
@@ -14,10 +17,10 @@ import {
 } from '../utils/file'
 
 export interface FileSelectProps {
-  /** URL or URL list, so it plugs directly into antd Form.Item. */
+  /** URL 或 URL 数组，可直接接入 antd Form.Item。 */
   value?: string | string[] | null
   onChange?: (value: string | string[]) => void
-  /** Allowed kinds, e.g. `image` or `['image', 'video']`. Omit for all files. */
+  /** 允许的文件类型，例如 `image` 或 `['image', 'video']`；不传表示全部。 */
   types?: FileKind | FileKind[]
   multiple?: boolean
   limit?: number
@@ -27,6 +30,7 @@ export interface FileSelectProps {
   upload?: boolean
 }
 
+/** 把已有 URL 包装成 FileItem，便于复用文件卡片渲染。 */
 function urlItem(url: string): FileItem {
   const name = fileNameFromURL(url)
   return {
@@ -56,6 +60,7 @@ export function FileSelect({
   const [open, setOpen] = useState(false)
   const [items, setItems] = useState<FileItem[]>([])
 
+  // 统一成数组处理；单选时只保留第一个值。
   const rawUrls = Array.isArray(value) ? value.filter(Boolean) : value ? [value] : []
   const urls = multiple ? (limit && limit > 0 ? rawUrls.slice(0, limit) : rawUrls) : rawUrls.slice(0, 1)
   const entries = urls.map((url) => items.find((item) => item.url === url) ?? urlItem(url))
@@ -65,6 +70,7 @@ export function FileSelect({
   const addIcon = kinds.length === 1 ? FILE_KIND_OPTIONS.find((option) => option.value === kinds[0])?.icon : 'plus'
   const label = placeholder ?? `选择${fileKindLabel(types)}`
 
+  // 对 Form.Item 只回传 URL，保持表单值是可序列化的字符串。
   const emit = (next: FileItem[]) => {
     setItems(next)
     onChange?.(multiple ? next.map((item) => item.url) : next[0]?.url ?? '')

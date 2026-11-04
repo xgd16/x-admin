@@ -1,3 +1,6 @@
+/**
+ * 通行密钥编码与错误提示测试。
+ */
 import { describe, expect, it } from 'vitest'
 import { base64urlToBuffer, bufferToBase64url, passkeyErrorMessage } from './passkey'
 

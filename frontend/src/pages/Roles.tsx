@@ -1,3 +1,6 @@
+/**
+ * 角色管理与菜单权限分配。
+ */
 import { useEffect, useState, type Key } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Button, Form, Input, InputNumber, Modal, Select, Tree } from 'antd'
@@ -19,6 +22,7 @@ interface RoleValues {
   remark: string
 }
 
+/** 把菜单树转换成 antd Tree 需要的节点结构。 */
 function toTreeData(menus: Menu[]): TreeDataNode[] {
   return menus.map((menu) => ({
     key: menu.id,
@@ -42,6 +46,7 @@ export function Roles() {
   const [halfChecked, setHalfChecked] = useState<Key[]>([])
   const [form] = Form.useForm<RoleValues>()
 
+  // 角色列表用于表格，all 列表用于其它页面的下拉选项。
   const rolesQuery = useQuery({
     queryKey: ['roles', page, pageSize, keyword],
     queryFn: () => api.get<PageResult<Role>>('/roles', { page, page_size: pageSize, keyword }),
@@ -66,6 +71,7 @@ export function Roles() {
     enabled: !!assigning,
   })
 
+  // 打开权限弹窗后，把角色已有菜单回填到树。
   useEffect(() => {
     if (roleMenusQuery.data) {
       setCheckedKeys(roleMenusQuery.data)
@@ -78,6 +84,7 @@ export function Roles() {
     void queryClient.invalidateQueries({ queryKey: ['roles-all'] })
   }
 
+  // —— 角色 CRUD 与菜单权限分配 ——
   const saveMutation = useMutation({
     mutationFn: (values: RoleValues) =>
       editing ? api.put<Role>(`/roles/${editing.id}`, values) : api.post<Role>('/roles', values),
@@ -263,6 +270,7 @@ export function Roles() {
         </div>
       </FormModal>
 
+      {/* 半选父节点也要提交，后端据此构建完整菜单树。 */}
       <Modal
         open={!!assigning}
         title={`分配权限 · ${assigning?.name ?? ''}`}

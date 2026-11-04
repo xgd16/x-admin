@@ -1,6 +1,10 @@
+/**
+ * 多页签 Store 的状态迁移测试。
+ */
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useTabs, type Tab } from './tabs'
 
+// 固定几个页签样本，覆盖总览、系统与审计模块。
 const dashboard: Tab = { key: '/dashboard', label: '总览', path: '/dashboard' }
 const users: Tab = { key: '/system/users', label: '用户管理', path: '/system/users' }
 const roles: Tab = { key: '/system/roles', label: '角色管理', path: '/system/roles' }
@@ -14,6 +18,7 @@ function seed(tabs: Tab[], active = tabs[0]?.key ?? '') {
   useTabs.setState({ tabs, active })
 }
 
+// 每个用例前重置 store，避免持久化状态互相影响。
 beforeEach(() => {
   useTabs.setState({ tabs: [], active: '', refreshKey: 0 })
 })

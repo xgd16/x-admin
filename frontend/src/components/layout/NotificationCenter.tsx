@@ -1,3 +1,6 @@
+/**
+ * 站内通知弹层：未读轮询、筛选与已读操作。
+ */
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Popover, Segmented } from 'antd'
 import dayjs from 'dayjs'
@@ -16,6 +19,7 @@ const typeIcon: Record<string, string> = {
   error: 'lock',
 }
 
+/** 通知时间按“今天 / 昨天 / 今年 / 更早”逐级简化。 */
 function timeLabel(value: string) {
   const at = dayjs(value)
   const today = dayjs()
@@ -32,6 +36,7 @@ export function NotificationCenter() {
   const [open, setOpen] = useState(false)
   const [filter, setFilter] = useState<Filter>('all')
 
+  // 未读数每 60 秒轮询一次，窗口重新聚焦时立即刷新。
   const unread = useQuery({
     queryKey: ['notifications', 'unread'],
     queryFn: () => api.get<{ count: number }>('/notifications/unread-count'),
@@ -40,6 +45,7 @@ export function NotificationCenter() {
     staleTime: 20_000,
   })
 
+  // 通知列表只在弹层打开时加载，切换“全部/未读”会重新请求。
   const list = useQuery({
     queryKey: ['notifications', 'list', filter],
     queryFn: () =>
@@ -75,6 +81,7 @@ export function NotificationCenter() {
   const count = unread.data?.count ?? 0
   const rows = list.data?.list ?? []
 
+  // 点击通知时先标记已读，再按后端返回的 link 跳转。
   const openItem = (row: Notification) => {
     if (!row.read_at) markRead.mutate(row.id)
     setOpen(false)

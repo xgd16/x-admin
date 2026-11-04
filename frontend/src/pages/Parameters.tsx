@@ -1,3 +1,6 @@
+/**
+ * 系统参数配置。
+ */
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Button, Form, Input, Switch } from 'antd'
@@ -29,6 +32,7 @@ export function Parameters() {
   const [editing, setEditing] = useState<Parameter>()
   const [form] = Form.useForm<ParameterValues>()
 
+  // 参数列表按关键字分页查询。
   const query = useQuery({
     queryKey: ['parameters', page, pageSize, keyword],
     queryFn: () => api.get<PageResult<Parameter>>('/parameters', { page, page_size: pageSize, keyword }),
@@ -36,6 +40,7 @@ export function Parameters() {
 
   const invalidate = () => void queryClient.invalidateQueries({ queryKey: ['parameters'] })
 
+  // 新增与编辑共用保存逻辑，成功后刷新列表并关闭弹窗。
   const saveMutation = useMutation({
     mutationFn: (values: ParameterValues) =>
       editing ? api.put<Parameter>(`/parameters/${editing.id}`, values) : api.post<Parameter>('/parameters', values),
@@ -58,6 +63,7 @@ export function Parameters() {
     onError: (error: Error) => message.error(error.message),
   })
 
+  // 新参数默认不是公共参数，避免敏感配置被未登录页面读取。
   const openCreate = () => {
     setEditing(undefined)
     form.resetFields()

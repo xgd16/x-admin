@@ -1,3 +1,6 @@
+/**
+ * 文件库选择弹窗：类型筛选、搜索、上传与多选。
+ */
 import { useEffect, useRef, useState } from 'react'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button, Empty, Input, Modal, Pagination, Spin, Upload } from 'antd'
@@ -22,16 +25,16 @@ const PAGE_SIZE = 24
 
 export interface FilePickerProps {
   open: boolean
-  /** Allowed kinds, e.g. `image` or `['image', 'video']`. Omit for all files. */
+  /** 允许的文件类型，例如 `image` 或 `['image', 'video']`；不传表示全部。 */
   types?: FileKind | FileKind[]
-  /** Allow selecting more than one file. Defaults to false. */
+  /** 是否允许多选，默认 false。 */
   multiple?: boolean
-  /** Maximum number of selected files. Only used when `multiple` is true. */
+  /** 最多可选文件数，仅在多选时生效。 */
   limit?: number
-  /** Preselected files, normally supplied by `FileSelect`. */
+  /** 预选文件，通常由 FileSelect 传入。 */
   value?: FileItem[]
   title?: string
-  /** Hide the upload action even when the current account can upload. */
+  /** 即使当前账号有上传权限，也可以强制隐藏上传按钮。 */
   upload?: boolean
   onCancel: () => void
   onConfirm: (files: FileItem[]) => void
@@ -58,6 +61,7 @@ export function FilePicker({
   const [activeKind, setActiveKind] = useState<FileKind | 'all'>('all')
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
+  // 用 ref 保存最新预选值，避免每次 value 变化都重置弹窗内部状态。
   const valueRef = useRef(value)
   valueRef.current = value
 
@@ -68,6 +72,7 @@ export function FilePicker({
   const kindFilter = activeKind === 'all' ? kindKey || undefined : activeKind
   const uploadTypes = activeKind === 'all' ? types : activeKind
 
+  // 每次打开弹窗时重置筛选、分页和临时选择。
   useEffect(() => {
     if (!open) return
     setSelected(valueRef.current ?? [])
@@ -85,6 +90,7 @@ export function FilePicker({
     }
   }, [activeKind, typeOptions])
 
+  // 文件列表只在弹窗打开时请求；翻页时保留上一页数据，避免闪白。
   const query = useQuery({
     queryKey: ['files', 'picker', page, keyword, kindFilter],
     queryFn: () => api.get<PageResult<FileItem>>('/files', { page, page_size: PAGE_SIZE, keyword, kind: kindFilter }),
@@ -95,6 +101,7 @@ export function FilePicker({
   const rows = query.data?.list ?? []
   const total = query.data?.total ?? 0
 
+  // 已有 URL 的预选文件可能缺少 id，列表返回后把它补全为完整文件记录。
   useEffect(() => {
     if (!open || !query.data) return
     setSelected((current) => {
@@ -145,6 +152,7 @@ export function FilePicker({
     setPage(1)
   }
 
+  // 上传前先校验类型和数量，成功后刷新文件库并自动选中新文件。
   const handleUpload = async (file: File) => {
     setError('')
     if (!fileMatchesKinds({ name: file.name, mime: file.type }, uploadTypes)) {

@@ -1,3 +1,6 @@
+/**
+ * 字典管理：字典类型与字典项左右分栏维护。
+ */
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Button, Form, Input, InputNumber, Select, Tag } from 'antd'
@@ -41,6 +44,7 @@ export function Dicts() {
   const [typeForm] = Form.useForm<TypeValues>()
   const [itemForm] = Form.useForm<ItemValues>()
 
+  // 左侧字典类型分页查询，右侧字典项跟随当前选中的类型。
   const typesQuery = useQuery({
     queryKey: ['dict-types', typePage, typePageSize, keyword],
     queryFn: () => api.get<PageResult<DictType>>('/dict/types', { page: typePage, page_size: typePageSize, keyword }),
@@ -54,6 +58,7 @@ export function Dicts() {
 
   const types = typesQuery.data?.list ?? []
 
+  // 默认选中第一个字典；当前选中项被删除或翻页后自动纠正。
   useEffect(() => {
     if (!selectedType && types.length > 0) setSelectedType(types[0].id)
     if (selectedType && types.length > 0 && !types.some((type) => type.id === selectedType)) setSelectedType(types[0].id)
@@ -62,6 +67,7 @@ export function Dicts() {
   const invalidateTypes = () => void queryClient.invalidateQueries({ queryKey: ['dict-types'] })
   const invalidateItems = () => void queryClient.invalidateQueries({ queryKey: ['dict-items'] })
 
+  // 字典类型与字典项各自独立提交，成功后只刷新对应列表。
   const typeMutation = useMutation({
     mutationFn: (values: TypeValues) =>
       editingType ? api.put<DictType>(`/dict/types/${editingType.id}`, values) : api.post<DictType>('/dict/types', values),
@@ -90,6 +96,7 @@ export function Dicts() {
     onError: (error: Error) => message.error(error.message),
   })
 
+  // 删除字典类型会级联删除其下所有字典项，必须二次确认。
   const deleteType = (type: DictType) => {
     modal.confirm({
       title: `删除字典「${type.name}」？`,
@@ -133,6 +140,7 @@ export function Dicts() {
         }
       />
 
+      {/* 左右分栏：左侧选字典类型，右侧维护该类型下的字典项。 */}
       <div className="split-panels">
         <DataTable<DictType>
           storageKey="dict-types"

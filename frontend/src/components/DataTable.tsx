@@ -1,3 +1,6 @@
+/**
+ * 列表页通用表格：列显示偏好、密度、刷新与分页。
+ */
 import { useEffect, useMemo, useState, type Key, type ReactNode } from 'react'
 import { Checkbox, Dropdown, Popover, Table } from 'antd'
 import type { TableColumnsType, TableProps } from 'antd'
@@ -24,6 +27,7 @@ interface DataTableProps<T> {
   emptyText?: ReactNode
 }
 
+/** 为列生成稳定 key：优先使用显式 key，其次 dataIndex，最后退回下标。 */
 function columnKey(column: { key?: Key; dataIndex?: unknown }, index: number): string {
   return String(column.key ?? column.dataIndex ?? index)
 }
@@ -49,6 +53,7 @@ export function DataTable<T extends object>({
 }: DataTableProps<T>) {
   const density = useUi((state) => state.density)
   const setDensity = useUi((state) => state.setDensity)
+  // 列显示偏好按 storageKey 持久化，同一个表格刷新后仍保持用户选择。
   const persisted = useUi((state) => state.columns[storageKey])
   const setColumns = useUi((state) => state.setColumns)
   const allKeys = useMemo(
@@ -57,6 +62,7 @@ export function DataTable<T extends object>({
   )
   const [hidden, setHidden] = useState<string[]>([])
 
+  // 列定义变化时清理已不存在的隐藏项，避免偏好里残留脏 key。
   useEffect(() => {
     setHidden((current) => current.filter((key) => allKeys.includes(key)))
   }, [allKeys])
@@ -64,6 +70,7 @@ export function DataTable<T extends object>({
   const visibleKeys = persisted?.length ? persisted.filter((key) => allKeys.includes(key)) : allKeys
   const visibleColumns = columns.filter((column, index) => visibleKeys.includes(columnKey(column as TableColumnsType<never>[number], index)))
 
+  // 勾选/取消列时写回全局偏好，并同步清理本地隐藏集合。
   const toggle = (key: string, checked: boolean) => {
     const next = checked
       ? Array.from(new Set([...visibleKeys, key]))
@@ -76,6 +83,7 @@ export function DataTable<T extends object>({
     <div className="data-panel glass">
       {filters && <div className="filter-bar">{filters}</div>}
       <div className="table-toolbar">
+        {/* 左侧放业务操作，右侧固定为列设置、密度和刷新。 */}
         <div className="left">{toolbar}</div>
         <div className="right">
           <Popover

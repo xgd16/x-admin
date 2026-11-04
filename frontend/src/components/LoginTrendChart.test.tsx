@@ -1,6 +1,10 @@
+/**
+ * 登录趋势图的生命周期与主题切换测试。
+ */
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+// 用轻量 mock 替代 ECharts，只记录 init / setOption / resize / dispose 调用。
 const chartMock = vi.hoisted(() => {
   const chart = {
     setOption: vi.fn((_option: unknown) => undefined),

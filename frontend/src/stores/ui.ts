@@ -1,3 +1,6 @@
+/**
+ * 界面偏好 Store：主题、表格密度、水印、列设置与二级导航状态。
+ */
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
@@ -13,8 +16,8 @@ interface UiState {
   theme: ThemeMode
   density: Density
   watermark: boolean
-  columns: Record<string, string[]>
-  contextPref: ContextPref | null
+  columns: Record<string, string[]> // 按表格 storageKey 保存用户选择的列。
+  contextPref: ContextPref | null // 用户手动展开/收起二级导航的偏好。
   setTheme: (theme: ThemeMode) => void
   toggleTheme: () => void
   setDensity: (density: Density) => void
@@ -39,6 +42,7 @@ export const useUi = create<UiState>()(
       setContextPref: (group, open) => set({ contextPref: { group, open } }),
     }),
     {
+      // 仅持久化长期偏好；二级导航状态跟随当前会话即可。
       name: 'x-admin.ui',
       partialize: (state) => ({
         theme: state.theme,

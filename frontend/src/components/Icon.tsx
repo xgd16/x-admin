@@ -1,5 +1,9 @@
+/**
+ * 单色线性图标集合。
+ */
 import type { ReactNode, SVGProps } from 'react'
 
+// 所有图标共用 24x24 viewBox，仅保存路径内容，颜色由 currentColor 继承。
 const paths: Record<string, ReactNode> = {
   grid: (
     <>
@@ -221,6 +225,7 @@ interface IconProps extends Omit<SVGProps<SVGSVGElement>, 'name'> {
   size?: number
 }
 
+/** 按名称渲染图标；未知名称回退到 grid，避免页面出现空白。 */
 export function Icon({ name, size = 18, ...rest }: IconProps) {
   return (
     <svg

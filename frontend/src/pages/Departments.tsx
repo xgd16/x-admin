@@ -1,3 +1,6 @@
+/**
+ * 部门管理：树形部门 CRUD。
+ */
 import { useEffect, useState, type Key } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Button, Form, Input, InputNumber, Select, TreeSelect } from 'antd'
@@ -21,6 +24,7 @@ interface DepartmentValues {
   status: 0 | 1
 }
 
+/** 把部门树转换成 TreeSelect 需要的结构。 */
 function toTreeSelect(rows: Department[]): Array<{ title: string; value: number; children?: ReturnType<typeof toTreeSelect> }> {
   return rows.map((row) => ({
     title: row.name,
@@ -38,6 +42,7 @@ export function Departments() {
   const [expanded, setExpanded] = useState<Key[]>([])
   const [form] = Form.useForm<DepartmentValues>()
 
+  // 部门以树形一次性返回，前端负责展平统计与默认展开。
   const deptsQuery = useQuery({
     queryKey: ['departments-tree'],
     queryFn: () => api.get<Department[]>('/departments/tree'),
@@ -52,6 +57,7 @@ export function Departments() {
 
   const invalidate = () => void queryClient.invalidateQueries({ queryKey: ['departments-tree'] })
 
+  // 新增与编辑共用同一个提交入口，由 editing 是否存在决定请求方法。
   const saveMutation = useMutation({
     mutationFn: (values: DepartmentValues) =>
       editing ? api.put<Department>(`/departments/${editing.id}`, values) : api.post<Department>('/departments', values),
@@ -74,6 +80,7 @@ export function Departments() {
     onError: (error: Error) => message.error(error.message),
   })
 
+  // 新建时默认顶级部门、排序 0、状态正常。
   const openCreate = () => {
     setEditing(undefined)
     form.resetFields()
@@ -81,6 +88,7 @@ export function Departments() {
     setOpen(true)
   }
 
+  // 编辑时把整行数据回填到表单。
   const openEdit = (row: Department) => {
     setEditing(row)
     form.setFieldsValue({ ...row })
@@ -112,6 +120,7 @@ export function Departments() {
         }
       />
 
+      {/* 树形表格：默认展开全部节点，删除前由后端检查子部门与成员。 */}
       <DataTable<Department>
         storageKey="departments"
         rowKey="id"

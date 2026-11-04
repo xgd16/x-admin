@@ -1,6 +1,9 @@
+/**
+ * 让玻璃面板跟随鼠标产生高光。
+ */
 import { useEffect } from 'react'
 
-/** Each glass surface catches the pointer light via CSS variables. */
+/** 玻璃面板通过 CSS 变量跟随指针位置产生高光。 */
 export function useGlassLight() {
   useEffect(() => {
     let frame = 0
@@ -16,6 +19,7 @@ export function useGlassLight() {
       target.style.setProperty('--my', `${(((lastEvent.clientY - rect.top) / rect.height) * 100).toFixed(1)}%`)
     }
 
+    // 用 requestAnimationFrame 合并高频 pointermove，避免每帧多次写入样式。
     const onMove = (event: PointerEvent) => {
       lastEvent = event
       if (!frame) frame = requestAnimationFrame(apply)

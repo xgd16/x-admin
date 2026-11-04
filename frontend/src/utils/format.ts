@@ -1,10 +1,15 @@
+/**
+ * 日期、文件大小、树扁平化与头像首字母格式化。
+ */
 import dayjs from 'dayjs'
 
+/** 格式化为 `YYYY-MM-DD HH:mm`；空值显示破折号。 */
 export function formatDate(value?: string | null): string {
   if (!value) return '—'
   return dayjs(value).format('YYYY-MM-DD HH:mm')
 }
 
+/** 把字节数转成 B / KB / MB / GB / TB。 */
 export function formatSize(value: number): string {
   if (!value) return '0 B'
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
@@ -17,6 +22,7 @@ export function formatSize(value: number): string {
   return `${size.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`
 }
 
+/** 深度优先把树形数据拍平成数组，便于统计与下拉框使用。 */
 export function flattenTree<T extends { children?: T[] }>(rows: T[]): T[] {
   const out: T[] = []
   const walk = (nodes: T[]) => {
@@ -29,6 +35,7 @@ export function flattenTree<T extends { children?: T[] }>(rows: T[]): T[] {
   return out
 }
 
+/** 取名称首字符作为头像占位文字。 */
 export function initials(name?: string): string {
   return (name ?? 'X').slice(0, 1).toUpperCase()
 }

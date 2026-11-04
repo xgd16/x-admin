@@ -1,3 +1,6 @@
+/**
+ * 通知中心未读数、已读与空状态测试。
+ */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { App as AntdApp } from 'antd'
@@ -38,6 +41,7 @@ const rows: Notification[] = [
 
 const page: PageResult<Notification> = { list: rows, total: rows.length, page: 1, page_size: 20 }
 
+// 默认返回 1 条未读；不同用例可按需覆盖空数据。
 beforeEach(() => {
   vi.mocked(api.get).mockImplementation((path: string) => {
     if (path === '/notifications/unread-count') return Promise.resolve({ count: 1 })

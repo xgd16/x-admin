@@ -1,3 +1,6 @@
+/**
+ * 侧边导航、模块分组、快捷操作与路由匹配配置。
+ */
 export interface NavItem {
   key: string
   label: string
@@ -7,6 +10,7 @@ export interface NavItem {
   group: string
 }
 
+/** 全部可导航页面；permission 为访问所需权限码。 */
 export const navItems: NavItem[] = [
   { key: 'dashboard', label: '总览', path: '/dashboard', icon: 'grid', permission: 'dashboard:view', group: '工作台' },
   { key: 'users', label: '用户管理', path: '/system/users', icon: 'users', permission: 'system:user:list', group: '人员与权限' },
@@ -28,6 +32,7 @@ export interface RailGroup {
   group: string
 }
 
+/** 左侧图标栏的一级模块分组。 */
 export const railGroups: RailGroup[] = [
   { key: 'workspace', label: '工作台', icon: 'grid', group: '工作台' },
   { key: 'people', label: '人员与权限', icon: 'users', group: '人员与权限' },
@@ -35,10 +40,12 @@ export const railGroups: RailGroup[] = [
   { key: 'audit', label: '审计', icon: 'file', group: '审计' },
 ]
 
+/** 取出某个一级模块下的全部页面。 */
 export function itemsOfGroup(group: string): NavItem[] {
   return navItems.filter((item) => item.group === group)
 }
 
+/** 仪表盘上的快捷操作入口。 */
 export const quickActions = [
   { label: '新建用户', path: '/system/users?new=1', icon: 'plus', hint: 'N' },
   { label: '分配角色', path: '/system/roles', icon: 'shield', hint: 'R' },
@@ -57,6 +64,7 @@ export const profileNav: NavItem = {
   group: '账号',
 }
 
+/** 根据路径匹配导航项，用于面包屑和页签标题。 */
 export function navByPath(pathname: string): NavItem {
   if (pathname === profileNav.path) return profileNav
   return (

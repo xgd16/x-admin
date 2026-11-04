@@ -1,3 +1,6 @@
+/**
+ * 登录趋势 ECharts 组件，跟随主题重绘。
+ */
 import { useEffect, useRef } from 'react'
 import { useReducedMotion } from 'motion/react'
 import type { EChartsType } from 'echarts/core'
@@ -17,6 +20,7 @@ export function LoginTrendChart({ trend }: LoginTrendChartProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<EChartsType | null>(null)
 
+  // 图表实例只创建一次；容器尺寸变化时调用 resize，卸载时释放。
   useEffect(() => {
     const host = hostRef.current
     if (!host) return
@@ -32,6 +36,7 @@ export function LoginTrendChart({ trend }: LoginTrendChartProps) {
     }
   }, [])
 
+  // 数据、主题或“减少动态效果”变化时重新设置 option。
   useEffect(() => {
     chartRef.current?.setOption(
       buildTrendOption(trend, { palette: chartPalette(theme), animate: !reduceMotion }),

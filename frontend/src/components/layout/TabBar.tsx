@@ -1,3 +1,6 @@
+/**
+ * 页面多标签栏与右键菜单。
+ */
 import { useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
@@ -34,10 +37,12 @@ export function TabBar() {
   const [menu, setMenu] = useState<TabMenuState | null>(null)
   const visible = tabs.length > 1
 
+  // 激活页签变化时保持它在可视区域内。
   useEffect(() => {
     activeRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
   }, [active, tabs.length])
 
+  // 菜单打开时监听 Esc、外部点击、滚动和窗口尺寸变化，任一发生即关闭。
   useEffect(() => {
     if (!menu) return
     const onKey = (event: KeyboardEvent) => {
@@ -66,6 +71,7 @@ export function TabBar() {
   const openMenu = (event: ReactMouseEvent, tab: Tab, index: number) => {
     event.preventDefault()
     event.stopPropagation()
+    // 估算菜单尺寸并夹在视口内，避免右键靠近边缘时溢出。
     const width = 184
     const height = 246
     setMenu({
@@ -76,6 +82,7 @@ export function TabBar() {
     })
   }
 
+  // 统一处理右键菜单动作；关闭当前页后按 store 返回的下一 tab 跳转。
   const runAction = (action: MenuAction) => {
     if (!menu) return
     const tab = menu.tab

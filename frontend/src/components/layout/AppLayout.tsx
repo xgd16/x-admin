@@ -1,3 +1,6 @@
+/**
+ * 后台主框架：侧栏、命令栏、页签与页面容器。
+ */
 import { motion, useReducedMotion } from 'motion/react'
 import { useEffect, useRef } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
@@ -19,10 +22,12 @@ export function AppLayout() {
   const reduceMotion = useReducedMotion()
   const canvasBodyRef = useRef<HTMLDivElement>(null)
 
+  // 路由切换后把内容区滚回顶部，避免新页面继承上一页的滚动位置。
   useEffect(() => {
     canvasBodyRef.current?.scrollTo({ top: 0 })
   }, [location.pathname])
 
+  // 每次进入页面时确保对应页签已打开；登录页不参与页签体系。
   useEffect(() => {
     if (location.pathname === '/login') return
     const item = navByPath(location.pathname)
@@ -44,6 +49,7 @@ export function AppLayout() {
           <CommandBar />
           <TabBar />
           <div className="canvas-body" ref={canvasBodyRef}>
+            {/* 以路径 + refreshKey 作为 key，页签“刷新”时强制重新挂载页面。 */}
             <motion.div
               key={`${location.pathname}::${refreshKey}`}
               className="page-stage"

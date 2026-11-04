@@ -1,3 +1,6 @@
+/**
+ * 左侧模块图标栏：模块切换、主题切换与账号菜单。
+ */
 import { Dropdown } from 'antd'
 import type { MenuProps } from 'antd'
 import { motion, useReducedMotion } from 'motion/react'
@@ -21,6 +24,7 @@ export function Rail() {
   const toggleTheme = useUi((state) => state.toggleTheme)
   const reduceMotion = useReducedMotion()
 
+  // 只展示当前账号至少有一个可访问页面的模块。
   const currentGroup = navByPath(location.pathname).group
   const modules = railGroups
     .map((module) => ({
@@ -29,6 +33,7 @@ export function Rail() {
     }))
     .filter((module) => module.first)
 
+  // 账号菜单：个人中心与退出登录。
   const userMenu: MenuProps['items'] = [
     { key: 'profile', icon: <Icon name="user" size={14} />, label: '个人中心' },
     { type: 'divider' },
@@ -53,6 +58,7 @@ export function Rail() {
             title={module.label}
             onClick={() => module.first && navigate(module.first.path)}
           >
+            {/* layoutId 让选中指示块在模块之间平滑移动。 */}
             {active && (
               <motion.span
                 layoutId="rail-active"

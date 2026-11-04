@@ -1,3 +1,6 @@
+/**
+ * 文件管理：上传、筛选、下载与删除。
+ */
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Button, Input, Select, Upload } from 'antd'
@@ -21,6 +24,7 @@ export function Files() {
   const [keywordDraft, setKeywordDraft] = useState('')
   const [kind, setKind] = useState<FileKind | 'all'>('all')
 
+  // 文件列表按类型、关键字和分页查询。
   const query = useQuery({
     queryKey: ['files', page, pageSize, keyword, kind],
     queryFn: () =>
@@ -34,6 +38,7 @@ export function Files() {
 
   const invalidate = () => void queryClient.invalidateQueries({ queryKey: ['files'] })
 
+  // 上传和删除都会让列表失效，统一在成功后刷新。
   const uploadMutation = useMutation({
     mutationFn: (file: File) => api.upload<FileItem>('/files', file),
     onSuccess: (file) => {
@@ -52,6 +57,7 @@ export function Files() {
     onError: (error: Error) => message.error(error.message),
   })
 
+  // 下载走后端鉴权接口，再用 Blob 触发浏览器保存。
   const download = async (file: FileItem) => {
     try {
       saveBlob(await api.download(`/files/${file.id}/download`), file.name)

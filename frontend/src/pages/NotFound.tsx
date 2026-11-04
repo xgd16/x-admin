@@ -1,8 +1,12 @@
+/**
+ * 404 页面。
+ */
 import { Link } from 'react-router-dom'
 import { Ambient } from '../components/Ambient'
 import { BrandMark } from '../components/BrandMark'
 import { Icon } from '../components/Icon'
 
+/** 404 页面复用登录页的极光背景与玻璃卡片。 */
 export function NotFound() {
   return (
     <div className="lg-login">

@@ -1,3 +1,6 @@
+/**
+ * 菜单管理：目录/菜单/按钮三级节点维护。
+ */
 import { useEffect, useState, type Key } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Button, Form, Input, InputNumber, Segmented, Select, Switch, TreeSelect } from 'antd'
@@ -24,6 +27,7 @@ interface MenuValues {
   status: 0 | 1
 }
 
+/** 把菜单树转换成 TreeSelect 需要的结构。 */
 function toTreeSelect(menus: Menu[]): Array<{ title: string; value: number; children?: ReturnType<typeof toTreeSelect> }> {
   return menus.map((menu) => ({
     title: menu.name,
@@ -32,6 +36,7 @@ function toTreeSelect(menus: Menu[]): Array<{ title: string; value: number; chil
   }))
 }
 
+// 菜单节点类型：1 目录、2 菜单、3 按钮。
 const typeLabels: Record<number, string> = { 1: '目录', 2: '菜单', 3: '按钮' }
 
 export function Menus() {
@@ -44,6 +49,7 @@ export function Menus() {
   const [form] = Form.useForm<MenuValues>()
   const type = Form.useWatch('type', form)
 
+  // 菜单树一次加载，前端负责展开、父级选择和表单联动。
   const menusQuery = useQuery({
     queryKey: ['menus-tree'],
     queryFn: () => api.get<Menu[]>('/menus/tree'),
@@ -61,6 +67,7 @@ export function Menus() {
     void queryClient.invalidateQueries({ queryKey: ['menus'] })
   }
 
+  // 菜单变更后同时刷新树和扁平列表，保证其它页面拿到最新权限数据。
   const saveMutation = useMutation({
     mutationFn: (values: MenuValues) =>
       editing ? api.put<Menu>(`/menus/${editing.id}`, values) : api.post<Menu>('/menus', values),
@@ -230,6 +237,7 @@ export function Menus() {
           <Form.Item name="sort" label="排序" initialValue={0}>
             <InputNumber min={0} max={9999} style={{ width: '100%' }} />
           </Form.Item>
+          {/* 按钮节点没有路由；目录节点没有权限码。 */}
           {(type === undefined || type !== 3) && (
             <>
               <Form.Item name="path" label="路由路径">

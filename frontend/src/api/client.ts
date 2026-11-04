@@ -1,3 +1,6 @@
+/**
+ * 统一 HTTP 客户端：注入令牌、处理 401 刷新、封装错误与文件上传/下载。
+ */
 import type { Envelope } from './types'
 import { tokenStore } from './tokens'
 
@@ -11,8 +14,10 @@ export class ApiError extends Error {
   }
 }
 
+// 单飞刷新：多个请求同时 401 时只发起一次 refresh，其余请求复用同一个 Promise。
 let refreshing: Promise<boolean> | null = null
 
+/** 使用 refresh_token 换取新的令牌对；失败时返回 false，由调用方清理登录态。 */
 async function refreshToken(): Promise<boolean> {
   if (!tokenStore.refresh) return false
   try {
@@ -31,6 +36,7 @@ async function refreshToken(): Promise<boolean> {
   }
 }
 
+/** 把查询参数拼成 query string，自动忽略 undefined / null / 空字符串。 */
 function queryString(params?: Record<string, unknown>): string {
   if (!params) return ''
   const search = new URLSearchParams()
@@ -42,6 +48,7 @@ function queryString(params?: Record<string, unknown>): string {
   return text ? `?${text}` : ''
 }
 
+/** 解析统一响应包裹；HTTP 状态或业务 code 非 0 时抛出 ApiError。 */
 async function parse<T>(res: Response): Promise<T> {
   const body = (await res.json()) as Envelope<T>
   if (!res.ok || body.code !== 0) {
@@ -50,6 +57,10 @@ async function parse<T>(res: Response): Promise<T> {
   return body.data
 }
 
+/**
+ * 发起 API 请求。
+ * 自动注入 Bearer Token；遇到 401 时先尝试刷新令牌，再重放原请求。
+ */
 async function request<T>(method: string, path: string, body?: unknown, params?: Record<string, unknown>): Promise<T> {
   const url = `${BASE}${path}${queryString(params)}`
   const headers: Record<string, string> = {}
@@ -62,6 +73,7 @@ async function request<T>(method: string, path: string, body?: unknown, params?:
     body: body instanceof FormData ? body : body === undefined ? undefined : JSON.stringify(body),
   })
 
+  // 登录、刷新等接口本身不参与自动刷新，避免 401 循环。
   if (
     res.status === 401 &&
     tokenStore.refresh &&
@@ -89,6 +101,7 @@ async function request<T>(method: string, path: string, body?: unknown, params?:
   return parse<T>(res)
 }
 
+/** 业务代码统一通过这个对象访问后端，避免各处重复处理令牌和错误。 */
 export const api = {
   get<T>(path: string, params?: Record<string, unknown>) {
     return request<T>('GET', path, undefined, params)
@@ -102,6 +115,7 @@ export const api = {
   del<T>(path: string, body?: unknown) {
     return request<T>('DELETE', path, body)
   },
+  /** 以 multipart/form-data 上传单个文件。 */
   async upload<T>(path: string, file: File): Promise<T> {
     const form = new FormData()
     form.append('file', file)
@@ -112,6 +126,7 @@ export const api = {
     })
     return parse<T>(res)
   },
+  /** 下载二进制文件；错误响应仍按 JSON 包裹解析提示信息。 */
   async download(path: string, params?: Record<string, unknown>): Promise<Blob> {
     const res = await fetch(`${BASE}${path}${queryString(params)}`, {
       headers: tokenStore.access ? { Authorization: `Bearer ${tokenStore.access}` } : {},
@@ -122,7 +137,7 @@ export const api = {
         const body = (await res.json()) as Envelope<unknown>
         message = body.message || message
       } catch {
-        // ignore non-json error bodies
+        // 错误响应可能不是 JSON，解析失败时保留默认提示。
       }
       throw new ApiError(res.status, message)
     }
@@ -130,6 +145,7 @@ export const api = {
   },
 }
 
+/** 触发浏览器下载，并在点击后释放临时 Object URL。 */
 export function saveBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')

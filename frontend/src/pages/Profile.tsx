@@ -1,3 +1,6 @@
+/**
+ * 个人中心：资料、密码、TOTP 与通行密钥管理。
+ */
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Button, Form, Input, Modal } from 'antd'
@@ -42,6 +45,7 @@ export function Profile() {
   const [passkeyOpen, setPasskeyOpen] = useState(false)
   const [renameTarget, setRenameTarget] = useState<PasskeyItem | null>(null)
 
+  // 个人资料优先使用接口最新数据，接口未返回时回退到登录态里的用户。
   const query = useQuery({
     queryKey: ['profile'],
     queryFn: () => api.get<User>('/profile'),
@@ -50,6 +54,7 @@ export function Profile() {
 
   const user = query.data ?? storeUser
 
+  // TOTP 与通行密钥状态独立查询，任一变化后分别刷新。
   const totpQuery = useQuery({
     queryKey: ['profile-totp'],
     queryFn: () => api.get<TOTPStatus>('/profile/totp'),
@@ -62,6 +67,7 @@ export function Profile() {
     staleTime: 30_000,
   })
 
+  // —— 基本资料与密码 ——
   const updateMutation = useMutation({
     mutationFn: (values: ProfileValues) => api.put<User>('/profile', values),
     onSuccess: (updated) => {
@@ -82,12 +88,14 @@ export function Profile() {
     onError: (error: Error) => message.error(error.message),
   })
 
+  // TOTP 开关会影响登录态里的 totp_enabled，因此同时刷新 auth store。
   const refreshTOTP = () => {
     void queryClient.invalidateQueries({ queryKey: ['profile-totp'] })
     void queryClient.invalidateQueries({ queryKey: ['profile'] })
     void useAuth.getState().bootstrap()
   }
 
+  // —— TOTP：获取密钥/二维码 -> 输入验证码启用 -> 保存恢复码 ——
   const setupMutation = useMutation({
     mutationFn: () => api.post<TOTPSetup>('/profile/totp/setup'),
     onSuccess: (data) => {
@@ -124,6 +132,7 @@ export function Profile() {
     onError: (error: Error) => message.error(error.message),
   })
 
+  // —— 通行密钥：begin 取挑战 -> 浏览器创建凭证 -> finish 落库 ——
   const addPasskeyMutation = useMutation({
     mutationFn: async (values: { name: string; password: string }) => {
       const begin = await api.post<PasskeyRegistrationOptions>('/profile/passkeys/begin', {
@@ -204,6 +213,7 @@ export function Profile() {
     })
   }
 
+  // 优先使用 Clipboard API；非安全上下文回退到临时 textarea。
   const copyText = async (text: string, label: string) => {
     try {
       if (navigator.clipboard && window.isSecureContext) {
@@ -244,6 +254,7 @@ export function Profile() {
         }
       />
 
+      {/* 左侧身份卡，右侧依次为资料、双重验证、通行密钥与密码。 */}
       <div className="profile-grid">
         <aside className="profile-card glass">
           <div className="profile-avatar">
@@ -465,6 +476,7 @@ export function Profile() {
         </div>
       </div>
 
+      {/* TOTP 绑定弹窗：启用成功后切换为恢复码展示。 */}
       <Modal open={enableOpen} footer={null} width={600} onCancel={closeEnable} title={null}>
         {recoveryCodes.length > 0 ? (
           <div className="totp-recovery">
@@ -534,6 +546,7 @@ export function Profile() {
         ) : null}
       </Modal>
 
+      {/* 关闭 TOTP 需要密码 + 动态验证码/恢复码双重确认。 */}
       <Modal
         open={disableOpen}
         footer={null}
@@ -572,6 +585,7 @@ export function Profile() {
         </Form>
       </Modal>
 
+      {/* 添加通行密钥：命名设备并验证当前密码。 */}
       <Modal
         open={passkeyOpen}
         footer={null}
@@ -609,6 +623,7 @@ export function Profile() {
         </Form>
       </Modal>
 
+      {/* 重命名已绑定的通行密钥。 */}
       <Modal
         open={!!renameTarget}
         footer={null}

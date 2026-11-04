@@ -1,3 +1,6 @@
+/**
+ * Vitest + jsdom 测试环境补丁。
+ */
 import { vi } from 'vitest'
 
 if (!window.matchMedia) {
@@ -20,7 +23,7 @@ if (!Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = vi.fn()
 }
 
-// antd overlays (Popover/Segmented) observe their trigger size in jsdom.
+// antd 浮层（Popover / Segmented）在 jsdom 中会观察触发器尺寸，这里提供空实现。
 if (!globalThis.ResizeObserver) {
   globalThis.ResizeObserver = class {
     observe() {}
@@ -29,6 +32,6 @@ if (!globalThis.ResizeObserver) {
   } as unknown as typeof ResizeObserver
 }
 
-// antd/rc-motion probes pseudo-elements; jsdom logs a noisy "Not implemented" warning.
+// antd/rc-motion 会探测伪元素，jsdom 会输出嘈杂的 "Not implemented" 警告。
 const getComputedStyle = window.getComputedStyle.bind(window)
 window.getComputedStyle = (element: Element) => getComputedStyle(element)

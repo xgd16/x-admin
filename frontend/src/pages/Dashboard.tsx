@@ -1,3 +1,6 @@
+/**
+ * 系统总览：KPI、登录趋势、系统信号、最近操作与快捷入口。
+ */
 import { lazy, Suspense } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
@@ -10,18 +13,20 @@ import { Icon } from '../components/Icon'
 import { MethodTag } from '../components/StatusTag'
 import { quickActions } from '../config/nav'
 
-// ECharts only ships with the dashboard, not the login entry bundle.
+// ECharts 只在仪表盘按需加载，避免增大登录页首屏包体积。
 const LoginTrendChart = lazy(() =>
   import('../components/LoginTrendChart').then((module) => ({ default: module.LoginTrendChart })),
 )
 
 const numberFormat = new Intl.NumberFormat('zh-CN')
 
+/** 大数字压缩展示：超过 1 万时使用 w 单位。 */
 function formatCompact(value: number): string {
   if (value >= 10000) return `${(value / 10000).toFixed(value >= 100000 ? 0 : 1)}w`
   return numberFormat.format(value)
 }
 
+/** 文件存储总量展示。 */
 function formatBytes(value: number): string {
   if (!value) return '0 B'
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
@@ -43,6 +48,7 @@ export function Dashboard() {
     staleTime: 30_000,
   })
 
+  // 登录趋势的峰值、最后一天以及与前一天的变化率。
   const trend = data?.login_trend ?? []
   const peak = trend.reduce((best, point) => (point.count > best.count ? point : best), { date: '', count: 0 })
   const last = trend[trend.length - 1]
@@ -74,6 +80,7 @@ export function Dashboard() {
         }
       />
 
+      {/* 四张 KPI 卡片：用户、活跃、今日登录、待处理。 */}
       <div className="kpi-grid">
         <article className="kpi glass blue">
           <div className="kpi-top">
@@ -128,6 +135,7 @@ export function Dashboard() {
         </article>
       </div>
 
+      {/* 中部：登录趋势折线图 + 系统信号列表。 */}
       <div className="grid-main">
         <section className="panel glass">
           <div className="panel-head">
@@ -189,6 +197,7 @@ export function Dashboard() {
         </section>
       </div>
 
+      {/* 底部：最近操作只展示前 5 条，右侧为快捷入口。 */}
       <div className="grid-bottom">
         <section className="panel glass">
           <div className="panel-head">
@@ -265,6 +274,7 @@ export function Dashboard() {
             <h2>快捷操作</h2>
             <span>COMMANDS</span>
           </div>
+          {/* 快捷入口颜色按索引轮换，保持视觉节奏。 */}
           <div className="quick-grid">
             {quickActions.map((action, index) => {
               const colors = [

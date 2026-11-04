@@ -1,3 +1,6 @@
+/**
+ * 页签右键菜单与关闭策略测试。
+ */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
@@ -26,6 +29,7 @@ function chip(label: string) {
   return element
 }
 
+// 在指定页签上触发右键，返回菜单容器。
 function openMenu(label: string) {
   fireEvent.contextMenu(chip(label), { clientX: 320, clientY: 120 })
   return screen.getByRole('menu')

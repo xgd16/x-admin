@@ -1,3 +1,6 @@
+/**
+ * 顶部命令栏：面包屑、全局搜索、通知、设置与用户菜单。
+ */
 import { useEffect, useMemo, useState } from 'react'
 import { Drawer, Dropdown, Input, Modal, Popover, Segmented, Switch } from 'antd'
 import type { MenuProps } from 'antd'
@@ -28,6 +31,7 @@ export function CommandBar() {
   const [mobileNav, setMobileNav] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
+  // 全局快捷键：⌘/Ctrl+K 打开快速导航，Esc 关闭。
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
@@ -40,6 +44,7 @@ export function CommandBar() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // 快速导航按名称、路径和分组做在前端过滤，数据量小，无需请求后端。
   const results = useMemo(() => {
     const keyword = query.trim().toLowerCase()
     return navItems.filter((item) => !keyword || `${item.label}${item.path}${item.group}`.toLowerCase().includes(keyword))
@@ -52,6 +57,7 @@ export function CommandBar() {
     { key: 'logout', icon: <Icon name="logout" size={14} />, label: '退出登录', danger: true },
   ]
 
+  // 偏好设置弹层：主题、表格密度、水印与快捷键提示。
   const settings = (
     <div className="settings-menu">
       <div className="settings-row">
@@ -159,6 +165,7 @@ export function CommandBar() {
         </Dropdown>
       </header>
 
+      {/* 快速导航面板：输入关键字后直接跳转页面。 */}
       <Modal
         open={paletteOpen}
         onCancel={() => setPaletteOpen(false)}
@@ -210,6 +217,7 @@ export function CommandBar() {
         </div>
       </Modal>
 
+      {/* 小屏导航抽屉：复用桌面端的导航配置。 */}
       <Drawer
         open={mobileNav}
         onClose={() => setMobileNav(false)}

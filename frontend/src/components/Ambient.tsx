@@ -1,13 +1,16 @@
+/**
+ * 背景极光装饰层，仅在路由切换后短暂播放动画。
+ */
 import { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 
 const LIVE_MS = 3000
 
 /**
- * Decorative aurora layers are animated only for a short window after a route
- * change (and when the tab becomes visible again), then paused. Keeping the
- * huge blurred layers moving behind backdrop-filter panels costs a surprising
- * amount of GPU even when the UI is otherwise idle.
+ * 背景极光装饰层。
+ *
+ * 这些大面积模糊图层只在路由切换后（以及标签页重新可见时）短暂播放动画，
+ * 随后暂停；否则在 backdrop-filter 面板背后持续运动，会白白消耗大量 GPU。
  */
 export function Ambient() {
   const location = useLocation()
@@ -17,11 +20,13 @@ export function Ambient() {
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
     let timer: number | undefined
 
+    // 通过切换 html 上的 ambient-live 类启停 CSS 动画。
     const pause = () => {
       window.clearTimeout(timer)
       root.classList.remove('ambient-live')
     }
 
+    // 系统开启“减少动态效果”时直接跳过播放。
     const play = () => {
       if (reduceMotion.matches) return
       root.classList.add('ambient-live')

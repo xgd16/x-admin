@@ -1,9 +1,13 @@
+/**
+ * 登录趋势图 option 与 tooltip 的单元测试。
+ */
 import { describe, expect, it } from 'vitest'
 import type { LinearGradientObject } from 'echarts/core'
 import type { TrendChartOption } from './trendOption'
 import { buildTrendOption, trendPeakIndex, trendTooltipHtml } from './trendOption'
 import { chartPalette } from './theme'
 
+// 7 天趋势样本，最后一天为峰值，便于断言 tooltip 与渐变配置。
 const trend = [
   { date: '2026-10-28', count: 0 },
   { date: '2026-10-29', count: 2 },

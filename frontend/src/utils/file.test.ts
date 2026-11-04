@@ -1,3 +1,6 @@
+/**
+ * 文件类型识别与筛选工具测试。
+ */
 import { describe, expect, it } from 'vitest'
 import {
   acceptForKinds,

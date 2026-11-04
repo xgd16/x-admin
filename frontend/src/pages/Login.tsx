@@ -1,3 +1,6 @@
+/**
+ * 登录页：账号密码、验证码、MFA 与通行密钥登录。
+ */
 import { useEffect, useState, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { App, Checkbox, Input } from 'antd'
@@ -13,6 +16,7 @@ import { Icon } from '../components/Icon'
 import { EASE_OUT } from '../utils/motion'
 import { isPasskeySupported, passkeyErrorMessage } from '../utils/passkey'
 
+/** 根据当前时间返回登录页的问候文案。 */
 function loginCopy() {
   const hour = new Date().getHours()
   if (hour < 5) {
@@ -65,6 +69,7 @@ export function Login() {
   const passkeyAvailable = isPasskeySupported()
   const reduceMotion = useReducedMotion()
 
+  // 图形验证码进入页面即加载；点击图片会重新获取。
   const captcha = useQuery({
     queryKey: ['captcha'],
     queryFn: () => api.get<Captcha>('/auth/captcha'),
@@ -72,6 +77,7 @@ export function Login() {
     refetchOnWindowFocus: false,
   })
 
+  // 已登录用户访问登录页时，直接回到来源页或总览。
   useEffect(() => {
     if (status === 'ready' && tokenStore.access) {
       const from = (location.state as { from?: string } | null)?.from
@@ -79,6 +85,7 @@ export function Login() {
     }
   }, [status, navigate, location.state])
 
+  // 第一步：提交账号密码与验证码；若后端要求 MFA，则切到动态验证码表单。
   const submitCredentials = async (event: FormEvent) => {
     event.preventDefault()
     if (!captcha.data) {
@@ -104,6 +111,7 @@ export function Login() {
     }
   }
 
+  // 第二步：提交 6 位动态验证码或恢复码；mfa_token 过期时退回账号密码登录。
   const submitMFA = async (event: FormEvent) => {
     event.preventDefault()
     if (!otp.trim()) {
@@ -128,6 +136,7 @@ export function Login() {
     }
   }
 
+  /** 登录成功后回到拦截前的页面，默认进入总览。 */
   const goNext = () => {
     const from = (location.state as { from?: string } | null)?.from
     navigate(from && from !== '/login' ? from : '/dashboard', { replace: true })
@@ -141,6 +150,7 @@ export function Login() {
     void captcha.refetch()
   }
 
+  // 通行密钥登录由浏览器唤起指纹 / 面容 / 设备 PIN。
   const handlePasskeyLogin = async () => {
     setPending(true)
     setPasskeyBusy(true)
@@ -191,6 +201,7 @@ export function Login() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: reduceMotion ? 0 : 0.08, ease: EASE_OUT }}
         >
+          {/* mfaToken 存在时显示第二因子表单，否则显示账号密码表单。 */}
           {mfaToken ? (
             <>
               <div className="form-kicker">TWO-FACTOR / 两步验证</div>
@@ -274,6 +285,7 @@ export function Login() {
                     placeholder="输入验证码"
                     maxLength={6}
                   />
+                  {/* 点击验证码图片刷新；加载中显示省略号。 */}
                   <button
                     type="button"
                     className="code"

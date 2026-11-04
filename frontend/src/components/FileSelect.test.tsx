@@ -1,9 +1,13 @@
+/**
+ * 行内文件选择器的受控值测试。
+ */
 import type { ReactElement } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FileSelect } from './FileSelect'
 
+// FileSelect 不直接请求数据，但内部 FilePicker 依赖权限 store。
 vi.mock('../stores/auth', () => ({
   useAuth: (selector: (state: { can: () => boolean }) => unknown) => selector({ can: () => false }),
 }))

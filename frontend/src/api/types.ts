@@ -1,3 +1,9 @@
+/**
+ * 后端接口的数据模型定义。
+ */
+// —— 通用响应结构 ——
+
+/** 后端统一响应包裹：code 为 0 表示成功，data 为业务数据。 */
 export interface Envelope<T> {
   code: number
   message: string
@@ -5,6 +11,7 @@ export interface Envelope<T> {
   request_id?: string
 }
 
+/** 分页列表的通用返回结构。 */
 export interface PageResult<T> {
   list: T[]
   total: number
@@ -12,6 +19,9 @@ export interface PageResult<T> {
   page_size: number
 }
 
+// —— 用户、角色、菜单与部门 ——
+
+/** 用户账号；status 0=停用，1=正常。 */
 export interface User {
   id: number
   username: string
@@ -30,6 +40,7 @@ export interface User {
   created_at: string
 }
 
+/** 角色；code 为权限系统中的稳定标识。 */
 export interface Role {
   id: number
   name: string
@@ -40,6 +51,7 @@ export interface Role {
   menus?: Menu[]
 }
 
+/** 菜单节点；type 1=目录，2=菜单，3=按钮。 */
 export interface Menu {
   id: number
   parent_id: number
@@ -55,6 +67,7 @@ export interface Menu {
   children?: Menu[]
 }
 
+/** 部门；children 用于树形展示。 */
 export interface Department {
   id: number
   parent_id: number
@@ -67,6 +80,9 @@ export interface Department {
   children?: Department[]
 }
 
+// —— 字典、参数、文件、任务与日志 ——
+
+/** 字典类型，例如“用户状态”。 */
 export interface DictType {
   id: number
   name: string
@@ -75,6 +91,7 @@ export interface DictType {
   remark: string
 }
 
+/** 字典项，例如“正常 / 停用”。 */
 export interface DictItem {
   id: number
   dict_type_id: number
@@ -85,6 +102,7 @@ export interface DictItem {
   tag_color: string
 }
 
+/** 系统参数；public 为 true 时允许未登录页面读取。 */
 export interface Parameter {
   id: number
   key: string
@@ -94,6 +112,7 @@ export interface Parameter {
   remark: string
 }
 
+/** 文件库中的文件记录。 */
 export interface FileItem {
   id: number
   name: string
@@ -106,6 +125,7 @@ export interface FileItem {
   created_at: string
 }
 
+/** 定时任务；handler 对应后端注册的执行器。 */
 export interface Job {
   id: number
   name: string
@@ -118,6 +138,7 @@ export interface Job {
   remark: string
 }
 
+/** 操作日志；请求体与错误信息已由后端脱敏。 */
 export interface OperationLog {
   id: number
   user_id: number
@@ -134,6 +155,7 @@ export interface OperationLog {
   created_at: string
 }
 
+/** 登录日志，记录成功与失败。 */
 export interface LoginLog {
   id: number
   user_id: number
@@ -145,6 +167,7 @@ export interface LoginLog {
   created_at: string
 }
 
+/** 站内通知；read_at 为空表示未读。 */
 export interface Notification {
   id: number
   user_id: number
@@ -157,11 +180,15 @@ export interface Notification {
   created_at: string
 }
 
+// —— 仪表盘与认证 ——
+
+/** 登录趋势中的一个数据点。 */
 export interface TrendPoint {
   date: string
   count: number
 }
 
+/** 首页汇总数据。 */
 export interface DashboardSummary {
   users: number
   active_users: number
@@ -174,18 +201,21 @@ export interface DashboardSummary {
   recent_operations: OperationLog[]
 }
 
+/** /auth/me 返回当前用户、权限码与可见菜单。 */
 export interface MeResult {
   user: User
   permissions: string[]
   menus: Menu[]
 }
 
+/** 图形验证码；image 为 data URL。 */
 export interface Captcha {
   captcha_id: string
   image: string
   expires_in: number
 }
 
+/** 访问令牌与刷新令牌。 */
 export interface TokenPair {
   access_token: string
   refresh_token: string
@@ -193,17 +223,20 @@ export interface TokenPair {
   expires_in: number
 }
 
+/** 登录结果；mfa_required 为 true 时需继续提交动态验证码。 */
 export interface LoginResult extends Partial<TokenPair> {
   mfa_required?: boolean
   mfa_token?: string
   mfa_expires_in?: number
 }
 
+/** TOTP 状态与剩余恢复码数量。 */
 export interface TOTPStatus {
   enabled: boolean
   recovery_codes_left: number
 }
 
+/** TOTP 绑定信息；qr_code 为二维码 data URL。 */
 export interface TOTPSetup {
   secret: string
   otpauth_url: string
@@ -211,6 +244,8 @@ export interface TOTPSetup {
   issuer: string
   account: string
 }
+
+// —— WebAuthn / 通行密钥（服务端 JSON 与浏览器 API 的类型桥接） ——
 
 export interface PasskeyCredentialDescriptorJSON {
   id: string
@@ -242,16 +277,19 @@ export interface PasskeyRequestOptionsJSON {
   userVerification?: string
 }
 
+/** 注册通行密钥的会话信息与 WebAuthn 选项。 */
 export interface PasskeyRegistrationOptions {
   session_id: string
   options: { publicKey: PasskeyCreationOptionsJSON; mediation?: string }
 }
 
+/** 通行密钥登录的会话信息与 WebAuthn 选项。 */
 export interface PasskeyLoginOptions {
   session_id: string
   options: { publicKey: PasskeyRequestOptionsJSON; mediation?: string }
 }
 
+/** 已绑定的通行密钥设备。 */
 export interface PasskeyItem {
   id: number
   name: string
@@ -260,6 +298,7 @@ export interface PasskeyItem {
   last_used_at: string | null
 }
 
+/** Excel 导入结果。 */
 export interface ImportResult {
   success: number
   failed: Array<{ row: number; username: string; message: string }>

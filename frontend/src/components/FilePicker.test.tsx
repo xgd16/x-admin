@@ -1,3 +1,6 @@
+/**
+ * 文件选择弹窗的交互测试。
+ */
 import type { ComponentProps } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -6,6 +9,7 @@ import { api } from '../api/client'
 import type { FileItem } from '../api/types'
 import { FilePicker } from './FilePicker'
 
+// 隔离真实请求；默认账号没有上传权限，上传按钮不会出现。
 vi.mock('../api/client', () => ({
   api: { get: vi.fn(), upload: vi.fn() },
 }))
@@ -56,6 +60,7 @@ function renderPicker(props: Partial<ComponentProps<typeof FilePicker>> = {}) {
   return { ...result, onConfirm }
 }
 
+// 每个用例都返回同一份文件库数据。
 beforeEach(() => {
   vi.mocked(api.get).mockResolvedValue({ list: files, total: files.length, page: 1, page_size: 24 })
 })

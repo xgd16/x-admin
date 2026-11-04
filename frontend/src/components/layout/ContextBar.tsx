@@ -1,3 +1,6 @@
+/**
+ * 二级导航面板与服务健康状态。
+ */
 import { useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useNavigate } from 'react-router-dom'
@@ -21,6 +24,7 @@ export function ContextBar() {
       ? 'WORKSPACE / OVERVIEW'
       : `LEVEL 1 / ${moduleMeta?.key.toUpperCase() ?? 'MODULE'}`
 
+  // 二级导航里的数量角标来自首页汇总；没有权限时不请求。
   const summary = useQuery({
     queryKey: ['dashboard-summary'],
     queryFn: () => api.get<DashboardSummary>('/dashboard/summary'),
@@ -28,6 +32,7 @@ export function ContextBar() {
     staleTime: 60_000,
   })
 
+  // 健康检查接口只测往返延迟；面板打开时每 30 秒刷新一次。
   const health = useQuery({
     queryKey: ['health'],
     queryFn: async () => {
@@ -41,6 +46,7 @@ export function ContextBar() {
     refetchInterval: open ? 30_000 : false,
   })
 
+  // 角标文案：文件数超过 999 时压缩成 k 单位，保持侧栏宽度稳定。
   const counts: Record<string, string> = {
     dashboard: 'LIVE',
     users: summary.data ? String(summary.data.users) : '',
@@ -50,6 +56,7 @@ export function ContextBar() {
     jobs: summary.data ? String(summary.data.jobs) : '',
   }
 
+  // 展开/收起使用宽度与位移组合动画；减少动态效果时直接跳过。
   const transition = reduceMotion
     ? { duration: 0 }
     : { type: 'tween' as const, duration: 0.34, ease: [0.22, 0.8, 0.28, 1] as const }

@@ -1,3 +1,6 @@
+/**
+ * WebAuthn / 通行密钥的浏览器封装与错误提示。
+ */
 import type {
   PasskeyCreationOptionsJSON,
   PasskeyLoginOptions,
@@ -5,17 +8,18 @@ import type {
   PasskeyRequestOptionsJSON,
 } from '../api/types'
 
-/** True when this browser and origin can run WebAuthn ceremonies. */
+/** 判断当前浏览器与访问地址是否支持 WebAuthn。 */
 export function isPasskeySupported(): boolean {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') return false
   if (typeof window.PublicKeyCredential === 'undefined' || !navigator.credentials) return false
   const host = window.location.hostname
   if (!host) return false
-  // WebAuthn RP IDs must be domains; an IP literal cannot be used as RP ID.
+  // WebAuthn 的 RP ID 必须是域名，IP 字面量不能作为 RP ID。
   if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(':')) return false
   return window.isSecureContext !== false
 }
 
+/** 把 base64url 字符串解码为 ArrayBuffer，兼容缺失的 padding。 */
 export function base64urlToBuffer(value: string): ArrayBuffer {
   const normalized = value.replace(/-/g, '+').replace(/_/g, '/')
   const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=')
@@ -25,6 +29,7 @@ export function base64urlToBuffer(value: string): ArrayBuffer {
   return bytes.buffer
 }
 
+/** 把 ArrayBuffer 编码为无 padding 的 base64url，分块处理避免栈溢出。 */
 export function bufferToBase64url(value: ArrayBuffer): string {
   const bytes = new Uint8Array(value)
   let binary = ''
@@ -35,6 +40,7 @@ export function bufferToBase64url(value: ArrayBuffer): string {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
 }
 
+/** 把服务端 JSON 选项转换为浏览器注册 API 需要的结构。 */
 function toCreationOptions(json: PasskeyCreationOptionsJSON): PublicKeyCredentialCreationOptions {
   return {
     rp: json.rp,
@@ -64,6 +70,7 @@ function toCreationOptions(json: PasskeyCreationOptionsJSON): PublicKeyCredentia
   }
 }
 
+/** 把服务端 JSON 选项转换为浏览器登录 API 需要的结构。 */
 function toRequestOptions(json: PasskeyRequestOptionsJSON): PublicKeyCredentialRequestOptions {
   return {
     challenge: base64urlToBuffer(json.challenge),
@@ -78,7 +85,7 @@ function toRequestOptions(json: PasskeyRequestOptionsJSON): PublicKeyCredentialR
   }
 }
 
-/** Run navigator.credentials.create and serialize the attestation response. */
+/** 调用 navigator.credentials.create，并把注册结果序列化为后端可接收的 JSON。 */
 export async function createPasskey(options: PasskeyRegistrationOptions): Promise<unknown> {
   if (!isPasskeySupported()) {
     throw new Error('当前环境不支持通行密钥')
@@ -102,7 +109,7 @@ export async function createPasskey(options: PasskeyRegistrationOptions): Promis
   }
 }
 
-/** Run navigator.credentials.get and serialize the assertion response. */
+/** 调用 navigator.credentials.get，并把登录断言序列化为后端可接收的 JSON。 */
 export async function getPasskeyAssertion(options: PasskeyLoginOptions): Promise<unknown> {
   if (!isPasskeySupported()) {
     throw new Error('当前环境不支持通行密钥')
@@ -127,6 +134,7 @@ export async function getPasskeyAssertion(options: PasskeyLoginOptions): Promise
   }
 }
 
+/** 把 WebAuthn 的 DOMException 转换成用户能理解的中文提示。 */
 export function passkeyErrorMessage(error: unknown): string {
   if (typeof DOMException !== 'undefined' && error instanceof DOMException) {
     switch (error.name) {

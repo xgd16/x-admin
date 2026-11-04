@@ -1,3 +1,6 @@
+/**
+ * 应用路由表：登录页与受保护的后台页面。
+ */
 import { MotionConfig } from 'motion/react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppLayout } from './components/layout/AppLayout'
@@ -18,9 +21,11 @@ import { Users } from './pages/Users'
 
 export function AppRoutes() {
   return (
+    // reducedMotion="user" 会遵循系统的“减少动态效果”设置。
     <MotionConfig reducedMotion="user">
       <Routes>
         <Route path="/login" element={<Login />} />
+        {/* 后台页面统一挂载在 AppLayout 下，再由 RequireAuth 做登录校验。 */}
         <Route
           element={
             <RequireAuth>

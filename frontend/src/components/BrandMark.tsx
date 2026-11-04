@@ -1,3 +1,6 @@
+/**
+ * x-admin 品牌标记（>_）SVG。
+ */
 import { useId } from 'react'
 
 interface BrandMarkProps {
@@ -5,11 +8,11 @@ interface BrandMarkProps {
 }
 
 /**
- * The x-admin mark: a console prompt (`>_`) drawn with a warm gradient. It
- * reads as a workbench/command surface rather than a close icon, and stays
- * legible at rail size.
+ * x-admin 品牌标记：用暖色渐变绘制的控制台提示符（`>_`），
+ * 在侧栏小尺寸下也能保持清晰。
  */
 export function BrandMark({ size = 22 }: BrandMarkProps) {
+  // SVG 渐变 id 必须全局唯一，避免同一页面多个 Logo 互相覆盖。
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '')
   const chevron = `xa-chevron-${uid}`
   const cursor = `xa-cursor-${uid}`

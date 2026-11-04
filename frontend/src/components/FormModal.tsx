@@ -1,3 +1,6 @@
+/**
+ * 通用表单弹窗。
+ */
 import type { ReactNode } from 'react'
 import { Form, Modal } from 'antd'
 import type { FormInstance } from 'antd'
@@ -14,6 +17,7 @@ interface FormModalProps {
   okText?: string
 }
 
+/** 统一“弹窗 + 表单”组合：确定按钮触发 form.submit()，再由 onFinish 提交。 */
 export function FormModal({
   open,
   title,

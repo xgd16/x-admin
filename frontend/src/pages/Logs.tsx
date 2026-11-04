@@ -1,3 +1,6 @@
+/**
+ * 操作日志与登录日志列表，支持筛选、清空与删除。
+ */
 import { useState, type Key } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Button, DatePicker, Input, Select, Tag } from 'antd'
@@ -14,6 +17,7 @@ const { RangePicker } = DatePicker
 
 type Mode = 'operations' | 'logins'
 
+/** 按 HTTP 状态码区间着色：5xx 红、4xx 橙、3xx 蓝、其余绿。 */
 function statusTag(status: number) {
   const color = status >= 500 ? 'red' : status >= 400 ? 'orange' : status >= 300 ? 'blue' : 'green'
   return <Tag color={color}>{status}</Tag>
@@ -31,6 +35,7 @@ export function Logs({ mode }: { mode: Mode }) {
   const [range, setRange] = useState<[Dayjs, Dayjs] | null>(null)
   const [selected, setSelected] = useState<Key[]>([])
 
+  // 同一个组件复用操作日志与登录日志两套接口和列定义。
   const operations = mode === 'operations'
   const path = operations ? '/logs/operations' : '/logs/logins'
 
@@ -68,6 +73,7 @@ export function Logs({ mode }: { mode: Mode }) {
 
   const rows = query.data?.list ?? []
 
+  // 操作日志关注方法/路径/状态，登录日志关注账号/结果/说明。
   const operationColumns = [
     { title: '操作人', key: 'username', width: 130, render: (_: unknown, row: OperationLog) => <b style={{ fontSize: 11 }}>{row.username || `UID ${row.user_id}`}</b> },
     { title: '方法', key: 'method', width: 80, render: (_: unknown, row: OperationLog) => <MethodTag method={row.method} /> },
@@ -153,6 +159,7 @@ export function Logs({ mode }: { mode: Mode }) {
           </>
         }
         toolbar={
+          // 只有操作日志支持勾选删除；登录日志保持只读审计。
           operations && can('system:log:operation') ? (
             <Button
               danger

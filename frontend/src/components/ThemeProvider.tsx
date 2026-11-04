@@ -1,3 +1,6 @@
+/**
+ * antd 主题、中文语言包、水印与暗色模式注入。
+ */
 import { useEffect, type ReactNode } from 'react'
 import { App as AntdApp, ConfigProvider, Watermark, theme as antdTheme } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
@@ -6,6 +9,7 @@ import { useReducedMotion } from 'motion/react'
 import { useAuth } from '../stores/auth'
 import { useUi } from '../stores/ui'
 
+// 与全局样式保持一致的字体栈。
 const fontFamily = '"Avenir Next", "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif'
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
@@ -15,6 +19,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const dark = themeMode === 'dark'
   const reduceMotion = useReducedMotion()
 
+  // 把主题写到 html[data-theme]，CSS 变量与暗色选择器都依赖这个属性。
   useEffect(() => {
     document.documentElement.dataset.theme = themeMode
   }, [themeMode])
@@ -29,6 +34,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     <ConfigProvider
       locale={zhCN}
       theme={{
+        // 通过 antd 算法 + token 覆盖，让组件默认样式与玻璃拟态主题一致。
         algorithm: dark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
         token: {
           colorPrimary: '#ff5f33',
@@ -124,6 +130,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         },
       }}
     >
+      {/* 水印按需包裹整个应用，文案包含当前昵称和日期。 */}
       {watermark ? (
         <Watermark
           content={[`x-admin · ${user?.nickname ?? 'guest'}`, dayjs().format('YYYY-MM-DD')]}

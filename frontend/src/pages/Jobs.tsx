@@ -1,3 +1,6 @@
+/**
+ * 定时任务管理：Cron 配置、启停、手动执行。
+ */
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Button, Form, Input, Select, Switch } from 'antd'
@@ -29,6 +32,7 @@ export function Jobs() {
   const [editing, setEditing] = useState<Job>()
   const [form] = Form.useForm<JobValues>()
 
+  // 任务列表分页查询；启停、执行、删除后统一刷新。
   const query = useQuery({
     queryKey: ['jobs', page, pageSize],
     queryFn: () => api.get<PageResult<Job>>('/jobs', { page, page_size: pageSize }),
@@ -36,6 +40,7 @@ export function Jobs() {
 
   const invalidate = () => void queryClient.invalidateQueries({ queryKey: ['jobs'] })
 
+  // —— 任务保存 / 启停 / 手动执行 / 删除 ——
   const saveMutation = useMutation({
     mutationFn: (values: JobValues) =>
       editing ? api.put<Job>(`/jobs/${editing.id}`, values) : api.post<Job>('/jobs', values),
@@ -76,6 +81,7 @@ export function Jobs() {
     onError: (error: Error) => message.error(error.message),
   })
 
+  // 新建时给出一份可直接运行的清理日志示例。
   const openCreate = () => {
     setEditing(undefined)
     form.resetFields()
