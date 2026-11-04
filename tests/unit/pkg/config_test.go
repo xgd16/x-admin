@@ -18,6 +18,8 @@ func TestConfigDefaultsAndMissingFile(t *testing.T) {
 	assert.Equal(t, "x-admin", cfg.App.Name)
 	assert.Equal(t, 8080, cfg.Server.Port)
 	assert.Equal(t, 2*time.Hour, cfg.JWT.AccessTTL)
+	assert.Equal(t, 12*time.Hour, cfg.JWT.SessionTTL)
+	assert.Equal(t, 7*24*time.Hour, cfg.JWT.RefreshTTL)
 	assert.Equal(t, 5, cfg.Security.MaxLoginFails)
 }
 
@@ -45,16 +47,27 @@ cors:
 	t.Setenv("X_ADMIN_STORAGE_MAX_MB", "42")
 	t.Setenv("X_ADMIN_CORS_ORIGINS", "http://b.test, http://c.test")
 	t.Setenv("X_ADMIN_JWT_ACCESS_TTL", "45m")
+	t.Setenv("X_ADMIN_TRUSTED_PROXIES", "127.0.0.1, 10.0.0.0/8")
+	t.Setenv("X_ADMIN_JWT_SESSION_TTL", "3h")
 
 	cfg, err := config.Load(path)
 	require.NoError(t, err)
 	assert.Equal(t, "custom", cfg.App.Name)
 	assert.Equal(t, 9191, cfg.Server.Port)
 	assert.Equal(t, 45*time.Minute, cfg.JWT.AccessTTL)
+	assert.Equal(t, 3*time.Hour, cfg.JWT.SessionTTL)
 	assert.Equal(t, "memory", cfg.Redis.Driver)
 	assert.Equal(t, 3, cfg.Redis.DB)
 	assert.Equal(t, int64(42), cfg.Storage.MaxUploadMB)
 	assert.Equal(t, []string{"http://b.test", "http://c.test"}, cfg.CORS.Origins)
+	assert.Equal(t, []string{"127.0.0.1", "10.0.0.0/8"}, cfg.Server.TrustedProxies)
+}
+
+func TestConfigTrustedProxiesCanBeDisabled(t *testing.T) {
+	t.Setenv("X_ADMIN_TRUSTED_PROXIES", "none")
+	cfg, err := config.Load("")
+	require.NoError(t, err)
+	assert.Empty(t, cfg.Server.TrustedProxies)
 }
 
 func TestConfigInvalidDurationsAreIgnored(t *testing.T) {
@@ -90,6 +103,11 @@ func TestConfigValidation(t *testing.T) {
 	t.Setenv("X_ADMIN_APP_ENV", "development")
 
 	t.Setenv("X_ADMIN_DATABASE_DSN", "")
+	_, err = config.Load("")
+	require.Error(t, err)
+
+	t.Setenv("X_ADMIN_DATABASE_DSN", "x:x@tcp(127.0.0.1:3306)/x")
+	t.Setenv("X_ADMIN_TRUSTED_PROXIES", "not-a-cidr")
 	_, err = config.Load("")
 	require.Error(t, err)
 }

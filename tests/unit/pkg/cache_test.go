@@ -107,3 +107,47 @@ func TestRedisStore(t *testing.T) {
 	require.NoError(t, store.Ping(ctx))
 	require.NoError(t, store.Close())
 }
+
+func TestMemoryKeysAndSetNX(t *testing.T) {
+	ctx := context.Background()
+	m := cache.NewMemory()
+	require.NoError(t, m.Set(ctx, "session:1:a", "1", time.Minute))
+	require.NoError(t, m.Set(ctx, "session:1:b", "1", time.Minute))
+	require.NoError(t, m.Set(ctx, "other", "1", time.Minute))
+
+	keys, err := m.Keys(ctx, "session:1:")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"session:1:a", "session:1:b"}, keys)
+
+	ok, err := m.SetNX(ctx, "lock", "1", time.Minute)
+	require.NoError(t, err)
+	assert.True(t, ok)
+	ok, err = m.SetNX(ctx, "lock", "1", time.Minute)
+	require.NoError(t, err)
+	assert.False(t, ok)
+	require.NoError(t, m.Del(ctx, "lock"))
+	ok, err = m.SetNX(ctx, "lock", "1", 0)
+	require.NoError(t, err)
+	assert.True(t, ok)
+}
+
+func TestRedisKeysAndSetNX(t *testing.T) {
+	ctx := context.Background()
+	mr := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	store := cache.NewRedis(client)
+	t.Cleanup(func() { _ = store.Close() })
+
+	require.NoError(t, store.Set(ctx, "session:2:a", "1", time.Minute))
+	require.NoError(t, store.Set(ctx, "session:2:b", "1", time.Minute))
+	keys, err := store.Keys(ctx, "session:2:")
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"session:2:a", "session:2:b"}, keys)
+
+	ok, err := store.SetNX(ctx, "lock", "1", time.Minute)
+	require.NoError(t, err)
+	assert.True(t, ok)
+	ok, err = store.SetNX(ctx, "lock", "1", time.Minute)
+	require.NoError(t, err)
+	assert.False(t, ok)
+}

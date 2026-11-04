@@ -5,11 +5,13 @@ import "context"
 
 // Principal 是随请求传递的已认证身份。
 type Principal struct {
-	UserID      uint64
-	Username    string
-	Nickname    string
-	Super       bool                // 是否超级管理员
-	Permissions map[string]struct{} // 权限码集合
+	UserID         uint64
+	Username       string
+	Nickname       string
+	SessionVersion int64               // 当前会话版本，用于让安全变更前的 access token 立即失效
+	SessionID      string              // 当前登录会话 ID，用于设备管理与单设备撤销
+	Super          bool                // 是否超级管理员
+	Permissions    map[string]struct{} // 权限码集合
 }
 
 // Has 判断是否拥有指定权限；超级管理员对任何权限都返回 true。

@@ -59,6 +59,7 @@ deploy/                   Docker Compose、Nginx
 | `sys_dict_types` / `sys_dict_items` | 字典类型与字典项 |
 | `sys_parameters` | 系统参数 |
 | `sys_files` | 上传文件元数据 |
+| `sys_file_shares` | 可撤销文件分享令牌摘要、有效期、撤销时间 |
 | `sys_jobs` | 定时任务定义 |
 | `sys_operation_logs` | 操作审计 |
 | `sys_login_logs` | 登录审计 |
@@ -154,12 +155,12 @@ system:log:operation  system:log:login
 
 - bcrypt cost 10；密码最少 8 位，必须含字母和数字。
 - access token HS256，2h；claims 含 `uid`、`username`。
-- refresh token 为 32 字节随机串，Redis key `refresh:{token}` → `uid:session_version`，7d；每次刷新删除旧 token。
+- refresh token 为 32 字节随机串，Redis key `refresh:{token}` → `uid:session_version:session_id:remember`；记住我 7d、普通会话 12h；每次刷新删除旧 token。
 - 验证码 5 分钟，Redis `captcha:{id}`，校验后立即删除。
 - 登录失败 `login:fail:{username}` 计数，5 次锁定 15 分钟；成功清零。
 - 双重验证：TOTP（RFC 6238，SHA1 / 6 位 / 30 秒，±1 步容差），密钥仅服务端可见；恢复码为 10 个一次性随机码，只存 SHA-256 摘要。
 - 两步登录：密码通过后签发 5 分钟 `mfa:challenge:{token}`，验证成功后立即删除；单个挑战错误 5 次即作废。开启 / 关闭双重验证都需要当前密码。
-- refresh token 值携带 `uid:session_version`；开启双重验证时递增版本，其他设备 refresh 立即失效，当前设备的 token 同步更新版本。
+- refresh token 值携带 `uid:session_version:session_id:remember`；开启双重验证时递增版本，其他设备 refresh 立即失效，当前设备的 token 同步更新版本。
 - 通行密钥：WebAuthn / Passkey（go-webauthn），注册与登录挑战存 Redis 5 分钟且一次性使用；注册需当前密码，最多 10 台设备；只保存公钥、attestation 和签名计数器，私钥留在设备。
 - RP ID / Origin 由 `X_ADMIN_WEBAUTHN_RP_ID`、`X_ADMIN_WEBAUTHN_RP_ORIGINS` 配置；Passkey 仅在 localhost 或 HTTPS 域名下可用，不支持 IP 地址。
 - 限流：全局 100/min/IP，登录 10/min/IP，二次验证 20/min/IP，Passkey 20/min/IP，Redis 计数。

@@ -33,6 +33,18 @@ func (s *ParameterService) List(ctx context.Context, q pagination.Query) ([]mode
 	return s.params.List(ctx, q)
 }
 
+// Public 返回全部公开参数，供登录页/品牌配置等未登录场景读取。
+func (s *ParameterService) Public(ctx context.Context) ([]model.Parameter, error) {
+	rows, err := s.params.ListPublic(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if rows == nil {
+		rows = []model.Parameter{}
+	}
+	return rows, nil
+}
+
 // GetByKey 按 key 读取公开参数；非公开参数对外表现为不存在。
 func (s *ParameterService) GetByKey(ctx context.Context, key string) (*model.Parameter, error) {
 	p, err := s.params.GetByKey(ctx, key)

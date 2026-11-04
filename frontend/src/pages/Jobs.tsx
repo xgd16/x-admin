@@ -3,10 +3,10 @@
  */
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { App, Button, Form, Input, Select, Switch } from 'antd'
+import { App, Button, Drawer, Form, Input, Select, Switch } from 'antd'
 import dayjs from 'dayjs'
 import { api } from '../api/client'
-import type { Job, PageResult } from '../api/types'
+import type { Job, JobRun, PageResult } from '../api/types'
 import { useAuth } from '../stores/auth'
 import { PageHeader } from '../components/PageHeader'
 import { DataTable } from '../components/DataTable'
@@ -30,6 +30,9 @@ export function Jobs() {
   const [pageSize, setPageSize] = useState(20)
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Job>()
+  const [runsJob, setRunsJob] = useState<Job>()
+  const [runPage, setRunPage] = useState(1)
+  const [runPageSize, setRunPageSize] = useState(10)
   const [form] = Form.useForm<JobValues>()
 
   // 任务列表分页查询；启停、执行、删除后统一刷新。
@@ -39,6 +42,12 @@ export function Jobs() {
   })
 
   const invalidate = () => void queryClient.invalidateQueries({ queryKey: ['jobs'] })
+
+  const runsQuery = useQuery({
+    queryKey: ['job-runs', runsJob?.id, runPage, runPageSize],
+    queryFn: () => api.get<PageResult<JobRun>>(`/jobs/${runsJob?.id}/runs`, { page: runPage, page_size: runPageSize }),
+    enabled: !!runsJob,
+  })
 
   // —— 任务保存 / 启停 / 手动执行 / 删除 ——
   const saveMutation = useMutation({
@@ -68,8 +77,14 @@ export function Jobs() {
     onSuccess: () => {
       message.success('任务已执行')
       invalidate()
+      void queryClient.invalidateQueries({ queryKey: ['job-runs'] })
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => {
+      // 执行失败时 last_result 与执行记录已写入，刷新列表让用户看到具体原因。
+      invalidate()
+      void queryClient.invalidateQueries({ queryKey: ['job-runs'] })
+      message.error(error.message)
+    },
   })
 
   const deleteMutation = useMutation({
@@ -143,12 +158,36 @@ export function Jobs() {
           },
           { title: '上次执行', dataIndex: 'last_run_at', key: 'last_run_at', width: 150, render: (value: string | null) => <span className="mono">{value ? dayjs(value).format('MM-DD HH:mm') : '—'}</span> },
           {
+            title: '最近结果',
+            dataIndex: 'last_result',
+            key: 'last_result',
+            width: 180,
+            ellipsis: true,
+            render: (value: string) => (
+              <span className={`tag ${value === '成功' ? 'green' : value ? 'orange' : ''}`} title={value || '尚未执行'}>
+                {value || '尚未执行'}
+              </span>
+            ),
+          },
+          {
             title: '操作',
             key: 'actions',
             width: 180,
             fixed: 'right',
             render: (_, row) => (
               <div className="inline-actions">
+                {can('system:job:list') && (
+                  <Button
+                    size="small"
+                    type="text"
+                    onClick={() => {
+                      setRunsJob(row)
+                      setRunPage(1)
+                    }}
+                  >
+                    记录
+                  </Button>
+                )}
                 {can('system:job:run') && <Button size="small" type="text" loading={runMutation.isPending && runMutation.variables === row.id} onClick={() => runMutation.mutate(row.id)}>执行</Button>}
                 {can('system:job:update') && <Button size="small" type="text" onClick={() => { setEditing(row); form.setFieldsValue(row); setOpen(true) }}>编辑</Button>}
                 {can('system:job:delete') && (
@@ -181,6 +220,63 @@ export function Jobs() {
           ) : undefined
         }
       />
+
+      <Drawer
+        open={!!runsJob}
+        onClose={() => setRunsJob(undefined)}
+        width={760}
+        title={runsJob ? `${runsJob.name} · 执行记录` : '执行记录'}
+      >
+        <DataTable<JobRun>
+          storageKey="job-runs"
+          rowKey="id"
+          data={runsQuery.data?.list ?? []}
+          loading={runsQuery.isFetching}
+          total={runsQuery.data?.total ?? 0}
+          page={runPage}
+          pageSize={runPageSize}
+          onPageChange={(nextPage, nextSize) => {
+            setRunPage(nextPage)
+            setRunPageSize(nextSize)
+          }}
+          onRefresh={() => void runsQuery.refetch()}
+          columns={[
+            {
+              title: '开始时间',
+              dataIndex: 'started_at',
+              key: 'started_at',
+              width: 150,
+              render: (value: string) => <span className="mono">{dayjs(value).format('MM-DD HH:mm:ss')}</span>,
+            },
+            {
+              title: '触发',
+              dataIndex: 'trigger',
+              key: 'trigger',
+              width: 80,
+              render: (value: JobRun['trigger']) => (
+                <span className={`tag ${value === 'manual' ? 'blue' : ''}`}>{value === 'manual' ? '手动' : '定时'}</span>
+              ),
+            },
+            {
+              title: '结果',
+              dataIndex: 'status',
+              key: 'status',
+              width: 80,
+              render: (value: JobRun['status']) => (
+                <span className={`tag ${value === 1 ? 'green' : 'orange'}`}>{value === 1 ? '成功' : '失败'}</span>
+              ),
+            },
+            {
+              title: '耗时',
+              dataIndex: 'duration_ms',
+              key: 'duration_ms',
+              width: 90,
+              render: (value: number) => <span className="mono">{value} ms</span>,
+            },
+            { title: '说明', dataIndex: 'result', key: 'result', ellipsis: true },
+          ]}
+        />
+      </Drawer>
 
       <FormModal
         open={open}

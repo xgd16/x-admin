@@ -115,16 +115,19 @@ func (r *LogRepo) ClearLogins(ctx context.Context) error {
 	return r.db.WithContext(ctx).Unscoped().Where("1 = 1").Delete(&model.LoginLog{}).Error
 }
 
-// LoginTrend 按天统计最近 days 天的登录次数，缺少的日期由 service 层补齐。
+// LoginTrend 按天统计最近 days 天的成功登录次数，缺少的日期由 service 层补齐。
+// 失败登录也写 sys_login_logs，趋势图只应统计 status=200 的记录。
 func (r *LogRepo) LoginTrend(ctx context.Context, days int) ([]model.TrendPoint, error) {
 	if days <= 0 {
 		days = 7
 	}
-	start := time.Now().AddDate(0, 0, -days+1).Truncate(24 * time.Hour)
+	now := time.Now()
+	// 从本地时区的当天零点开始，而不是 Truncate(24h)（后者按 UTC 边界截断）。
+	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, -days+1)
 	var rows []model.TrendPoint
 	err := r.db.WithContext(ctx).Model(&model.LoginLog{}).
 		Select("DATE(created_at) AS date, COUNT(*) AS count").
-		Where("created_at >= ?", start).
+		Where("created_at >= ? AND status = ?", start, 200).
 		Group("DATE(created_at)").
 		Order("date ASC").
 		Scan(&rows).Error

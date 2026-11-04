@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 
@@ -144,10 +145,13 @@ func isSensitive(key string) bool {
 		strings.Contains(key, "secret") || strings.Contains(key, "captcha")
 }
 
-// truncate 按字节截断字符串，调用方需保证不会切断多字节字符的场景可接受。
+// truncate 按字节上限截断，并回退到合法 UTF-8 边界，避免写入 MySQL 时报编码错误。
 func truncate(s string, n int) string {
 	if len(s) <= n {
 		return s
+	}
+	for n > 0 && !utf8.RuneStart(s[n]) {
+		n--
 	}
 	return s[:n]
 }

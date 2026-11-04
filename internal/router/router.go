@@ -47,6 +47,7 @@ type Deps struct {
 	Cache    cache.Store
 	Recorder middleware.OperationRecorder
 	Handlers Handlers
+	Shares   middleware.ShareResolver        // 可撤销文件分享令牌解析
 	Health   func(ctx context.Context) error // 健康检查依赖探测
 }
 
@@ -56,10 +57,19 @@ func New(d Deps) *gin.Engine {
 		gin.SetMode(gin.ReleaseMode)
 	}
 	r := gin.New()
+	// 只有来自受信代理的 X-Forwarded-For / X-Real-IP 才会被用于 ClientIP。
+	// 否则 Nginx 反代后所有请求都会显示为同一个容器 IP，限流与审计都会失真。
+	if err := r.SetTrustedProxies(d.Config.Server.TrustedProxies); err != nil {
+		slog.Warn("invalid trusted proxies", "error", err)
+	}
 	// 全局中间件顺序很关键：请求 ID 最先写入，恢复器随后兜底，
 	// 访问日志和审计需要拿到最终的响应状态。
 	r.Use(middleware.RequestID(), middleware.Recovery(), middleware.AccessLog(), middleware.CORS(d.Config.CORS))
 	r.Use(middleware.Audit(d.Recorder))
+	// 上传目录的安全响应头必须在静态文件路由之前注册。
+	r.Use(middleware.UploadSecurityHeaders())
+	// /uploads 不再是公开静态目录：浏览器用 HttpOnly Cookie，API 客户端可用 Bearer。
+	r.Use(middleware.UploadAuth(d.Tokens, d.Auth, d.Shares))
 
 	// 健康检查同时探测数据库和缓存，任一不可用都返回 503。
 	r.GET("/healthz", func(c *gin.Context) {
@@ -100,9 +110,12 @@ func New(d Deps) *gin.Engine {
 	auth.POST("/passkey/login/finish", middleware.RateLimit(d.Cache, "rl:passkey", 20, time.Minute), d.Handlers.Auth.PasskeyLoginFinish)
 	auth.POST("/refresh", d.Handlers.Auth.Refresh)
 
+	// 公开参数：登录页、品牌配置等未登录场景可读取 site.name / site.logo。
+	api.GET("/parameters/public", d.Handlers.Parameter.Public)
+
 	// 以下接口都要求 Bearer token，并通过权限码做细粒度授权。
 	secured := api.Group("")
-	secured.Use(middleware.Auth(d.Tokens, d.Auth))
+	secured.Use(middleware.Auth(d.Tokens, d.Auth, d.Auth))
 	{
 		secured.POST("/auth/logout", d.Handlers.Auth.Logout)
 		secured.GET("/auth/me", d.Handlers.Auth.Me)
@@ -163,6 +176,9 @@ func New(d Deps) *gin.Engine {
 		secured.GET("/files", middleware.Require("system:file:list"), d.Handlers.File.List)
 		secured.POST("/files", middleware.Require("system:file:upload"), d.Handlers.File.Upload)
 		secured.GET("/files/:id/download", middleware.Require("system:file:download"), d.Handlers.File.Download)
+		secured.GET("/files/:id/shares", middleware.Require("system:file:download"), d.Handlers.File.ListShares)
+		secured.POST("/files/:id/shares", middleware.Require("system:file:download"), d.Handlers.File.CreateShare)
+		secured.DELETE("/files/:id/shares/:shareID", middleware.Require("system:file:download"), d.Handlers.File.RevokeShare)
 		secured.DELETE("/files/:id", middleware.Require("system:file:delete"), d.Handlers.File.Delete)
 
 		// 定时任务：CRUD、启停与立即执行。
@@ -172,18 +188,25 @@ func New(d Deps) *gin.Engine {
 		secured.DELETE("/jobs/:id", middleware.Require("system:job:delete"), d.Handlers.Job.Delete)
 		secured.PUT("/jobs/:id/status", middleware.Require("system:job:update"), d.Handlers.Job.SetStatus)
 		secured.POST("/jobs/:id/run", middleware.Require("system:job:run"), d.Handlers.Job.Run)
+		secured.GET("/jobs/:id/runs", middleware.Require("system:job:list"), d.Handlers.Job.Runs)
 
 		// 审计日志：操作日志与登录日志。
 		secured.GET("/logs/operations", middleware.Require("system:log:operation"), d.Handlers.Log.Operations)
+		secured.GET("/logs/operations/export", middleware.Require("system:log:operation"), d.Handlers.Log.ExportOperations)
 		secured.DELETE("/logs/operations", middleware.Require("system:log:operation"), d.Handlers.Log.DeleteOperations)
 		secured.DELETE("/logs/operations/clear", middleware.Require("system:log:operation"), d.Handlers.Log.ClearOperations)
 		secured.GET("/logs/logins", middleware.Require("system:log:login"), d.Handlers.Log.Logins)
+		secured.GET("/logs/logins/export", middleware.Require("system:log:login"), d.Handlers.Log.ExportLogins)
 		secured.DELETE("/logs/logins/clear", middleware.Require("system:log:login"), d.Handlers.Log.ClearLogins)
 
 		// 个人中心：登录即可访问，不需要额外权限码。
 		secured.GET("/profile", d.Handlers.Profile.Get)
 		secured.PUT("/profile", d.Handlers.Profile.Update)
 		secured.PUT("/profile/password", d.Handlers.Profile.ChangePassword)
+		secured.GET("/profile/sessions", d.Handlers.Profile.Sessions)
+		secured.DELETE("/profile/sessions/:id", d.Handlers.Profile.RevokeSession)
+		secured.POST("/profile/session-actions/revoke-others", d.Handlers.Profile.RevokeOtherSessions)
+		secured.POST("/profile/session-actions/revoke-all", d.Handlers.Profile.RevokeAllSessions)
 		secured.GET("/profile/totp", d.Handlers.Profile.TOTPStatus)
 		secured.POST("/profile/totp/setup", d.Handlers.Profile.SetupTOTP)
 		secured.POST("/profile/totp/enable", d.Handlers.Profile.EnableTOTP)

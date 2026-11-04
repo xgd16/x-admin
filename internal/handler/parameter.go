@@ -19,6 +19,16 @@ func NewParameterHandler(params *service.ParameterService) *ParameterHandler {
 	return &ParameterHandler{params: params}
 }
 
+// Public 返回公开参数，无需登录即可访问。
+func (h *ParameterHandler) Public(c *gin.Context) {
+	list, err := h.params.Public(c.Request.Context())
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.OK(c, list)
+}
+
 // List 分页查询系统参数。
 func (h *ParameterHandler) List(c *gin.Context) {
 	var q pagination.Query

@@ -5,12 +5,14 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"x-admin/internal/model"
 	"x-admin/internal/pkg/apperr"
+	"x-admin/internal/pkg/security"
 	"x-admin/internal/service"
 	"x-admin/tests/testsupport"
 )
@@ -107,3 +109,77 @@ func TestFileUploadLimits(t *testing.T) {
 }
 
 var _ = service.FileService{}
+
+func TestFileShareLifecycle(t *testing.T) {
+	ctx := context.Background()
+	app := testsupport.New(t)
+	files := app.Services.Files
+
+	file, err := files.Upload(ctx, "share.txt", strings.NewReader("share"), 1)
+	require.NoError(t, err)
+	share, token, err := files.CreateShare(ctx, file.ID, 1, -1)
+	require.NoError(t, err)
+	assert.WithinDuration(t, time.Now().Add(time.Minute), share.ExpiresAt, 5*time.Second)
+	require.NotEmpty(t, token)
+
+	path, err := files.ResolveShare(ctx, token)
+	require.NoError(t, err)
+	assert.Equal(t, file.URL, path)
+
+	rows, err := files.Shares(ctx, file.ID)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	assert.Nil(t, rows[0].RevokedAt)
+
+	require.NoError(t, files.RevokeShare(ctx, file.ID, share.ID))
+	_, err = files.ResolveShare(ctx, token)
+	assert.Equal(t, apperr.CodeTokenExpired, apperr.From(err).Code)
+	err = files.RevokeShare(ctx, file.ID, share.ID)
+	assert.Equal(t, apperr.CodeNotFound, apperr.From(err).Code)
+
+	// 非法令牌、错误文件、空令牌。
+	_, err = files.ResolveShare(ctx, "")
+	assert.Equal(t, apperr.CodeUnauthorized, apperr.From(err).Code)
+	_, err = files.ResolveShare(ctx, "missing")
+	assert.Equal(t, apperr.CodeTokenExpired, apperr.From(err).Code)
+	_, _, err = files.CreateShare(ctx, 404, 1, time.Hour)
+	assert.Equal(t, apperr.CodeNotFound, apperr.From(err).Code)
+	_, err = files.Shares(ctx, 404)
+	assert.Equal(t, apperr.CodeNotFound, apperr.From(err).Code)
+	_, err = files.Get(ctx, 404)
+	assert.Equal(t, apperr.CodeNotFound, apperr.From(err).Code)
+}
+
+func TestFileShareRejectsNonUploadURLAndClampsTTL(t *testing.T) {
+	ctx := context.Background()
+	app := testsupport.New(t)
+	files := app.Services.Files
+
+	external := &model.File{Name: "external", Key: "external", URL: "https://example.com/a.png"}
+	require.NoError(t, app.Repos.Files.Create(ctx, external))
+	_, _, err := files.CreateShare(ctx, external.ID, 1, time.Hour)
+	assert.Equal(t, apperr.CodeInvalidArgument, apperr.From(err).Code)
+
+	file, err := files.Upload(ctx, "ttl.txt", strings.NewReader("x"), 1)
+	require.NoError(t, err)
+	share, _, err := files.CreateShare(ctx, file.ID, 1, 100*24*time.Hour)
+	require.NoError(t, err)
+	assert.WithinDuration(t, time.Now().Add(7*24*time.Hour), share.ExpiresAt, 5*time.Second)
+}
+
+func TestFileDeleteRemovesShares(t *testing.T) {
+	ctx := context.Background()
+	app := testsupport.New(t)
+	files := app.Services.Files
+
+	file, err := files.Upload(ctx, "delete-share.txt", strings.NewReader("x"), 1)
+	require.NoError(t, err)
+	share, token, err := files.CreateShare(ctx, file.ID, 1, time.Hour)
+	require.NoError(t, err)
+	require.NoError(t, files.Delete(ctx, file.ID))
+	_, err = files.ResolveShare(ctx, token)
+	assert.Equal(t, apperr.CodeTokenExpired, apperr.From(err).Code)
+	_, err = app.Repos.Files.GetShareByHash(ctx, security.HashToken(token))
+	assert.Error(t, err)
+	_ = share
+}

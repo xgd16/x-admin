@@ -4,7 +4,9 @@ package cache
 import (
 	"context"
 	"errors"
+	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -21,6 +23,10 @@ type Store interface {
 	Take(ctx context.Context, key string) (string, error)
 	Del(ctx context.Context, keys ...string) error
 	Exists(ctx context.Context, key string) (bool, error)
+	// Keys 返回匹配前缀且未过期的键，供在线会话列表等场景使用。
+	Keys(ctx context.Context, prefix string) ([]string, error)
+	// SetNX 仅在键不存在时写入，用于分布式锁。
+	SetNX(ctx context.Context, key, value string, ttl time.Duration) (bool, error)
 	Incr(ctx context.Context, key string, ttl time.Duration) (int64, error)
 	Ping(ctx context.Context) error
 	Close() error
@@ -105,6 +111,39 @@ func (m *Memory) Exists(_ context.Context, key string) (bool, error) {
 		delete(m.data, key)
 		return false, nil
 	}
+	return true, nil
+}
+
+// Keys 返回匹配前缀且未过期的键。内存实现直接遍历，数据量受会话数限制。
+func (m *Memory) Keys(_ context.Context, prefix string) ([]string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	keys := make([]string, 0)
+	for key, e := range m.data {
+		if m.expired(e) {
+			delete(m.data, key)
+			continue
+		}
+		if strings.HasPrefix(key, prefix) {
+			keys = append(keys, key)
+		}
+	}
+	sort.Strings(keys)
+	return keys, nil
+}
+
+// SetNX 仅在键不存在或已过期时写入，返回是否成功获取。
+func (m *Memory) SetNX(_ context.Context, key, value string, ttl time.Duration) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if e, ok := m.data[key]; ok && !m.expired(e) {
+		return false, nil
+	}
+	e := entry{value: value}
+	if ttl > 0 {
+		e.expiresAt = m.now().Add(ttl)
+	}
+	m.data[key] = e
 	return true, nil
 }
 

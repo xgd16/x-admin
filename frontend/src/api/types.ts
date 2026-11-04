@@ -208,6 +208,41 @@ export interface MeResult {
   menus: Menu[]
 }
 
+/** 可撤销的文件分享链接。 */
+export interface FileShare {
+  id: number
+  file_id: number
+  created_by: number
+  expires_at: string
+  revoked_at: string | null
+  created_at: string
+}
+
+/** 一次任务执行记录。 */
+export interface JobRun {
+  id: number
+  job_id: number
+  job_name: string
+  trigger: 'manual' | 'cron'
+  status: 0 | 1
+  result: string
+  started_at: string
+  finished_at: string
+  duration_ms: number
+}
+
+/** 在线登录设备。 */
+export interface LoginSession {
+  id: string
+  ip: string
+  user_agent: string
+  device: string
+  current: boolean
+  remember: boolean
+  created_at: string
+  last_seen_at: string
+}
+
 /** 图形验证码；image 为 data URL。 */
 export interface Captcha {
   captcha_id: string

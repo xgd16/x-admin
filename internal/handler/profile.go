@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"x-admin/internal/pkg/apperr"
 	"x-admin/internal/pkg/response"
 	"x-admin/internal/service"
 )
@@ -48,8 +49,9 @@ func (h *ProfileHandler) Update(c *gin.Context) {
 // ChangePassword 校验原密码后修改当前用户密码。
 func (h *ProfileHandler) ChangePassword(c *gin.Context) {
 	var in struct {
-		OldPassword string `json:"old_password" binding:"required"`
-		NewPassword string `json:"new_password" binding:"required"`
+		OldPassword  string `json:"old_password" binding:"required"`
+		NewPassword  string `json:"new_password" binding:"required"`
+		RefreshToken string `json:"refresh_token"`
 	}
 	if !Bind(c, &in) {
 		return
@@ -58,6 +60,10 @@ func (h *ProfileHandler) ChangePassword(c *gin.Context) {
 		response.Error(c, err)
 		return
 	}
+	// 改密会递增 session_version；把当前设备的 refresh token 指向新版本，
+	// 并清掉其他设备的会话，避免操作者本人被一并登出。
+	h.auth.RefreshSession(c.Request.Context(), CurrentUserID(c), in.RefreshToken)
+	_, _ = h.auth.RevokeOtherSessions(c.Request.Context(), CurrentUserID(c), CurrentSessionID(c))
 	response.OK(c, nil)
 }
 
@@ -98,16 +104,18 @@ func (h *ProfileHandler) EnableTOTP(c *gin.Context) {
 		return
 	}
 	// 开启双重验证会递增 session_version，导致其他设备的 refresh token 失效。
-	// 这里把当前设备的 token 重新指向新版本，避免操作者本人被登出。
+	// 这里把当前设备的 token 重新指向新版本，并清掉其他设备会话。
 	h.auth.RefreshSession(c.Request.Context(), CurrentUserID(c), in.RefreshToken)
+	_, _ = h.auth.RevokeOtherSessions(c.Request.Context(), CurrentUserID(c), CurrentSessionID(c))
 	response.OK(c, map[string]any{"recovery_codes": codes})
 }
 
 // DisableTOTP 校验密码和动态码/恢复码后关闭双重验证。
 func (h *ProfileHandler) DisableTOTP(c *gin.Context) {
 	var in struct {
-		Password string `json:"password" binding:"required"`
-		Code     string `json:"otp_code" binding:"required"`
+		Password     string `json:"password" binding:"required"`
+		Code         string `json:"otp_code" binding:"required"`
+		RefreshToken string `json:"refresh_token"`
 	}
 	if !Bind(c, &in) {
 		return
@@ -116,6 +124,9 @@ func (h *ProfileHandler) DisableTOTP(c *gin.Context) {
 		response.Error(c, err)
 		return
 	}
+	// 关闭双重验证同样递增 session_version，保留当前设备登录。
+	h.auth.RefreshSession(c.Request.Context(), CurrentUserID(c), in.RefreshToken)
+	_, _ = h.auth.RevokeOtherSessions(c.Request.Context(), CurrentUserID(c), CurrentSessionID(c))
 	response.OK(c, nil)
 }
 
@@ -193,4 +204,48 @@ func (h *ProfileHandler) DeletePasskey(c *gin.Context) {
 		return
 	}
 	response.OK(c, nil)
+}
+
+// Sessions 返回当前账号的在线设备列表。
+func (h *ProfileHandler) Sessions(c *gin.Context) {
+	rows, err := h.auth.Sessions(c.Request.Context(), CurrentUserID(c), CurrentSessionID(c))
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.OK(c, rows)
+}
+
+// RevokeSession 撤销当前账号的一台设备。
+func (h *ProfileHandler) RevokeSession(c *gin.Context) {
+	sessionID := c.Param("id")
+	if sessionID == "" {
+		response.Error(c, apperr.New(apperr.CodeInvalidArgument, "会话 ID 不合法"))
+		return
+	}
+	if err := h.auth.RevokeSession(c.Request.Context(), CurrentUserID(c), sessionID); err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.OK(c, nil)
+}
+
+// RevokeOtherSessions 撤销除当前设备外的全部会话。
+func (h *ProfileHandler) RevokeOtherSessions(c *gin.Context) {
+	revoked, err := h.auth.RevokeOtherSessions(c.Request.Context(), CurrentUserID(c), CurrentSessionID(c))
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.OK(c, gin.H{"revoked": revoked})
+}
+
+// RevokeAllSessions 撤销当前账号的全部会话，包括当前设备。
+func (h *ProfileHandler) RevokeAllSessions(c *gin.Context) {
+	revoked, err := h.auth.RevokeAllSessions(c.Request.Context(), CurrentUserID(c))
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.OK(c, gin.H{"revoked": revoked})
 }

@@ -95,8 +95,13 @@ func (r *RoleRepo) SetMenus(ctx context.Context, roleID uint64, menuIDs []uint64
 		if len(menuIDs) == 0 {
 			return nil
 		}
+		seen := make(map[uint64]struct{}, len(menuIDs))
 		rows := make([]model.RoleMenu, 0, len(menuIDs))
 		for _, menuID := range menuIDs {
+			if _, ok := seen[menuID]; ok {
+				continue
+			}
+			seen[menuID] = struct{}{}
 			rows = append(rows, model.RoleMenu{RoleID: roleID, MenuID: menuID})
 		}
 		return tx.Create(&rows).Error
@@ -111,11 +116,22 @@ func (r *RoleRepo) CountUsers(ctx context.Context, roleID uint64) (int64, error)
 }
 
 // Delete 在事务中删除角色并清理菜单、用户关联。
+// 角色编码在软删除前改成墓碑值，避免之后重建同编码角色撞唯一索引。
 func (r *RoleRepo) Delete(ctx context.Context, ids ...uint64) error {
 	if len(ids) == 0 {
 		return nil
 	}
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var roles []model.Role
+		if err := tx.Where("id IN ?", ids).Find(&roles).Error; err != nil {
+			return err
+		}
+		for i := range roles {
+			if err := tx.Model(&model.Role{}).Where("id = ?", roles[i].ID).
+				UpdateColumn("code", tombstoneValue(roles[i].Code, roles[i].ID, 64)).Error; err != nil {
+				return err
+			}
+		}
 		if err := tx.Where("role_id IN ?", ids).Delete(&model.RoleMenu{}).Error; err != nil {
 			return err
 		}

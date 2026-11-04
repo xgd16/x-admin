@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 
 	"x-admin/internal/model"
@@ -54,7 +56,7 @@ func (h *UserHandler) Create(c *gin.Context) {
 	if !Bind(c, &in) {
 		return
 	}
-	user, err := h.users.Create(c.Request.Context(), in)
+	user, err := h.users.Create(c.Request.Context(), in, CurrentUserID(c))
 	if err != nil {
 		response.Error(c, err)
 		return
@@ -72,7 +74,7 @@ func (h *UserHandler) Update(c *gin.Context) {
 	if !Bind(c, &in) {
 		return
 	}
-	user, err := h.users.Update(c.Request.Context(), id, in)
+	user, err := h.users.Update(c.Request.Context(), id, in, CurrentUserID(c))
 	if err != nil {
 		response.Error(c, err)
 		return
@@ -143,7 +145,7 @@ func (h *UserHandler) AssignRoles(c *gin.Context) {
 	if !Bind(c, &in) {
 		return
 	}
-	if err := h.users.AssignRoles(c.Request.Context(), id, in.RoleIDs); err != nil {
+	if err := h.users.AssignRoles(c.Request.Context(), id, in.RoleIDs, CurrentUserID(c)); err != nil {
 		response.Error(c, err)
 		return
 	}
@@ -152,9 +154,15 @@ func (h *UserHandler) AssignRoles(c *gin.Context) {
 
 // Import 从上传的 Excel 批量创建用户，逐行返回失败原因。
 func (h *UserHandler) Import(c *gin.Context) {
+	const maxImportBytes int64 = 10 << 20 // 10MB，避免超大 Excel / zip bomb 占满内存
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxImportBytes)
 	header, err := c.FormFile("file")
 	if err != nil {
 		response.Error(c, apperr.Wrap(err, apperr.CodeInvalidArgument, "请选择 Excel 文件"))
+		return
+	}
+	if header.Size > maxImportBytes {
+		response.Error(c, apperr.New(apperr.CodeInvalidArgument, "导入文件不能超过 10MB"))
 		return
 	}
 	file, err := header.Open()

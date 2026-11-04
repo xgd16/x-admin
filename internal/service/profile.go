@@ -55,8 +55,7 @@ func (s *ProfileService) Get(ctx context.Context, userID uint64) (*model.User, e
 
 // Update 更新当前用户的个人资料。
 func (s *ProfileService) Update(ctx context.Context, userID uint64, in ProfileInput) (*model.User, error) {
-	user, err := s.users.Get(ctx, userID)
-	if err != nil {
+	if _, err := s.users.Get(ctx, userID); err != nil {
 		if IsNotFound(err) {
 			return nil, apperr.ErrNotFound
 		}
@@ -68,11 +67,16 @@ func (s *ProfileService) Update(ctx context.Context, userID uint64, in ProfileIn
 	if err := ValidatePhone(trim(in.Phone)); err != nil {
 		return nil, err
 	}
-	user.Nickname = trim(in.Nickname)
-	user.Email = trim(in.Email)
-	user.Phone = trim(in.Phone)
-	user.Avatar = trim(in.Avatar)
-	if err := s.users.Update(ctx, user); err != nil {
+	// 只更新用户可编辑字段，避免把整行（密码、TOTP、session_version）写回旧值。
+	if err := s.users.UpdateFields(ctx, userID, map[string]any{
+		"nickname": trim(in.Nickname),
+		"email":    trim(in.Email),
+		"phone":    trim(in.Phone),
+		"avatar":   trim(in.Avatar),
+	}); err != nil {
+		if IsNotFound(err) {
+			return nil, apperr.ErrNotFound
+		}
 		return nil, err
 	}
 	return s.Get(ctx, userID)
@@ -100,7 +104,9 @@ func (s *ProfileService) ChangePassword(ctx context.Context, userID uint64, oldP
 	if err != nil {
 		return apperr.Wrap(err, apperr.CodeInternal, "密码加密失败")
 	}
-	if err := s.users.UpdateFields(ctx, userID, map[string]any{"password": hash}); err != nil {
+	// 与其他安全操作保持一致：改密会递增 session_version，
+	// 撤销其他设备已签发的 access / refresh token。
+	if err := s.users.SetPassword(ctx, userID, hash, true); err != nil {
 		return err
 	}
 	notify(ctx, s.notifier, NotificationInput{
@@ -245,6 +251,10 @@ func (s *ProfileService) DisableTOTP(ctx context.Context, userID uint64, passwor
 		"totp_enabled":        false,
 		"totp_recovery_codes": "",
 	}); err != nil {
+		return err
+	}
+	// 关闭双重验证属于降低安全等级的操作，撤销其他设备的旧令牌。
+	if err := s.users.BumpSessionVersion(ctx, userID); err != nil {
 		return err
 	}
 	notify(ctx, s.notifier, NotificationInput{

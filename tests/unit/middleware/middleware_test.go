@@ -117,12 +117,12 @@ func TestCORSWildcard(t *testing.T) {
 
 func TestAuthMiddleware(t *testing.T) {
 	tokens := security.NewTokenManager("0123456789abcdef", "test", time.Hour)
-	token, _, err := tokens.Issue(7, "alice")
+	token, _, err := tokens.Issue(7, "alice", 0, "")
 	require.NoError(t, err)
 	loader := &fakeLoader{principal: &authn.Principal{UserID: 7, Username: "alice", Super: true}}
 
 	r := newRouter()
-	r.Use(middleware.Auth(tokens, loader))
+	r.Use(middleware.Auth(tokens, loader, nil))
 	r.GET("/me", func(c *gin.Context) {
 		p, _ := authn.FromContext(c.Request.Context())
 		c.JSON(200, gin.H{"username": p.Username})
@@ -154,14 +154,14 @@ func TestAuthMiddleware(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "alice")
 }
 
-func TestAuthMiddlewareExpiredAndLoaderError(t *testing.T) {
+func TestAuthMiddlewareRejectsStaleSessionVersion(t *testing.T) {
 	tokens := security.NewTokenManager("0123456789abcdef", "test", time.Hour)
-	expiredTokens := security.NewTokenManager("0123456789abcdef", "test", -time.Second)
-	token, _, err := expiredTokens.Issue(1, "a")
+	token, _, err := tokens.Issue(7, "alice", 1, "")
 	require.NoError(t, err)
+	loader := &fakeLoader{principal: &authn.Principal{UserID: 7, Username: "alice", SessionVersion: 2}}
 
 	r := newRouter()
-	r.Use(middleware.Auth(tokens, &fakeLoader{err: errors.New("db down")}))
+	r.Use(middleware.Auth(tokens, loader, nil))
 	r.GET("/", func(c *gin.Context) { c.String(200, "ok") })
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -171,7 +171,32 @@ func TestAuthMiddlewareExpiredAndLoaderError(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
 	assert.Contains(t, rr.Body.String(), "40102")
 
-	valid, _, err := tokens.Issue(1, "a")
+	loader.principal.SessionVersion = 1
+	req = httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rr = httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+}
+
+func TestAuthMiddlewareExpiredAndLoaderError(t *testing.T) {
+	tokens := security.NewTokenManager("0123456789abcdef", "test", time.Hour)
+	expiredTokens := security.NewTokenManager("0123456789abcdef", "test", -time.Second)
+	token, _, err := expiredTokens.Issue(1, "a", 0, "")
+	require.NoError(t, err)
+
+	r := newRouter()
+	r.Use(middleware.Auth(tokens, &fakeLoader{err: errors.New("db down")}, nil))
+	r.GET("/", func(c *gin.Context) { c.String(200, "ok") })
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	assert.Contains(t, rr.Body.String(), "40102")
+
+	valid, _, err := tokens.Issue(1, "a", 0, "")
 	require.NoError(t, err)
 	req = httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("Authorization", "Bearer "+valid)
@@ -325,6 +350,22 @@ func TestAuditNilRecorder(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 }
 
+func TestUploadSecurityHeaders(t *testing.T) {
+	r := newRouter()
+	r.Use(middleware.UploadSecurityHeaders())
+	r.GET("/uploads/*filepath", func(c *gin.Context) { c.String(200, "ok") })
+	r.GET("/api", func(c *gin.Context) { c.String(200, "ok") })
+
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/uploads/a.html", nil))
+	assert.Equal(t, "nosniff", rr.Header().Get("X-Content-Type-Options"))
+	assert.Contains(t, rr.Header().Get("Content-Security-Policy"), "sandbox")
+
+	rr = httptest.NewRecorder()
+	r.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api", nil))
+	assert.Empty(t, rr.Header().Get("X-Content-Type-Options"))
+}
+
 func TestAccessLog(t *testing.T) {
 	r := newRouter()
 	r.Use(middleware.AccessLog())
@@ -350,6 +391,10 @@ func (failingStore) Get(context.Context, string) (string, error)              { 
 func (failingStore) Take(context.Context, string) (string, error)             { return "", cache.ErrNotFound }
 func (failingStore) Del(context.Context, ...string) error                     { return nil }
 func (failingStore) Exists(context.Context, string) (bool, error)             { return false, nil }
+func (failingStore) Keys(context.Context, string) ([]string, error)           { return nil, nil }
+func (failingStore) SetNX(context.Context, string, string, time.Duration) (bool, error) {
+	return false, nil
+}
 func (failingStore) Incr(context.Context, string, time.Duration) (int64, error) {
 	return 0, errors.New("down")
 }

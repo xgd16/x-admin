@@ -46,6 +46,19 @@ export function Dashboard() {
     queryKey: ['dashboard-summary'],
     queryFn: () => api.get<DashboardSummary>('/dashboard/summary'),
     staleTime: 30_000,
+    refetchInterval: 60_000,
+  })
+
+  // 健康检查不是统一响应包裹，单独用 fetch 读取。
+  const health = useQuery({
+    queryKey: ['health-status'],
+    queryFn: async () => {
+      const res = await fetch('/healthz')
+      if (!res.ok) throw new Error('unhealthy')
+      return true
+    },
+    retry: false,
+    refetchInterval: 60_000,
   })
 
   // 登录趋势的峰值、最后一天以及与前一天的变化率。
@@ -54,6 +67,7 @@ export function Dashboard() {
   const last = trend[trend.length - 1]
   const prev = trend[trend.length - 2]
   const delta = prev && prev.count > 0 ? ((last.count - prev.count) / prev.count) * 100 : 0
+  const activeRatio = data && data.users > 0 ? Math.round((data.active_users / data.users) * 100) : 0
 
   return (
     <>
@@ -61,7 +75,8 @@ export function Dashboard() {
         title="系统总览"
         sub={
           <>
-            {dayjs().format('YYYY-MM-DD HH:mm')} · <b>所有服务正常</b> · 数据每 60s 刷新
+            {dayjs().format('YYYY-MM-DD HH:mm')} ·{' '}
+            <b>{health.isError ? '服务异常' : health.isLoading ? '正在检测服务' : '服务正常'}</b> · 数据每 60s 刷新
           </>
         }
         actions={
@@ -91,19 +106,19 @@ export function Dashboard() {
           </div>
           <div className="kpi-value">{data ? numberFormat.format(data.users) : '—'}</div>
           <div className="kpi-foot">
-            <span className="delta up">↑ 12.5%</span> 较上月
+            <span className="delta up">{data ? numberFormat.format(data.active_users) : '—'}</span> 个账号已启用
           </div>
         </article>
         <article className="kpi glass violet">
           <div className="kpi-top">
-            <span className="kpi-label">活跃账号</span>
+            <span className="kpi-label">启用账号</span>
             <span className="kpi-icon">
               <Icon name="zap" size={14} />
             </span>
           </div>
           <div className="kpi-value">{data ? formatCompact(data.active_users) : '—'}</div>
           <div className="kpi-foot">
-            <span className="delta up">↑ 8.2%</span> 较昨日
+            <span className="delta up">{activeRatio}%</span> 账号启用率
           </div>
         </article>
         <article className="kpi glass peach">
@@ -115,22 +130,28 @@ export function Dashboard() {
           </div>
           <div className="kpi-value">{last ? numberFormat.format(last.count) : '—'}</div>
           <div className="kpi-foot">
-            <span className={`delta ${delta >= 0 ? 'up' : 'down'}`}>
-              {delta >= 0 ? '↑' : '↓'} {Math.abs(delta).toFixed(1)}%
-            </span>{' '}
-            较昨日
+            {prev && prev.count > 0 ? (
+              <>
+                <span className={`delta ${delta >= 0 ? 'up' : 'down'}`}>
+                  {delta >= 0 ? '↑' : '↓'} {Math.abs(delta).toFixed(1)}%
+                </span>{' '}
+                较昨日
+              </>
+            ) : (
+              <span className="delta">— 暂无对比数据</span>
+            )}
           </div>
         </article>
         <article className="kpi glass mint">
           <div className="kpi-top">
-            <span className="kpi-label">待处理</span>
+            <span className="kpi-label">文件存储</span>
             <span className="kpi-icon">
-              <Icon name="clock" size={14} />
+              <Icon name="folder" size={14} />
             </span>
           </div>
-          <div className="kpi-value">7</div>
+          <div className="kpi-value">{data ? numberFormat.format(data.files) : '—'}</div>
           <div className="kpi-foot">
-            <span className="delta up">2 项</span> 今日新增
+            <span className="delta up">{formatBytes(data?.file_size ?? 0)}</span> 已占用空间
           </div>
         </article>
       </div>
@@ -179,7 +200,7 @@ export function Dashboard() {
               <span className="orb amber" />
               <span>
                 <b>定时任务</b>
-                <span>日志清理 · 每天 03:00</span>
+                <span>进程内调度 · 可在定时任务页配置</span>
               </span>
               <span className="pill warn">{data?.jobs ?? 0} 个</span>
             </div>
@@ -276,7 +297,7 @@ export function Dashboard() {
           </div>
           {/* 快捷入口颜色按索引轮换，保持视觉节奏。 */}
           <div className="quick-grid">
-            {quickActions.map((action, index) => {
+            {quickActions.filter((action) => can(action.permission)).map((action, index) => {
               const colors = [
                 ['rgba(255,138,92,.18)', '#b23a12'],
                 ['rgba(139,124,246,.16)', '#4f3fc4'],

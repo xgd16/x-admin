@@ -7,7 +7,9 @@ import { App, Checkbox, Input } from 'antd'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { api, ApiError } from '../api/client'
+import { useSiteConfig } from '../api/public'
 import type { Captcha } from '../api/types'
+import { buildNav } from '../config/nav'
 import { useAuth } from '../stores/auth'
 import { tokenStore } from '../api/tokens'
 import { Ambient } from '../components/Ambient'
@@ -15,6 +17,14 @@ import { BrandMark } from '../components/BrandMark'
 import { Icon } from '../components/Icon'
 import { EASE_OUT } from '../utils/motion'
 import { isPasskeySupported, passkeyErrorMessage } from '../utils/passkey'
+
+/** 登录后的默认落地页：第一个有权限的导航页面。 */
+function defaultLanding() {
+  const { menus, permissions, user } = useAuth.getState()
+  const superUser = !!user?.roles?.some((role) => role.code === 'super_admin')
+  const { items } = buildNav(menus, (permission) => !permission || superUser || permissions.includes(permission))
+  return items[0]?.path ?? '/profile'
+}
 
 /** 根据当前时间返回登录页的问候文案。 */
 function loginCopy() {
@@ -56,6 +66,7 @@ export function Login() {
   const passkeyLogin = useAuth((state) => state.passkeyLogin)
   const status = useAuth((state) => state.status)
   const copy = loginCopy()
+  const site = useSiteConfig()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
@@ -81,7 +92,7 @@ export function Login() {
   useEffect(() => {
     if (status === 'ready' && tokenStore.access) {
       const from = (location.state as { from?: string } | null)?.from
-      navigate(from && from !== '/login' ? from : '/dashboard', { replace: true })
+      navigate(from && from !== '/login' ? from : defaultLanding(), { replace: true })
     }
   }, [status, navigate, location.state])
 
@@ -95,7 +106,7 @@ export function Login() {
     setPending(true)
     setError('')
     try {
-      const result = await login(username, password, captcha.data.captcha_id, code)
+      const result = await login(username, password, captcha.data.captcha_id, code, remember)
       if (result.mfa_required && result.mfa_token) {
         setMfaToken(result.mfa_token)
         setOtp('')
@@ -121,7 +132,7 @@ export function Login() {
     setPending(true)
     setError('')
     try {
-      await verifyMFA(mfaToken, otp.trim())
+      await verifyMFA(mfaToken, otp.trim(), remember)
       goNext()
     } catch (err) {
       setError(err instanceof Error ? err.message : '验证失败')
@@ -139,7 +150,7 @@ export function Login() {
   /** 登录成功后回到拦截前的页面，默认进入总览。 */
   const goNext = () => {
     const from = (location.state as { from?: string } | null)?.from
-    navigate(from && from !== '/login' ? from : '/dashboard', { replace: true })
+    navigate(from && from !== '/login' ? from : defaultLanding(), { replace: true })
   }
 
   const backToCredentials = () => {
@@ -156,7 +167,7 @@ export function Login() {
     setPasskeyBusy(true)
     setError('')
     try {
-      await passkeyLogin()
+      await passkeyLogin(remember)
       goNext()
     } catch (err) {
       setError(passkeyErrorMessage(err))
@@ -178,10 +189,14 @@ export function Login() {
         >
           <div className="brand">
             <span className="logo">
-              <BrandMark size={23} />
+              {site.logo ? (
+                <img src={site.logo} alt={site.name} style={{ width: 23, height: 23, objectFit: 'contain' }} />
+              ) : (
+                <BrandMark size={23} />
+              )}
             </span>
             <span>
-              <b>x-admin</b>
+              <b>{site.name}</b>
               <span>EVERYDAY WORKSPACE</span>
             </span>
           </div>
@@ -310,7 +325,11 @@ export function Login() {
               </div>
 
               <div className="form-meta">
-                <Checkbox checked={remember} onChange={(event) => setRemember(event.target.checked)}>
+                <Checkbox
+                  checked={remember}
+                  onChange={(event) => setRemember(event.target.checked)}
+                  title="勾选后 7 天内免登录，不勾选 12 小时后需要重新登录"
+                >
                   记住我
                 </Checkbox>
                 <a

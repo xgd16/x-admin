@@ -3,6 +3,7 @@
  */
 import { MotionConfig } from 'motion/react'
 import { Navigate, Route, Routes } from 'react-router-dom'
+import { useNav } from './config/nav'
 import { AppLayout } from './components/layout/AppLayout'
 import { RequireAuth } from './components/RequireAuth'
 import { Dashboard } from './pages/Dashboard'
@@ -19,6 +20,12 @@ import { Profile } from './pages/Profile'
 import { Roles } from './pages/Roles'
 import { Users } from './pages/Users'
 
+/** 登录后的默认首页：优先看板，没有权限时跳到第一个可访问页面。 */
+function HomeRedirect() {
+  const { items } = useNav()
+  return <Navigate to={items[0]?.path ?? '/profile'} replace />
+}
+
 export function AppRoutes() {
   return (
     // reducedMotion="user" 会遵循系统的“减少动态效果”设置。
@@ -33,7 +40,7 @@ export function AppRoutes() {
             </RequireAuth>
           }
         >
-          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route index element={<HomeRedirect />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="system/users" element={<Users />} />
           <Route path="system/roles" element={<Roles />} />

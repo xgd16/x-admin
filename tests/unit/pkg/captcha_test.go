@@ -83,6 +83,10 @@ func (failingStore) Del(context.Context, ...string) error { return nil }
 func (failingStore) Exists(context.Context, string) (bool, error) {
 	return false, nil
 }
+func (failingStore) Keys(context.Context, string) ([]string, error) { return nil, nil }
+func (failingStore) SetNX(context.Context, string, string, time.Duration) (bool, error) {
+	return false, nil
+}
 func (failingStore) Incr(context.Context, string, time.Duration) (int64, error) {
 	return 0, nil
 }

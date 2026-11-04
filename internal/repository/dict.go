@@ -72,8 +72,17 @@ func (r *DictRepo) ListTypes(ctx context.Context, q pagination.Query, status *in
 }
 
 // DeleteType 在事务中删除字典类型及其全部字典项。
+// 编码在软删除前改成墓碑值，避免之后重建同编码字典撞唯一索引。
 func (r *DictRepo) DeleteType(ctx context.Context, id uint64) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var t model.DictType
+		if err := tx.First(&t, id).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&model.DictType{}).Where("id = ?", id).
+			UpdateColumn("code", tombstoneValue(t.Code, t.ID, 64)).Error; err != nil {
+			return err
+		}
 		if err := tx.Where("dict_type_id = ?", id).Delete(&model.DictItem{}).Error; err != nil {
 			return err
 		}

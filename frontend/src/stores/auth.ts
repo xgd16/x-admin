@@ -5,7 +5,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { api } from '../api/client'
 import { tokenStore } from '../api/tokens'
-import type { Captcha, LoginResult, MeResult, PasskeyLoginOptions, User } from '../api/types'
+import type { Captcha, LoginResult, MeResult, Menu, PasskeyLoginOptions, User } from '../api/types'
 import { getPasskeyAssertion } from '../utils/passkey'
 
 // idle=尚未检查，loading=正在恢复会话，ready=已登录，anon=未登录。
@@ -14,12 +14,13 @@ type Status = 'idle' | 'loading' | 'ready' | 'anon'
 interface AuthState {
   user: User | null
   permissions: string[]
+  menus: Menu[]
   status: Status
   demo: boolean
   bootstrap: () => Promise<void>
-  login: (username: string, password: string, captchaID: string, code: string) => Promise<LoginResult>
-  verifyMFA: (mfaToken: string, code: string) => Promise<void>
-  passkeyLogin: () => Promise<void>
+  login: (username: string, password: string, captchaID: string, code: string, rememberMe: boolean) => Promise<LoginResult>
+  verifyMFA: (mfaToken: string, code: string, rememberMe: boolean) => Promise<void>
+  passkeyLogin: (rememberMe: boolean) => Promise<void>
   logout: () => Promise<void>
   reset: () => void
   can: (permission?: string) => boolean
@@ -40,35 +41,37 @@ export const useAuth = create<AuthState>()(
         }
         tokenStore.set(result.access_token, result.refresh_token)
         const me = await api.get<MeResult>('/auth/me')
-        set({ user: me.user, permissions: me.permissions, status: 'ready' })
+        set({ user: me.user, permissions: me.permissions, menus: me.menus ?? [], status: 'ready' })
       }
 
       return {
         user: null,
         permissions: [],
+        menus: [],
         status: 'idle',
         demo: false,
         // 页面刷新后根据本地令牌恢复会话；令牌失效则回到未登录态。
         async bootstrap() {
           if (!tokenStore.access) {
-            set({ status: 'anon', user: null, permissions: [] })
+            set({ status: 'anon', user: null, permissions: [], menus: [] })
             return
           }
           set({ status: 'loading' })
           try {
             const me = await api.get<MeResult>('/auth/me')
-            set({ user: me.user, permissions: me.permissions, status: 'ready' })
+            set({ user: me.user, permissions: me.permissions, menus: me.menus ?? [], status: 'ready' })
           } catch {
             tokenStore.clear()
-            set({ status: 'anon', user: null, permissions: [] })
+            set({ status: 'anon', user: null, permissions: [], menus: [] })
           }
         },
-        async login(username, password, captchaID, code) {
+        async login(username, password, captchaID, code, rememberMe) {
           const result = await api.post<LoginResult>('/auth/login', {
             username,
             password,
             captcha_id: captchaID,
             captcha_code: code,
+            remember_me: rememberMe,
           })
           // 账号开启双重验证时先不落地令牌，等用户提交动态验证码。
           if (result.mfa_required) {
@@ -78,20 +81,22 @@ export const useAuth = create<AuthState>()(
           await establish(result)
           return result
         },
-        async verifyMFA(mfaToken, code) {
+        async verifyMFA(mfaToken, code, rememberMe) {
           const result = await api.post<LoginResult>('/auth/login/mfa', {
             mfa_token: mfaToken,
             otp_code: code,
+            remember_me: rememberMe,
           })
           await establish(result)
         },
         // 通行密钥登录：先取 WebAuthn 挑战，再让浏览器签名，最后换令牌。
-        async passkeyLogin() {
+        async passkeyLogin(rememberMe) {
           const begin = await api.post<PasskeyLoginOptions>('/auth/passkey/login/begin')
           const credential = await getPasskeyAssertion(begin)
           const result = await api.post<LoginResult>('/auth/passkey/login/finish', {
             session_id: begin.session_id,
             credential,
+            remember_me: rememberMe,
           })
           await establish(result)
         },
@@ -102,11 +107,11 @@ export const useAuth = create<AuthState>()(
             // 登出失败也不阻塞前端清理，令牌仍会被移除。
           }
           tokenStore.clear()
-          set({ user: null, permissions: [], status: 'anon', demo: false })
+          set({ user: null, permissions: [], menus: [], status: 'anon', demo: false })
         },
         reset() {
           tokenStore.clear()
-          set({ user: null, permissions: [], status: 'anon', demo: false })
+          set({ user: null, permissions: [], menus: [], status: 'anon', demo: false })
         },
         // 页面与按钮的权限判断入口；空权限码视为公开内容。
         can(permission) {
@@ -120,7 +125,11 @@ export const useAuth = create<AuthState>()(
     {
       // 只持久化用户展示所需字段；令牌单独由 tokenStore 管理。
       name: 'x-admin.auth',
-      partialize: (state) => ({ user: state.user, permissions: state.permissions, status: state.status }),
+      partialize: (state) => ({
+        user: state.user,
+        permissions: state.permissions,
+        menus: state.menus,
+      }),
     },
   ),
 )

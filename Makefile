@@ -12,7 +12,7 @@ build:
 	$(GO) build -trimpath -o bin/x-admin ./cmd/server
 
 test:
-	$(GO) test ./tests/...
+	$(GO) test ./...
 
 frontend-test:
 	cd frontend && $(NPM) test

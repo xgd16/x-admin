@@ -57,6 +57,9 @@ func TestProfileChangePassword(t *testing.T) {
 	assert.Equal(t, apperr.CodeInvalidArgument, apperr.From(err).Code)
 
 	require.NoError(t, profile.ChangePassword(ctx, admin.ID, "Admin@123456", "NewPass123"))
+	after, err := app.Repos.Users.Get(ctx, admin.ID)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), after.SessionVersion)
 
 	auth := newAuth(app, true)
 	_, err = login(app, auth, "admin", "NewPass123")
@@ -78,6 +81,8 @@ func TestDashboardSummary(t *testing.T) {
 	require.NoError(t, app.Repos.Files.Create(ctx, &model.File{Name: "a.txt", Key: "a", URL: "/a", Size: 12}))
 	require.NoError(t, app.Repos.Jobs.Create(ctx, &model.Job{Name: "noop", Cron: "0 1 * * *", Handler: "noop", Status: 1}))
 	require.NoError(t, app.Repos.Logs.CreateLogin(ctx, &model.LoginLog{UserID: admin.ID, Username: "admin", Status: 200, Message: "ok"}))
+	// 失败登录不应计入登录趋势。
+	require.NoError(t, app.Repos.Logs.CreateLogin(ctx, &model.LoginLog{UserID: admin.ID, Username: "admin", Status: 401, Message: "bad"}))
 	require.NoError(t, app.Repos.Logs.CreateOperation(ctx, &model.OperationLog{UserID: admin.ID, Username: "admin", Method: "POST", Path: "/x", Status: 200}))
 
 	summary, err := app.Services.Dashboard.Summary(ctx)

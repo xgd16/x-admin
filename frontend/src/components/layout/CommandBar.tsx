@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Drawer, Dropdown, Input, Modal, Popover, Segmented, Switch } from 'antd'
 import type { MenuProps } from 'antd'
 import { useNavigate } from 'react-router-dom'
-import { navItems } from '../../config/nav'
+import { useNav } from '../../config/nav'
 import { useAuth } from '../../stores/auth'
 import { useTabs } from '../../stores/tabs'
 import { useUi } from '../../stores/ui'
@@ -17,6 +17,7 @@ export function CommandBar() {
   const navigate = useNavigate()
   const { active, items: contextItems, open: contextOpen, toggle: toggleContext } = useContextNav()
   const user = useAuth((state) => state.user)
+  const { items: navItems } = useNav()
   const logout = useAuth((state) => state.logout)
   const resetTabs = useTabs((state) => state.reset)
   const theme = useUi((state) => state.theme)
@@ -47,8 +48,10 @@ export function CommandBar() {
   // 快速导航按名称、路径和分组做在前端过滤，数据量小，无需请求后端。
   const results = useMemo(() => {
     const keyword = query.trim().toLowerCase()
-    return navItems.filter((item) => !keyword || `${item.label}${item.path}${item.group}`.toLowerCase().includes(keyword))
-  }, [query])
+    return navItems.filter(
+      (item) => !keyword || `${item.label}${item.path}${item.group}`.toLowerCase().includes(keyword),
+    )
+  }, [query, navItems])
 
   const userMenu: MenuProps['items'] = [
     { key: 'profile', icon: <Icon name="user" size={14} />, label: '个人中心' },

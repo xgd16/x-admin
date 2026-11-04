@@ -240,7 +240,7 @@ sequenceDiagram
   end
 
   S->>D: 更新最后登录时间 / IP + 登录日志
-  S->>R: SET refresh:{token} = uid:session_version 7d
+  S->>R: SET refresh:{token} = uid:session_version:session_id 7d
   S-->>B: access_token + refresh_token
 
   B->>A: 后续请求 Authorization: Bearer access_token
@@ -308,7 +308,7 @@ erDiagram
 | 字典 | 类型 + 字典项、编码唯一 | `system:dict:*` |
 | 参数 | 键值配置、`public` 控制对外读取 | `system:param:*` |
 | 文件 | 上传、列表、下载、删除、按类型筛选、文件库选择器 | `system:file:*` |
-| 定时任务 | CRUD、启停、立即执行、最近结果 | `system:job:*` |
+| 定时任务 | CRUD、启停、立即执行、最近结果、执行历史 | `system:job:*` |
 | 操作日志 | 分页、筛选、删除、清空 | `system:log:operation` |
 | 登录日志 | 分页、筛选、清空 | `system:log:login` |
 | 个人中心 | 资料、密码、TOTP、恢复码、Passkey 设备管理 | 登录即可 |
@@ -351,6 +351,7 @@ system:log:login
 
 ```bash
 cp .env.example .env
+# 编辑 .env：至少填写 JWT_SECRET（建议 32+ 位随机字符），否则 Compose 会拒绝启动
 docker compose -f deploy/docker-compose.yml up -d --build
 
 open http://localhost                          # 前端
@@ -501,10 +502,14 @@ x-admin/
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| POST | `/auth/logout` | 删除 refresh 白名单 |
-| GET | `/auth/me` | 当前用户 + 权限码 + 菜单树 |
+| POST | `/auth/logout` | 删除 refresh 白名单与当前登录会话 |
+| GET | `/auth/me` | 当前用户 + 权限码 + 菜单树，并续期文件访问 Cookie |
 | GET/PUT | `/profile` | 个人资料 |
-| PUT | `/profile/password` | 修改密码 |
+| PUT | `/profile/password` | 修改密码（撤销其他设备会话） |
+| GET | `/profile/sessions` | 在线设备列表（含是否“记住我”） |
+| DELETE | `/profile/sessions/:id` | 退出指定设备 |
+| POST | `/profile/session-actions/revoke-others` | 退出除当前设备外的全部会话 |
+| POST | `/profile/session-actions/revoke-all` | 退出全部会话（含当前设备） |
 | GET/POST/DELETE | `/profile/totp`、`/profile/totp/setup`、`/profile/totp/enable` | 双重验证状态、绑定、开启、关闭 |
 | GET/POST/PUT/DELETE | `/profile/passkeys`、`/profile/passkeys/begin`、`/profile/passkeys/finish`、`/profile/passkeys/:id` | Passkey 设备管理 |
 | GET/PUT | `/notifications`、`/notifications/unread-count`、`/notifications/read-all`、`/notifications/:id/read` | 站内通知 |
@@ -520,16 +525,17 @@ x-admin/
 | 部门 | `/departments/tree`、`/departments`、`/departments/:id` |
 | 字典 | `/dict/types`、`/dict/types/:id/items`、`/dict/items/:id` |
 | 参数 | `/parameters`、`/parameters/:id` |
-| 文件 | `POST /files`、`GET /files`、`GET /files/:id/download`、`DELETE /files/:id` |
-| 任务 | `GET/POST /jobs`、`PUT/DELETE /jobs/:id`、`PUT /jobs/:id/status`、`POST /jobs/:id/run` |
-| 操作日志 | `GET/DELETE /logs/operations`、`DELETE /logs/operations/clear` |
-| 登录日志 | `GET /logs/logins`、`DELETE /logs/logins/clear` |
+| 文件 | `POST /files`、`GET /files`、`GET /files/:id/download`、`GET/POST /files/:id/shares`、`DELETE /files/:id/shares/:shareID`、`DELETE /files/:id` |
+| 任务 | `GET/POST /jobs`、`PUT/DELETE /jobs/:id`、`PUT /jobs/:id/status`、`POST /jobs/:id/run`、`GET /jobs/:id/runs` |
+| 操作日志 | `GET/DELETE /logs/operations`、`GET /logs/operations/export`、`DELETE /logs/operations/clear` |
+| 登录日志 | `GET /logs/logins`、`GET /logs/logins/export`、`DELETE /logs/logins/clear` |
 
 其他端点：
 
+- `GET /parameters/public`：无需登录读取 `public=true` 的系统参数（站点名称、Logo 等）。
 - `GET /healthz`：数据库 + 缓存健康检查，异常返回 503。
 - `GET /swagger/index.html`：Swagger UI。
-- `GET /uploads/*`：上传文件静态访问。
+- `GET /uploads/*`：上传文件访问，必须携带登录下发的 HttpOnly 文件访问 Cookie，或 `Authorization: Bearer`。
 
 ### 7.2 统一响应与错误码
 
@@ -582,10 +588,12 @@ x-admin/
 | `sys_parameters` | 系统参数 |
 | `sys_files` | 上传文件元数据 |
 | `sys_jobs` | 定时任务定义与最近执行结果 |
+| `sys_job_runs` | 任务执行历史（手动/定时、结果、耗时），默认保留 30 天 |
 | `sys_operation_logs` | 操作审计 |
 | `sys_login_logs` | 登录审计 |
 | `sys_notifications` | 站内通知，按 `user_id` 归属 |
 | `sys_passkeys` | WebAuthn 凭据、设备名、签名计数器 |
+| `sys_file_shares` | 可撤销文件分享令牌摘要、有效期、撤销时间 |
 
 所有业务表带 `id / created_at / updated_at / deleted_at`，默认软删除；通行密钥与日志清理使用物理删除。
 
@@ -598,6 +606,7 @@ x-admin/
 | `X_ADMIN_APP_ENV` | `development` | `development` / `production` |
 | `X_ADMIN_SERVER_HOST` | `0.0.0.0` | 监听地址 |
 | `X_ADMIN_SERVER_PORT` | `8080` | 监听端口 |
+| `X_ADMIN_TRUSTED_PROXIES` | 本机 + 私有网段 | 允许读取 `X-Forwarded-For` / `X-Real-IP` 的代理网段，逗号分隔 |
 | `X_ADMIN_DATABASE_DSN` | 本地 xadmin 库 | MySQL DSN |
 | `X_ADMIN_REDIS_DRIVER` | `redis` | `redis` / `memory` |
 | `X_ADMIN_REDIS_ADDR` | `127.0.0.1:6379` | Redis 地址 |
@@ -606,7 +615,8 @@ x-admin/
 | `X_ADMIN_JWT_SECRET` | 开发默认值 | 至少 16 字符；生产禁止使用默认值 |
 | `X_ADMIN_JWT_ISSUER` | `x-admin` | JWT 签发者 |
 | `X_ADMIN_JWT_ACCESS_TTL` | `2h` | access token 有效期 |
-| `X_ADMIN_JWT_REFRESH_TTL` | `168h` | refresh token 有效期 |
+| `X_ADMIN_JWT_REFRESH_TTL` | `168h` | 勾选“记住我”时的 refresh token 有效期 |
+| `X_ADMIN_JWT_SESSION_TTL` | `12h` | 未勾选“记住我”时的 refresh token 有效期 |
 | `X_ADMIN_STORAGE_ROOT` | `data/uploads` | 上传根目录 |
 | `X_ADMIN_STORAGE_URL_PREFIX` | `/uploads` | 访问前缀 |
 | `X_ADMIN_STORAGE_MAX_MB` | `20` | 单文件大小上限 |
@@ -623,7 +633,7 @@ Compose 额外变量（`.env`）：
 | --- | --- | --- |
 | `MYSQL_ROOT_PASSWORD` | `root` | MySQL root 密码 |
 | `MYSQL_PASSWORD` | `xadmin` | 业务账号密码 |
-| `JWT_SECRET` | 示例值 | 生产必须替换 |
+| `JWT_SECRET` | 无，必填 | 生产必须设置随机值；留空时 Compose 拒绝启动 |
 | `WEBAUTHN_RP_ID` | `localhost` | 生产改为真实域名 |
 | `WEBAUTHN_RP_DISPLAY_NAME` | `x-admin` | 认证器显示名 |
 | `WEBAUTHN_RP_ORIGINS` | `http://localhost,http://localhost:5173` | 生产改为 `https://你的域名` |
@@ -631,18 +641,20 @@ Compose 额外变量（`.env`）：
 ### 7.5 安全机制
 
 - bcrypt cost 10；密码至少 8 位且同时包含字母与数字。
-- access token：HS256，默认 2h，claims 含 `uid`、`username`、`iss`、`exp`、`jti`。
-- refresh token：32 字节随机串，Redis 值为 `uid:session_version`，默认 7d；每次刷新原子读取并删除，旧 token 立即失效。
+- access token：HS256，默认 2h，claims 含 `uid`、`username`、`session_version`、`session_id`、`iss`、`exp`、`jti`；中间件同时校验会话版本与登录会话是否存在。
+- refresh token：32 字节随机串，Redis 值为 `uid:session_version:session_id:remember`；勾选“记住我”默认 7d，未勾选默认 12h；每次刷新原子读取并删除，旧 token 立即失效。
 - 图形验证码：5 分钟、一次性，校验失败也会消费。
 - 登录锁定：同一用户名连续失败 5 次锁定 15 分钟，并发送站内安全提醒。
 - 双重验证：RFC 6238 TOTP（SHA1 / 6 位 / 30 秒，±1 步容差）；10 个一次性恢复码只存 SHA-256 摘要。
 - 两步登录：密码通过后签发 5 分钟 `mfa:challenge:*`，单个挑战错误 5 次即作废。
-- 会话版本：开启双重验证时递增 `session_version`，其他设备的 refresh token 立即失效；发起操作的设备会同步更新。
+- 会话版本：开启/关闭双重验证、修改密码、管理员重置密码、启停账号时递增 `session_version`；access token 内含版本号，旧令牌立即失效。发起安全操作的设备会把当前 refresh token 同步到新版本。
+- 在线设备：每次登录生成独立 `session_id`，可在个人中心查看设备、单独退出、退出其他设备或全部退出；撤销后对应 access token、refresh token 与文件访问 Cookie 立即失效。
 - Passkey：注册需当前密码，最多 10 台设备；挑战 5 分钟一次性；服务端只保存公钥与签名计数器，私钥留在设备。
 - 限流：全局 100/min/IP；登录 10/min/IP；MFA 20/min/IP；Passkey 20/min/IP。
 - 审计：写操作记录操作人、路径、IP、状态、耗时、请求体；密码、token、secret、captcha、`otp_code` 自动脱敏。
-- 文件：随机文件名、扩展名清洗、路径穿越校验、MIME 嗅探。
+- 文件：随机文件名、扩展名清洗、路径穿越校验、MIME 嗅探；`/uploads` 需要登录凭证，浏览器通过 HttpOnly Cookie 访问，`CSP sandbox` 与 `nosniff` 防止上传内容被当作主动页面执行。
 - `super_admin` 跳过权限判断；其余角色按菜单权限码授权。
+- 授权范围：非超级管理员只能授予自己已经拥有的菜单权限，也不能把权限高于自己的角色分配给用户，避免横向提权。
 - 内置保护：`admin` 账号不可停用/删除，`super_admin` 角色编码不可修改且不可删除；同时禁止停用或删除当前登录账号。
 
 ### 7.6 文件存储
@@ -652,6 +664,8 @@ Compose 额外变量（`.env`）：
 - `POST /files` 请求体硬上限 64MB，业务上限由 `storage.max_upload_mb` 控制（默认 20MB）。
 - 列表支持 `keyword`、`mime` 前缀、`kind`（`image`、`video`、`audio`、`document`、`archive`、`other`，可逗号组合）。
 - 下载使用流式响应，并设置兼容中文的文件名。
+- `/uploads` 不再匿名开放：登录后由 `/auth/me` 下发 `HttpOnly` 文件访问 Cookie；API 客户端可使用 Bearer token。撤销会话或递增 `session_version` 后访问凭证立即失效。
+- 可撤销分享：`POST /files/:id/shares` 生成随机令牌链接（默认 1 小时，最长 7 天），数据库只保存令牌 SHA-256 摘要；未登录用户可在有效期内直接下载。`DELETE /files/:id/shares/:shareID` 撤销后链接立即失效；文件页「分享」抽屉可复制新链接、查看历史并逐条撤销。
 - 多副本部署时需使用共享卷或替换 `storage.Store` 为对象存储。
 
 ### 7.7 定时任务
@@ -667,7 +681,8 @@ Compose 额外变量（`.env`）：
 - 使用标准 5 段 Cron：`分 时 日 月 周`。
 - 应用启动时把 `status=1` 的任务注册到调度器；修改/启停/删除会同步增删调度。
 - 执行失败会写入 `last_result`，不会让调度器反复重试。
-- **多副本注意**：调度器运行在进程内，多个后端副本会重复执行；需要单副本运行、主从选举或改用外部调度。
+- 每次手动/Cron 执行都会写入 `sys_job_runs`，记录触发方式、状态、耗时与错误摘要；页面「记录」可查看分页历史，默认保留 30 天。
+- **多副本注意**：调度器运行在进程内；启用 Redis 后，每次执行会先抢占 `job:lock:<id>` 缓存锁（30 分钟兜底过期），同一任务在多副本间只会执行一次。若使用内存缓存，仍需单副本运行。
 
 ---
 
@@ -714,7 +729,7 @@ npm run test:watch
 | `/profile` | `Profile` | 登录即可 |
 | `*` | `NotFound` | — |
 
-菜单显隐由 `useAuth().can(permission)` 控制，但最终授权始终以后端 `Require` 为准。
+侧边导航由 `/auth/me` 返回的菜单树动态生成（名称、图标、排序、分组均以后端为准），前端静态路由表只负责路径到组件的映射；按钮权限仍由 `useAuth().can(permission)` 控制，最终授权始终以后端 `Require` 为准。
 
 ### 8.3 状态管理
 
@@ -753,6 +768,7 @@ TanStack Query 默认配置：`retry: 1`、关闭窗口聚焦重取、`staleTime
 | `ContextBar` | 当前模块的二级导航；单页模块自动收起 |
 | `CommandBar` | 全局命令入口（⌘K）、主题切换、通知中心、用户菜单 |
 | `TabBar` | 多标签页；右键刷新/关闭其他/关闭左侧/右侧/全部 |
+| `KeepAliveOutlet` | 页签保活；已访问页面保持挂载，切换时保留筛选条件、表单状态与滚动位置，关闭页签后释放 |
 | `NotificationCenter` | 未读数角标、全部/未读切换、单条与全部已读 |
 | `DataTable` | 列显隐持久化、密度切换、刷新、分页、选择、展开 |
 | `FormModal` | antd Form + Modal 的新增/编辑弹窗封装 |
@@ -823,7 +839,7 @@ make fmt           # gofmt
 - `tests/integration`：SQLite + 内存缓存跑完整 HTTP 登录与 CRUD 链路，含两步登录、恢复码、关闭双重验证、Passkey 设备管理与 WebAuthn 会话校验。
 - `tests/testsupport`：可复用的测试装配（SQLite / 内存缓存 / 完整 Router）。
 
-`make coverage` 当前整体约 **83%**（随测试变化，以命令输出为准）。
+`make coverage` 当前整体约 **90%**（随测试变化，以命令输出为准）；启动装配、数据库错误路径和 Passkey 主要分支均已纳入测试。
 
 ### 9.2 前端
 
@@ -907,7 +923,7 @@ X_ADMIN_JWT_SECRET='<32+ random chars>' \
 - [ ] Nginx `client_max_body_size` 与上传上限匹配。
 - [ ] `/app/data/uploads` 或 `uploads` 卷配置持久化与备份。
 - [ ] 备份 MySQL；升级前先备份，再执行迁移。
-- [ ] 多副本部署时，定时任务需改为单副本或外部调度。
+- [x] 多副本部署时，定时任务通过缓存锁避免重复执行（需 Redis）。
 - [ ] 监控 `/healthz`、5xx、登录失败与限流指标。
 
 ---

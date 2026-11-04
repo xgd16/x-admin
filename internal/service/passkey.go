@@ -261,10 +261,10 @@ func (s *PasskeyService) FinishLogin(ctx context.Context, sessionID string, cred
 
 // Rename 修改设备名称。
 func (s *PasskeyService) Rename(ctx context.Context, userID, id uint64, name string) error {
-	name = normalizePasskeyName(name)
-	if name == "" {
+	if strings.TrimSpace(name) == "" {
 		return apperr.New(apperr.CodeInvalidArgument, "请输入设备名称")
 	}
+	name = normalizePasskeyName(name)
 	if err := s.passkeys.RenameForUser(ctx, userID, id, name); err != nil {
 		if IsNotFound(err) {
 			return apperr.ErrNotFound

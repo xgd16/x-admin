@@ -5,7 +5,7 @@ import { Dropdown } from 'antd'
 import type { MenuProps } from 'antd'
 import { motion, useReducedMotion } from 'motion/react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { navByPath, navItems, railGroups } from '../../config/nav'
+import { useNav } from '../../config/nav'
 import { useAuth } from '../../stores/auth'
 import { useTabs } from '../../stores/tabs'
 import { useUi } from '../../stores/ui'
@@ -16,7 +16,6 @@ import { Icon } from '../Icon'
 export function Rail() {
   const navigate = useNavigate()
   const location = useLocation()
-  const can = useAuth((state) => state.can)
   const user = useAuth((state) => state.user)
   const logout = useAuth((state) => state.logout)
   const resetTabs = useTabs((state) => state.reset)
@@ -24,12 +23,13 @@ export function Rail() {
   const toggleTheme = useUi((state) => state.toggleTheme)
   const reduceMotion = useReducedMotion()
 
-  // 只展示当前账号至少有一个可访问页面的模块。
-  const currentGroup = navByPath(location.pathname).group
-  const modules = railGroups
+  // 后端菜单树决定模块与顺序，只展示至少有一个可访问页面的模块。
+  const { items, groups, byPath } = useNav()
+  const currentGroup = byPath(location.pathname).group
+  const modules = groups
     .map((module) => ({
       ...module,
-      first: navItems.find((item) => item.group === module.group && can(item.permission)),
+      first: items.find((item) => item.group === module.group),
     }))
     .filter((module) => module.first)
 
@@ -43,7 +43,7 @@ export function Rail() {
   return (
     <aside className="rail glass">
       <div className="rail-brand">
-        <button className="rail-logo" type="button" onClick={() => navigate('/dashboard')} title="x-admin" aria-label="x-admin 首页">
+        <button className="rail-logo" type="button" onClick={() => navigate(items[0]?.path ?? '/profile')} title="x-admin" aria-label="x-admin 首页">
           <BrandMark size={24} />
         </button>
       </div>

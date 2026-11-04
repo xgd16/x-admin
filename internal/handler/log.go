@@ -33,6 +33,21 @@ func (h *LogHandler) Operations(c *gin.Context) {
 	response.Page(c, list, total, f.Page, f.PageSize)
 }
 
+// ExportOperations 导出操作日志 Excel。
+func (h *LogHandler) ExportOperations(c *gin.Context) {
+	var f model.OperationLogFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		response.Error(c, apperr.Wrap(err, apperr.CodeInvalidArgument, "查询参数不合法"))
+		return
+	}
+	data, err := h.logs.ExportOperations(c.Request.Context(), f)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	Attachment(c, "operation-logs.xlsx", data)
+}
+
 // DeleteOperations 按 ID 批量删除操作日志。
 func (h *LogHandler) DeleteOperations(c *gin.Context) {
 	var in idsInput
@@ -69,6 +84,21 @@ func (h *LogHandler) Logins(c *gin.Context) {
 		return
 	}
 	response.Page(c, list, total, f.Page, f.PageSize)
+}
+
+// ExportLogins 导出登录日志 Excel。
+func (h *LogHandler) ExportLogins(c *gin.Context) {
+	var f model.LoginLogFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		response.Error(c, apperr.Wrap(err, apperr.CodeInvalidArgument, "查询参数不合法"))
+		return
+	}
+	data, err := h.logs.ExportLogins(c.Request.Context(), f)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	Attachment(c, "login-logs.xlsx", data)
 }
 
 // ClearLogins 清空全部登录日志。

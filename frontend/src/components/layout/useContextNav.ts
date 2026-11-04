@@ -3,8 +3,7 @@
  */
 import { useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
-import { itemsOfGroup, navByPath, profileNav, type NavItem } from '../../config/nav'
-import { useAuth } from '../../stores/auth'
+import { profileNav, useNav, type NavItem } from '../../config/nav'
 import { useUi } from '../../stores/ui'
 
 /**
@@ -16,15 +15,15 @@ import { useUi } from '../../stores/ui'
  */
 export function useContextNav() {
   const location = useLocation()
-  const can = useAuth((state) => state.can)
+  const { items: navItems, byPath } = useNav()
   const preference = useUi((state) => state.contextPref)
   const setContextPref = useUi((state) => state.setContextPref)
 
-  const active = navByPath(location.pathname)
+  const active = byPath(location.pathname)
   const isAccount = active.group === '账号'
   const items: NavItem[] = isAccount
     ? [profileNav]
-    : itemsOfGroup(active.group).filter((item) => can(item.permission))
+    : navItems.filter((item) => item.group === active.group)
   // 有手动偏好时优先使用，否则按页面数量自动决定。
   const open = preference?.group === active.group ? preference.open : items.length > 1
   const toggle = useCallback(

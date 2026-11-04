@@ -25,6 +25,9 @@ type UserRepository interface {
 	FindByUsername(ctx context.Context, username string) (*model.User, error)
 	List(ctx context.Context, filter model.UserFilter) ([]model.User, int64, error)
 	UpdateFields(ctx context.Context, id uint64, fields map[string]any) error
+	SetPassword(ctx context.Context, id uint64, hash string, bumpSessionVersion bool) error
+	BumpSessionVersion(ctx context.Context, id uint64) error
+	SessionState(ctx context.Context, id uint64) (int8, int64, error)
 	Delete(ctx context.Context, ids ...uint64) error
 	SetRoles(ctx context.Context, userID uint64, roleIDs []uint64) error
 	ExistsUsername(ctx context.Context, username string, excludeID uint64) (bool, error)
@@ -91,6 +94,7 @@ type ParameterRepository interface {
 	Update(ctx context.Context, p *model.Parameter) error
 	Get(ctx context.Context, id uint64) (*model.Parameter, error)
 	GetByKey(ctx context.Context, key string) (*model.Parameter, error)
+	ListPublic(ctx context.Context) ([]model.Parameter, error)
 	List(ctx context.Context, q pagination.Query) ([]model.Parameter, int64, error)
 	ExistsKey(ctx context.Context, key string, excludeID uint64) (bool, error)
 	Delete(ctx context.Context, ids ...uint64) error
@@ -104,6 +108,12 @@ type FileRepository interface {
 	Delete(ctx context.Context, ids ...uint64) error
 	TotalSize(ctx context.Context) (int64, error)
 	CountAll(ctx context.Context) (int64, error)
+	CreateShare(ctx context.Context, share *model.FileShare) error
+	GetShareByHash(ctx context.Context, hash string) (*model.FileShare, error)
+	ListShares(ctx context.Context, fileID uint64) ([]model.FileShare, error)
+	RevokeShare(ctx context.Context, fileID, id uint64) error
+	DeleteSharesByFile(ctx context.Context, fileID uint64) error
+	PruneShares(ctx context.Context, before time.Time) error
 }
 
 // JobRepository 定义定时任务数据的读写能力。
@@ -115,6 +125,10 @@ type JobRepository interface {
 	ListEnabled(ctx context.Context) ([]model.Job, error)
 	UpdateFields(ctx context.Context, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, ids ...uint64) error
+	CreateRun(ctx context.Context, run *model.JobRun) error
+	ListRuns(ctx context.Context, jobID uint64, page, pageSize int) ([]model.JobRun, int64, error)
+	PruneRuns(ctx context.Context, before time.Time) error
+	DeleteRunsByJob(ctx context.Context, jobID uint64) error
 	CountAll(ctx context.Context) (int64, error)
 }
 

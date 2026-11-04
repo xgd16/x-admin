@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Button, Form, Input, Modal } from 'antd'
 import { api } from '../api/client'
 import { tokenStore } from '../api/tokens'
-import type { PasskeyItem, PasskeyRegistrationOptions, TOTPSetup, TOTPStatus, User } from '../api/types'
+import type { LoginSession, PasskeyItem, PasskeyRegistrationOptions, TOTPSetup, TOTPStatus, User } from '../api/types'
 import { useAuth } from '../stores/auth'
 import { PageHeader } from '../components/PageHeader'
 import { FileSelect } from '../components/FileSelect'
@@ -67,6 +67,13 @@ export function Profile() {
     staleTime: 30_000,
   })
 
+  const sessionsQuery = useQuery({
+    queryKey: ['profile-sessions'],
+    queryFn: () => api.get<LoginSession[]>('/profile/sessions'),
+    staleTime: 15_000,
+  })
+  const sessions = sessionsQuery.data ?? []
+
   // —— 基本资料与密码 ——
   const updateMutation = useMutation({
     mutationFn: (values: ProfileValues) => api.put<User>('/profile', values),
@@ -79,11 +86,41 @@ export function Profile() {
     onError: (error: Error) => message.error(error.message),
   })
 
+  const revokeSessionMutation = useMutation({
+    mutationFn: (id: string) => api.del(`/profile/sessions/${encodeURIComponent(id)}`),
+    onSuccess: () => {
+      message.success('该设备已退出登录')
+      void queryClient.invalidateQueries({ queryKey: ['profile-sessions'] })
+    },
+    onError: (error: Error) => message.error(error.message),
+  })
+
+  const revokeOthersMutation = useMutation({
+    mutationFn: () => api.post<{ revoked: number }>('/profile/session-actions/revoke-others'),
+    onSuccess: (data) => {
+      message.success(`已退出 ${data.revoked} 台其他设备`)
+      void queryClient.invalidateQueries({ queryKey: ['profile-sessions'] })
+    },
+    onError: (error: Error) => message.error(error.message),
+  })
+
+  const revokeAllMutation = useMutation({
+    mutationFn: () => api.post<{ revoked: number }>('/profile/session-actions/revoke-all'),
+    onSuccess: () => {
+      // 当前 access token 也已失效，清理本地登录态并回到登录页。
+      void useAuth.getState().logout().finally(() => window.location.assign('/login'))
+    },
+    onError: (error: Error) => message.error(error.message),
+  })
+
   const passwordMutation = useMutation({
-    mutationFn: (values: { old_password: string; new_password: string }) => api.put('/profile/password', values),
+    mutationFn: (values: { old_password: string; new_password: string }) =>
+      api.put('/profile/password', { ...values, refresh_token: tokenStore.refresh }),
     onSuccess: () => {
       message.success('密码已修改，下次登录请使用新密码')
       passwordForm.resetFields()
+      // 改密会递增 session_version，主动拉取 /auth/me 以换取新 access token。
+      void useAuth.getState().bootstrap()
     },
     onError: (error: Error) => message.error(error.message),
   })
@@ -122,7 +159,8 @@ export function Profile() {
   })
 
   const disableMutation = useMutation({
-    mutationFn: (values: TOTPFormValues) => api.del('/profile/totp', values),
+    mutationFn: (values: TOTPFormValues) =>
+      api.del('/profile/totp', { ...values, refresh_token: tokenStore.refresh }),
     onSuccess: () => {
       message.success('双重验证已关闭')
       setDisableOpen(false)
@@ -433,6 +471,110 @@ export function Profile() {
                       <button type="button" className="danger" onClick={() => confirmDeletePasskey(item)}>
                         删除
                       </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+
+          <section className="panel glass">
+            <div className="panel-head">
+              <h2>登录设备</h2>
+              <span>SESSIONS</span>
+            </div>
+            <div className="passkey-panel">
+              <div className="passkey-copy">
+                <span className="totp-badge on">
+                  <Icon name="login" size={12} />
+                  {sessions.length} 台在线设备
+                </span>
+                <p>查看当前账号在哪些设备上保持登录。修改密码、关闭双重验证或停用账号后，其他设备会自动失效。</p>
+                <span className="totp-meta">无法识别的设备会显示 User-Agent 摘要；退出全部设备后需要重新登录。</span>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Button
+                  onClick={() => {
+                    modal.confirm({
+                      title: '退出其他设备？',
+                      content: '当前设备会保持登录，其他设备需要重新登录。',
+                      okText: '退出其他设备',
+                      cancelText: '取消',
+                      onOk: () => revokeOthersMutation.mutateAsync(),
+                    })
+                  }}
+                  loading={revokeOthersMutation.isPending}
+                  disabled={sessions.length <= 1}
+                >
+                  退出其他设备
+                </Button>
+                <Button
+                  danger
+                  onClick={() => {
+                    modal.confirm({
+                      title: '退出全部设备？',
+                      content: '所有设备（包括当前设备）都会退出登录，需要重新输入账号密码。',
+                      okText: '全部退出',
+                      okButtonProps: { danger: true },
+                      cancelText: '取消',
+                      onOk: () => revokeAllMutation.mutateAsync(),
+                    })
+                  }}
+                  loading={revokeAllMutation.isPending}
+                >
+                  退出全部
+                </Button>
+              </div>
+            </div>
+            <div className="passkey-list">
+              {sessionsQuery.isLoading ? (
+                <div className="passkey-empty">正在读取登录设备…</div>
+              ) : sessions.length === 0 ? (
+                <div className="passkey-empty">暂无在线设备。</div>
+              ) : (
+                sessions.map((session) => (
+                  <div className="passkey-item" key={session.id}>
+                    <span className="passkey-icon">
+                      <Icon name="login" size={15} />
+                    </span>
+                    <div className="passkey-info">
+                      <b>
+                        {session.device}
+                        {session.current && (
+                          <span className="tag green" style={{ marginLeft: 8 }}>
+                            当前设备
+                          </span>
+                        )}
+                        {session.remember && (
+                          <span className="tag blue" style={{ marginLeft: 8 }}>
+                            记住我
+                          </span>
+                        )}
+                      </b>
+                      <span>
+                        {session.ip || '未知 IP'} · 最近活动 {formatDate(session.last_seen_at)} · 登录于{' '}
+                        {formatDate(session.created_at)}
+                      </span>
+                    </div>
+                    <div className="passkey-actions">
+                      {!session.current && (
+                        <button
+                          type="button"
+                          className="danger"
+                          onClick={() => {
+                            modal.confirm({
+                              title: `退出「${session.device}」？`,
+                              content: '该设备需要重新登录。',
+                              okText: '退出登录',
+                              okButtonProps: { danger: true },
+                              cancelText: '取消',
+                              onOk: () => revokeSessionMutation.mutateAsync(session.id),
+                            })
+                          }}
+                        >
+                          退出
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))

@@ -17,6 +17,15 @@ export class ApiError extends Error {
 // 单飞刷新：多个请求同时 401 时只发起一次 refresh，其余请求复用同一个 Promise。
 let refreshing: Promise<boolean> | null = null
 
+// 认证接口自身不参与自动刷新，避免 401 循环。
+const noRefreshPaths = new Set([
+  '/auth/login',
+  '/auth/login/mfa',
+  '/auth/passkey/login/begin',
+  '/auth/passkey/login/finish',
+  '/auth/refresh',
+])
+
 /** 使用 refresh_token 换取新的令牌对；失败时返回 false，由调用方清理登录态。 */
 async function refreshToken(): Promise<boolean> {
   if (!tokenStore.refresh) return false
@@ -58,46 +67,45 @@ async function parse<T>(res: Response): Promise<T> {
 }
 
 /**
- * 发起 API 请求。
- * 自动注入 Bearer Token；遇到 401 时先尝试刷新令牌，再重放原请求。
+ * 发送请求并在 401 时自动刷新令牌。
+ * init 必须是可重复执行的工厂函数：刷新后需要重新读取最新 token 并重建请求体。
  */
-async function request<T>(method: string, path: string, body?: unknown, params?: Record<string, unknown>): Promise<T> {
+async function send(
+  path: string,
+  params: Record<string, unknown> | undefined,
+  init: () => RequestInit,
+): Promise<Response> {
   const url = `${BASE}${path}${queryString(params)}`
-  const headers: Record<string, string> = {}
-  if (body !== undefined && !(body instanceof FormData)) headers['Content-Type'] = 'application/json'
-  if (tokenStore.access) headers.Authorization = `Bearer ${tokenStore.access}`
+  let res = await fetch(url, init())
 
-  let res = await fetch(url, {
-    method,
-    headers,
-    body: body instanceof FormData ? body : body === undefined ? undefined : JSON.stringify(body),
-  })
-
-  // 登录、刷新等接口本身不参与自动刷新，避免 401 循环。
-  if (
-    res.status === 401 &&
-    tokenStore.refresh &&
-    path !== '/auth/login' &&
-    path !== '/auth/login/mfa' &&
-    path !== '/auth/passkey/login/begin' &&
-    path !== '/auth/passkey/login/finish' &&
-    path !== '/auth/refresh'
-  ) {
+  if (res.status === 401 && tokenStore.refresh && !noRefreshPaths.has(path)) {
     refreshing ??= refreshToken().finally(() => { refreshing = null })
     const ok = await refreshing
-    if (ok) {
-      headers.Authorization = `Bearer ${tokenStore.access}`
-      res = await fetch(url, {
-        method,
-        headers,
-        body: body instanceof FormData ? body : body === undefined ? undefined : JSON.stringify(body),
-      })
-    } else {
+    if (!ok) {
       tokenStore.clear()
       window.location.assign('/login')
       throw new ApiError(40102, '登录已过期')
     }
+    res = await fetch(url, init())
   }
+  return res
+}
+
+/**
+ * 发起 JSON API 请求。
+ * 自动注入 Bearer Token；遇到 401 时先尝试刷新令牌，再重放原请求。
+ */
+async function request<T>(method: string, path: string, body?: unknown, params?: Record<string, unknown>): Promise<T> {
+  const res = await send(path, params, () => {
+    const headers: Record<string, string> = {}
+    if (body !== undefined && !(body instanceof FormData)) headers['Content-Type'] = 'application/json'
+    if (tokenStore.access) headers.Authorization = `Bearer ${tokenStore.access}`
+    return {
+      method,
+      headers,
+      body: body instanceof FormData ? body : body === undefined ? undefined : JSON.stringify(body),
+    }
+  })
   return parse<T>(res)
 }
 
@@ -115,21 +123,23 @@ export const api = {
   del<T>(path: string, body?: unknown) {
     return request<T>('DELETE', path, body)
   },
-  /** 以 multipart/form-data 上传单个文件。 */
+  /** 以 multipart/form-data 上传单个文件；复用统一的 401 刷新逻辑。 */
   async upload<T>(path: string, file: File): Promise<T> {
-    const form = new FormData()
-    form.append('file', file)
-    const res = await fetch(`${BASE}${path}`, {
-      method: 'POST',
-      headers: tokenStore.access ? { Authorization: `Bearer ${tokenStore.access}` } : {},
-      body: form,
+    const res = await send(path, undefined, () => {
+      const form = new FormData()
+      form.append('file', file)
+      const headers: Record<string, string> = {}
+      if (tokenStore.access) headers.Authorization = `Bearer ${tokenStore.access}`
+      return { method: 'POST', headers, body: form }
     })
     return parse<T>(res)
   },
   /** 下载二进制文件；错误响应仍按 JSON 包裹解析提示信息。 */
   async download(path: string, params?: Record<string, unknown>): Promise<Blob> {
-    const res = await fetch(`${BASE}${path}${queryString(params)}`, {
-      headers: tokenStore.access ? { Authorization: `Bearer ${tokenStore.access}` } : {},
+    const res = await send(path, params, () => {
+      const headers: Record<string, string> = {}
+      if (tokenStore.access) headers.Authorization = `Bearer ${tokenStore.access}`
+      return { headers }
     })
     if (!res.ok) {
       let message = '下载失败'

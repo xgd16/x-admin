@@ -59,6 +59,9 @@ func TestRoleValidation(t *testing.T) {
 
 	_, err = app.Services.Roles.Create(ctx, service.RoleInput{Name: "X", Code: "operator", Status: 1})
 	assert.Equal(t, apperr.CodeConflict, apperr.From(err).Code)
+
+	_, err = app.Services.Roles.Create(ctx, service.RoleInput{Name: "超级管理员", Code: "super_admin", Status: 1})
+	assert.Equal(t, apperr.CodeForbidden, apperr.From(err).Code)
 }
 
 func TestRoleUpdateDelete(t *testing.T) {
@@ -78,6 +81,8 @@ func TestRoleUpdateDelete(t *testing.T) {
 	super := app.EnsureRole(t, "super_admin", "超级管理员")
 	_, err = app.Services.Roles.Update(ctx, super.ID, service.RoleInput{Name: "超级管理员", Code: "changed", Status: 1})
 	assert.Equal(t, apperr.CodeConflict, apperr.From(err).Code)
+	_, err = app.Services.Roles.Update(ctx, super.ID, service.RoleInput{Name: "超级管理员", Code: "super_admin", Status: 0})
+	assert.Equal(t, apperr.CodeForbidden, apperr.From(err).Code)
 
 	err = app.Services.Roles.Delete(ctx, super.ID)
 	assert.Equal(t, apperr.CodeForbidden, apperr.From(err).Code)
@@ -109,4 +114,81 @@ func TestRoleAssignMenus(t *testing.T) {
 
 	_, err = app.Services.Roles.Menus(ctx, 404)
 	assert.Equal(t, apperr.CodeNotFound, apperr.From(err).Code)
+}
+
+func TestRoleMenuAssignmentCannotExceedActorPermissions(t *testing.T) {
+	ctx := context.Background()
+	app := testsupport.New(t)
+	admin := app.SeedAdmin(t)
+
+	owned := &model.Menu{Name: "用户管理", Type: model.MenuMenu, Path: "/system/users", Permission: "system:user:list", Status: 1, Visible: true}
+	unowned := &model.Menu{Name: "角色管理", Type: model.MenuMenu, Path: "/system/roles", Permission: "system:role:list", Status: 1, Visible: true}
+	require.NoError(t, app.Repos.Menus.Create(ctx, owned))
+	require.NoError(t, app.Repos.Menus.Create(ctx, unowned))
+
+	manager := app.EnsureRole(t, "manager", "主管")
+	require.NoError(t, app.Repos.Roles.SetMenus(ctx, manager.ID, []uint64{owned.ID}))
+	actor := app.CreateUser(t, "manager", "Passw0rd123", model.StatusEnabled, "manager")
+	principal, err := app.Services.Auth.Authenticate(ctx, actor.ID)
+	require.NoError(t, err)
+
+	_, err = app.Services.Roles.Create(ctx, service.RoleInput{
+		Name: "越权角色", Code: "too_wide", Status: 1, MenuIDs: []uint64{unowned.ID},
+	}, principal)
+	assert.Equal(t, apperr.CodeForbidden, apperr.From(err).Code)
+
+	role, err := app.Services.Roles.Create(ctx, service.RoleInput{
+		Name: "受限角色", Code: "limited", Status: 1, MenuIDs: []uint64{owned.ID},
+	}, principal)
+	require.NoError(t, err)
+
+	err = app.Services.Roles.AssignMenus(ctx, role.ID, []uint64{unowned.ID}, principal)
+	assert.Equal(t, apperr.CodeForbidden, apperr.From(err).Code)
+	require.NoError(t, app.Services.Roles.AssignMenus(ctx, role.ID, []uint64{owned.ID}, principal))
+
+	// 超级管理员不受限制。
+	super, err := app.Services.Auth.Authenticate(ctx, admin.ID)
+	require.NoError(t, err)
+	require.NoError(t, app.Services.Roles.AssignMenus(ctx, role.ID, []uint64{unowned.ID}, super))
+}
+
+func TestRoleMenuAssignmentCannotModifySuperAdmin(t *testing.T) {
+	ctx := context.Background()
+	app := testsupport.New(t)
+	app.SeedAdmin(t)
+	superRole := app.EnsureRole(t, "super_admin", "超级管理员")
+	operatorRole := app.EnsureRole(t, "operator2", "运营")
+	actor := app.CreateUser(t, "operator2", "Passw0rd123", model.StatusEnabled, operatorRole.Code)
+	principal, err := app.Services.Auth.Authenticate(ctx, actor.ID)
+	require.NoError(t, err)
+
+	_, err = app.Services.Roles.Update(ctx, superRole.ID, service.RoleInput{
+		Name: "超级管理员", Code: "super_admin", Status: 1,
+	}, principal)
+	assert.Equal(t, apperr.CodeForbidden, apperr.From(err).Code)
+	err = app.Services.Roles.AssignMenus(ctx, superRole.ID, nil, principal)
+	assert.Equal(t, apperr.CodeForbidden, apperr.From(err).Code)
+}
+
+func TestUserRoleAssignmentCannotExceedActorPermissions(t *testing.T) {
+	ctx := context.Background()
+	app := testsupport.New(t)
+	app.SeedAdmin(t)
+
+	owned := &model.Menu{Name: "用户管理", Type: model.MenuMenu, Path: "/system/users", Permission: "system:user:list", Status: 1, Visible: true}
+	unowned := &model.Menu{Name: "角色管理", Type: model.MenuMenu, Path: "/system/roles", Permission: "system:role:list", Status: 1, Visible: true}
+	require.NoError(t, app.Repos.Menus.Create(ctx, owned))
+	require.NoError(t, app.Repos.Menus.Create(ctx, unowned))
+
+	managerRole := app.EnsureRole(t, "manager", "主管")
+	require.NoError(t, app.Repos.Roles.SetMenus(ctx, managerRole.ID, []uint64{owned.ID}))
+	wideRole := app.EnsureRole(t, "wide", "宽权限")
+	require.NoError(t, app.Repos.Roles.SetMenus(ctx, wideRole.ID, []uint64{unowned.ID}))
+
+	manager := app.CreateUser(t, "manager", "Passw0rd123", model.StatusEnabled, managerRole.Code)
+	target := app.CreateUser(t, "target", "Passw0rd123", model.StatusEnabled)
+
+	err := app.Services.Users.AssignRoles(ctx, target.ID, []uint64{wideRole.ID}, manager.ID)
+	assert.Equal(t, apperr.CodeForbidden, apperr.From(err).Code)
+	require.NoError(t, app.Services.Users.AssignRoles(ctx, target.ID, []uint64{managerRole.ID}, manager.ID))
 }

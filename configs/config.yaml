@@ -9,6 +9,14 @@ server:
   read_timeout: 15s
   write_timeout: 30s
   shutdown_timeout: 10s
+  # 允许从这些代理读取 X-Forwarded-For / X-Real-IP。
+  # 后端直接暴露公网时请收紧或清空该列表。
+  trusted_proxies:
+    - 127.0.0.1
+    - "::1"
+    - 10.0.0.0/8
+    - 172.16.0.0/12
+    - 192.168.0.0/16
 
 database:
   dsn: xadmin:xadmin@tcp(127.0.0.1:3306)/xadmin?charset=utf8mb4&parseTime=True&loc=Local
@@ -27,7 +35,9 @@ jwt:
   secret: x-admin-dev-secret-change-me
   issuer: x-admin
   access_ttl: 2h
+  # 勾选“记住我”时的 refresh 有效期；未勾选使用 session_ttl。
   refresh_ttl: 168h
+  session_ttl: 12h
 
 security:
   bcrypt_cost: 10

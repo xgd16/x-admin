@@ -64,6 +64,9 @@ func TestError(t *testing.T) {
 	assert.Equal(t, int(apperr.CodeNotFound), env.Code)
 	assert.Equal(t, "用户不存在", env.Message)
 	assert.True(t, c.IsAborted())
+	// 审计中间件依赖 c.Errors 记录错误摘要。
+	require.Len(t, c.Errors, 1)
+	assert.Equal(t, "用户不存在", c.Errors[0].Error())
 
 	c, rr = newContext()
 	response.Error(c, errors.New("secret database details"))

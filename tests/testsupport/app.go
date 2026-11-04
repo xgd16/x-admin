@@ -124,7 +124,10 @@ func New(t *testing.T) *App {
 	notifications := service.NewNotificationService(repos.Notifications)
 
 	authSvc := service.NewAuthService(repos.Users, repos.Menus, repos.Logs, store, tokens, hasher, captchaGen, notifications,
-		service.AuthOptions{MaxLoginFails: 5, LockDuration: 15 * time.Minute, RefreshTTL: cfg.JWT.RefreshTTL})
+		service.AuthOptions{
+			MaxLoginFails: 5, LockDuration: 15 * time.Minute,
+			RefreshTTL: cfg.JWT.RefreshTTL, SessionTTL: cfg.JWT.SessionTTL,
+		})
 	wa, err := webauthn.New(&webauthn.Config{
 		RPDisplayName: cfg.WebAuthn.RPDisplayName,
 		RPID:          cfg.WebAuthn.RPID,
@@ -136,7 +139,7 @@ func New(t *testing.T) *App {
 	passkeySvc := service.NewPasskeyService(repos.Users, repos.Passkeys, hasher, store, wa, 5*time.Minute, notifications)
 	services := Services{
 		Auth:          authSvc,
-		Users:         service.NewUserService(repos.Users, repos.Roles, repos.Depts, hasher, 8, notifications),
+		Users:         service.NewUserService(repos.Users, repos.Roles, repos.Menus, repos.Depts, hasher, 8, notifications),
 		Roles:         service.NewRoleService(repos.Roles, repos.Menus),
 		Menus:         service.NewMenuService(repos.Menus),
 		Depts:         service.NewDepartmentService(repos.Depts),
@@ -149,11 +152,11 @@ func New(t *testing.T) *App {
 		Dashboard:     service.NewDashboardService(repos.Users, repos.Roles, repos.Menus, repos.Files, repos.Jobs, repos.Logs),
 	}
 	scheduler := jobs.New()
-	services.Jobs = service.NewJobService(repos.Jobs, scheduler, func(context.Context, *model.Job) error { return nil })
+	services.Jobs = service.NewJobService(repos.Jobs, scheduler, func(context.Context, *model.Job) error { return nil }, store)
 	services.Logs = logs
 
 	handlers := router.Handlers{
-		Auth: handler.NewAuthHandler(authSvc, captchaGen, passkeySvc), Dashboard: handler.NewDashboardHandler(services.Dashboard),
+		Auth: handler.NewAuthHandler(authSvc, captchaGen, passkeySvc, tokens, false, cfg.JWT.RefreshTTL), Dashboard: handler.NewDashboardHandler(services.Dashboard),
 		User: handler.NewUserHandler(services.Users), Role: handler.NewRoleHandler(services.Roles),
 		Menu: handler.NewMenuHandler(services.Menus), Department: handler.NewDepartmentHandler(services.Depts),
 		Dict: handler.NewDictHandler(services.Dicts), Parameter: handler.NewParameterHandler(services.Params),
@@ -163,7 +166,7 @@ func New(t *testing.T) *App {
 	}
 	engine := router.New(router.Deps{
 		Config: cfg, Tokens: tokens, Auth: authSvc, Captcha: captchaGen, Cache: store,
-		Recorder: logs, Handlers: handlers, Health: func(context.Context) error { return nil },
+		Recorder: logs, Handlers: handlers, Shares: services.Files, Health: func(context.Context) error { return nil },
 	})
 
 	return &App{

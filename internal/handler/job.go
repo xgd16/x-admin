@@ -33,6 +33,26 @@ func (h *JobHandler) List(c *gin.Context) {
 	response.Page(c, list, total, q.Page, q.PageSize)
 }
 
+// Runs 分页查询任务执行历史。
+func (h *JobHandler) Runs(c *gin.Context) {
+	id, ok := PathID(c)
+	if !ok {
+		return
+	}
+	var q pagination.Query
+	if err := c.ShouldBindQuery(&q); err != nil {
+		response.Error(c, apperr.Wrap(err, apperr.CodeInvalidArgument, "查询参数不合法"))
+		return
+	}
+	list, total, err := h.jobs.Runs(c.Request.Context(), id, q)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	q.Normalize()
+	response.Page(c, list, total, q.Page, q.PageSize)
+}
+
 // Create 创建任务；启用状态下会立即注册到调度器。
 func (h *JobHandler) Create(c *gin.Context) {
 	var in service.JobInput

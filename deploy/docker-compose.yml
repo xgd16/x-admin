@@ -16,7 +16,8 @@ services:
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uxadmin", "-pxadmin"]
+      # 使用服务环境里的账号密码，修改 MYSQL_PASSWORD 后不会把健康检查写死。
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u\"$$MYSQL_USER\" -p\"$$MYSQL_PASSWORD\" --silent"]
       interval: 5s
       timeout: 3s
       retries: 30
@@ -43,7 +44,8 @@ services:
       X_ADMIN_SERVER_PORT: "8080"
       X_ADMIN_DATABASE_DSN: xadmin:${MYSQL_PASSWORD:-xadmin}@tcp(mysql:3306)/xadmin?charset=utf8mb4&parseTime=True&loc=Local&multiStatements=true
       X_ADMIN_REDIS_ADDR: redis:6379
-      X_ADMIN_JWT_SECRET: ${JWT_SECRET:-change-me-x-admin-production-secret-2026}
+      # 必须显式设置，不能在生产环境静默使用示例密钥。
+      X_ADMIN_JWT_SECRET: "${JWT_SECRET:?JWT_SECRET is required}"
       X_ADMIN_STORAGE_ROOT: /app/data/uploads
       X_ADMIN_CORS_ORIGINS: http://localhost,http://127.0.0.1
       X_ADMIN_WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:-localhost}

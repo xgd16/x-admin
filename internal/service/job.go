@@ -2,12 +2,15 @@ package service
 
 import (
 	"context"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"x-admin/internal/model"
 	"x-admin/internal/pkg/apperr"
+	"x-admin/internal/pkg/cache"
 	"x-admin/internal/pkg/pagination"
 )
 
@@ -34,11 +37,17 @@ type JobService struct {
 	jobs      JobRepository
 	scheduler JobScheduler
 	executor  func(ctx context.Context, job *model.Job) error
+	locker    cache.Store // 可选：多副本部署时用于抢占执行权
 }
 
 // NewJobService 创建任务服务。executor 由 bootstrap 注入具体 handler 分发逻辑。
-func NewJobService(jobs JobRepository, scheduler JobScheduler, executor func(ctx context.Context, job *model.Job) error) *JobService {
-	return &JobService{jobs: jobs, scheduler: scheduler, executor: executor}
+// locker 可选；传入缓存后，同一任务在多个副本间只允许一个实例执行。
+func NewJobService(jobs JobRepository, scheduler JobScheduler, executor func(ctx context.Context, job *model.Job) error, lockers ...cache.Store) *JobService {
+	svc := &JobService{jobs: jobs, scheduler: scheduler, executor: executor}
+	if len(lockers) > 0 {
+		svc.locker = lockers[0]
+	}
+	return svc
 }
 
 // List 分页查询定时任务。
@@ -143,17 +152,35 @@ func (s *JobService) Delete(ctx context.Context, id uint64) error {
 		return err
 	}
 	s.scheduler.Remove(jobKey(id))
+	if err := s.jobs.DeleteRunsByJob(ctx, id); err != nil {
+		return err
+	}
 	return s.jobs.Delete(ctx, id)
 }
 
 // RunNow 立即执行一次任务，不改变调度计划。
 func (s *JobService) RunNow(ctx context.Context, id uint64) error {
-	return s.Execute(ctx, id)
+	return s.Execute(ctx, id, "manual")
 }
 
-// Execute 执行任务并记录最后运行时间与结果。
-// 执行失败会写入 last_result，但不向上返回错误，避免调度器重复重试。
-func (s *JobService) Execute(ctx context.Context, id uint64) error {
+// Runs 分页查询任务执行历史；jobID 为 0 时返回全部任务。
+func (s *JobService) Runs(ctx context.Context, jobID uint64, q pagination.Query) ([]model.JobRun, int64, error) {
+	if jobID > 0 {
+		if _, err := s.jobs.Get(ctx, jobID); err != nil {
+			if IsNotFound(err) {
+				return nil, 0, apperr.ErrNotFound
+			}
+			return nil, 0, err
+		}
+	}
+	q.Normalize()
+	return s.jobs.ListRuns(ctx, jobID, q.Page, q.PageSize)
+}
+
+// Execute 执行任务并记录最后运行时间、结果与一条执行历史。
+// 执行失败会写入 last_result，并返回错误给手动执行接口；
+// 调度器回调会忽略该错误，避免同一周期重复重试。
+func (s *JobService) Execute(ctx context.Context, id uint64, trigger ...string) error {
 	job, err := s.jobs.Get(ctx, id)
 	if err != nil {
 		if IsNotFound(err) {
@@ -161,15 +188,53 @@ func (s *JobService) Execute(ctx context.Context, id uint64) error {
 		}
 		return err
 	}
-	runAt := time.Now()
-	result := "成功"
-	if err := s.executor(ctx, job); err != nil {
-		result = truncate(err.Error(), 255)
+	triggerName := triggerValue(trigger)
+	// 多副本部署时通过缓存锁保证同一任务只有一个实例执行。
+	if s.locker != nil {
+		lockKey := jobLockKey(id)
+		acquired, err := s.locker.SetNX(ctx, lockKey, "1", jobLockTTL)
+		if err != nil {
+			// 缓存故障时不让所有任务停摆，退化为单副本内的 SkipIfStillRunning。
+			slog.Warn("acquire job lock failed", "job_id", id, "error", err)
+		} else if !acquired {
+			if triggerName == "manual" {
+				return apperr.New(apperr.CodeConflict, "任务正在执行中，请稍后重试")
+			}
+			slog.Info("skip overlapping job", "job_id", id)
+			return nil
+		} else {
+			defer func() { _ = s.locker.Del(context.Background(), lockKey) }()
+		}
 	}
+	started := time.Now()
+	result := "成功"
+	status := model.StatusEnabled
+	execErr := s.executor(ctx, job)
+	if execErr != nil {
+		status = model.StatusDisabled
+		result = truncate(execErr.Error(), 255)
+	}
+	finished := time.Now()
 	_ = s.jobs.UpdateFields(ctx, id, map[string]any{
-		"last_run_at": runAt,
+		"last_run_at": started,
 		"last_result": result,
 	})
+	run := &model.JobRun{
+		JobID: job.ID, JobName: job.Name, Trigger: triggerName,
+		Status: status, Result: result,
+		StartedAt: started, FinishedAt: finished,
+		DurationMS: finished.Sub(started).Milliseconds(),
+	}
+	if err := s.jobs.CreateRun(ctx, run); err != nil {
+		slog.Warn("record job run failed", "job_id", id, "error", err)
+	}
+	// 历史只保留 30 天，避免高频任务把表撑大。
+	if err := s.jobs.PruneRuns(ctx, started.AddDate(0, 0, -30)); err != nil {
+		slog.Warn("prune job runs failed", "error", err)
+	}
+	if execErr != nil {
+		return apperr.Wrap(execErr, apperr.CodeInternal, "任务执行失败")
+	}
 	return nil
 }
 
@@ -191,7 +256,7 @@ func (s *JobService) Boot(ctx context.Context) error {
 func (s *JobService) register(job *model.Job) error {
 	id := job.ID
 	return s.scheduler.Add(jobKey(id), job.Cron, func() {
-		_ = s.Execute(context.Background(), id)
+		_ = s.Execute(context.Background(), id, "cron")
 	})
 }
 
@@ -209,13 +274,33 @@ func (s *JobService) validate(in JobInput) error {
 	return nil
 }
 
+// triggerValue 归一化执行来源，默认按调度触发处理。
+func triggerValue(values []string) string {
+	if len(values) == 0 || strings.TrimSpace(values[0]) == "" {
+		return "cron"
+	}
+	if values[0] == "manual" {
+		return "manual"
+	}
+	return "cron"
+}
+
+// jobLockTTL 是跨副本执行锁的兜底过期时间，避免进程崩溃后永久占用。
+const jobLockTTL = 30 * time.Minute
+
+// jobLockKey 生成任务执行锁的缓存键。
+func jobLockKey(id uint64) string { return "job:lock:" + strconv.FormatUint(id, 10) }
+
 // jobKey 生成调度器中的任务唯一名称。
 func jobKey(id uint64) string { return "job:" + strconv.FormatUint(id, 10) }
 
-// truncate 按字节截断字符串并去除尾部空白。
+// truncate 按字节截断字符串并去除尾部空白，同时避免切断多字节字符。
 func truncate(s string, n int) string {
 	if len(s) <= n {
 		return s
+	}
+	for n > 0 && !utf8.RuneStart(s[n]) {
+		n--
 	}
 	return strings.TrimSpace(s[:n])
 }

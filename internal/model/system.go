@@ -71,6 +71,20 @@ type File struct {
 // TableName 指定文件表名。
 func (File) TableName() string { return "sys_files" }
 
+// FileShare 是一条可撤销的文件分享记录。
+// 只保存令牌摘要，明文令牌仅在创建时返回一次。
+type FileShare struct {
+	Base
+	FileID    uint64     `gorm:"not null;index" json:"file_id"`
+	TokenHash string     `gorm:"size:64;uniqueIndex;not null" json:"-"`
+	CreatedBy uint64     `gorm:"not null;default:0" json:"created_by"`
+	ExpiresAt time.Time  `gorm:"not null;index" json:"expires_at"`
+	RevokedAt *time.Time `json:"revoked_at"`
+}
+
+// TableName 指定文件分享表名。
+func (FileShare) TableName() string { return "sys_file_shares" }
+
 // Job 是定时任务定义，Handler 决定实际执行逻辑，Cron 为标准 5 段表达式。
 type Job struct {
 	Base
@@ -86,3 +100,19 @@ type Job struct {
 
 // TableName 指定定时任务表名。
 func (Job) TableName() string { return "sys_jobs" }
+
+// JobRun 是一次任务执行记录，手动执行与 Cron 触发都会写入。
+type JobRun struct {
+	Base
+	JobID      uint64    `gorm:"not null;index" json:"job_id"`
+	JobName    string    `gorm:"size:64;not null" json:"job_name"`
+	Trigger    string    `gorm:"size:16;not null" json:"trigger"` // manual | cron
+	Status     int8      `gorm:"not null;index" json:"status"`    // 1 成功 / 0 失败
+	Result     string    `gorm:"size:255" json:"result"`
+	StartedAt  time.Time `gorm:"not null" json:"started_at"`
+	FinishedAt time.Time `gorm:"not null" json:"finished_at"`
+	DurationMS int64     `gorm:"not null;default:0" json:"duration_ms"`
+}
+
+// TableName 指定任务执行记录表名。
+func (JobRun) TableName() string { return "sys_job_runs" }

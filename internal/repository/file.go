@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -126,4 +127,53 @@ func fileKindClause(kind string) (string, bool) {
 	default:
 		return "", false
 	}
+}
+
+// CreateShare 写入一条文件分享记录，只保存令牌摘要。
+func (r *FileRepo) CreateShare(ctx context.Context, share *model.FileShare) error {
+	return r.db.WithContext(ctx).Create(share).Error
+}
+
+// GetShareByHash 按令牌摘要查询分享记录。
+func (r *FileRepo) GetShareByHash(ctx context.Context, hash string) (*model.FileShare, error) {
+	var share model.FileShare
+	if err := r.db.WithContext(ctx).Where("token_hash = ?", hash).First(&share).Error; err != nil {
+		return nil, err
+	}
+	return &share, nil
+}
+
+// ListShares 返回某个文件的分享记录，按创建时间倒序。
+func (r *FileRepo) ListShares(ctx context.Context, fileID uint64) ([]model.FileShare, error) {
+	var rows []model.FileShare
+	err := r.db.WithContext(ctx).Where("file_id = ?", fileID).
+		Order("created_at DESC, id DESC").Find(&rows).Error
+	return rows, err
+}
+
+// RevokeShare 标记分享链接为已撤销。
+func (r *FileRepo) RevokeShare(ctx context.Context, fileID, id uint64) error {
+	res := r.db.WithContext(ctx).Model(&model.FileShare{}).
+		Where("id = ? AND file_id = ? AND revoked_at IS NULL", id, fileID).
+		Update("revoked_at", time.Now())
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// DeleteSharesByFile 在删除文件时物理删除其分享记录。
+func (r *FileRepo) DeleteSharesByFile(ctx context.Context, fileID uint64) error {
+	return r.db.WithContext(ctx).Unscoped().
+		Where("file_id = ?", fileID).Delete(&model.FileShare{}).Error
+}
+
+// PruneShares 物理删除过期或撤销超过保留期的分享记录。
+func (r *FileRepo) PruneShares(ctx context.Context, before time.Time) error {
+	return r.db.WithContext(ctx).Unscoped().
+		Where("expires_at < ? OR revoked_at < ?", before, before).
+		Delete(&model.FileShare{}).Error
 }

@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -75,6 +76,70 @@ func (h *FileHandler) Download(c *gin.Context) {
 	c.DataFromReader(http.StatusOK, record.Size, record.MIME, rc, map[string]string{
 		"Content-Disposition": disposition,
 	})
+}
+
+// CreateShare 为文件创建可撤销的分享链接。
+func (h *FileHandler) CreateShare(c *gin.Context) {
+	id, ok := PathID(c)
+	if !ok {
+		return
+	}
+	var in struct {
+		Expires int `json:"expires"` // 有效期秒数，默认 1 小时
+	}
+	if c.Request.ContentLength > 0 && !Bind(c, &in) {
+		return
+	}
+	ttl := time.Hour
+	if in.Expires > 0 {
+		ttl = time.Duration(in.Expires) * time.Second
+	}
+	share, token, err := h.files.CreateShare(c.Request.Context(), id, CurrentUserID(c), ttl)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	record, err := h.files.Get(c.Request.Context(), id)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.Created(c, gin.H{
+		"id":         share.ID,
+		"url":        record.URL + "?share=" + url.QueryEscape(token),
+		"expires_at": share.ExpiresAt,
+	})
+}
+
+// ListShares 返回文件的分享记录；撤销后仍保留记录便于审计。
+func (h *FileHandler) ListShares(c *gin.Context) {
+	id, ok := PathID(c)
+	if !ok {
+		return
+	}
+	rows, err := h.files.Shares(c.Request.Context(), id)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.OK(c, rows)
+}
+
+// RevokeShare 立即撤销一条分享链接。
+func (h *FileHandler) RevokeShare(c *gin.Context) {
+	id, ok := PathID(c)
+	if !ok {
+		return
+	}
+	shareID, ok := PathParamID(c, "shareID")
+	if !ok {
+		return
+	}
+	if err := h.files.RevokeShare(c.Request.Context(), id, shareID); err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.OK(c, nil)
 }
 
 // Delete 删除文件记录及磁盘上的物理文件。

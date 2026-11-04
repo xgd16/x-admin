@@ -66,6 +66,7 @@ type ImportResult struct {
 type UserService struct {
 	users       UserRepository
 	roles       RoleRepository
+	menus       MenuRepository
 	depts       DepartmentRepository
 	hasher      security.PasswordHasher
 	passwordMin int
@@ -73,11 +74,11 @@ type UserService struct {
 }
 
 // NewUserService 创建用户服务。passwordMin < 8 时按 8 处理。
-func NewUserService(users UserRepository, roles RoleRepository, depts DepartmentRepository, hasher security.PasswordHasher, passwordMin int, notifier Notifier) *UserService {
+func NewUserService(users UserRepository, roles RoleRepository, menus MenuRepository, depts DepartmentRepository, hasher security.PasswordHasher, passwordMin int, notifier Notifier) *UserService {
 	if passwordMin < 8 {
 		passwordMin = 8
 	}
-	return &UserService{users: users, roles: roles, depts: depts, hasher: hasher, passwordMin: passwordMin, notifier: notifier}
+	return &UserService{users: users, roles: roles, menus: menus, depts: depts, hasher: hasher, passwordMin: passwordMin, notifier: notifier}
 }
 
 // checkDept 校验部门是否存在；deptID 为 nil 或 0 表示不分配部门。
@@ -135,7 +136,7 @@ func (s *UserService) Get(ctx context.Context, id uint64) (*model.User, error) {
 
 // Create 创建用户：校验字段与关联、哈希密码、写入记录并绑定角色。
 // 角色绑定失败时会回滚刚创建的用户，避免留下半成品账号。
-func (s *UserService) Create(ctx context.Context, in CreateUserInput) (*model.User, error) {
+func (s *UserService) Create(ctx context.Context, in CreateUserInput, actorID ...uint64) (*model.User, error) {
 	in.Username = trim(in.Username)
 	in.Nickname = trim(in.Nickname)
 	if err := ValidateUsername(in.Username); err != nil {
@@ -161,6 +162,12 @@ func (s *UserService) Create(ctx context.Context, in CreateUserInput) (*model.Us
 		return nil, err
 	}
 	if err := s.checkRoles(ctx, in.RoleIDs); err != nil {
+		return nil, err
+	}
+	if err := s.checkAssignSuper(ctx, firstID(actorID), in.RoleIDs); err != nil {
+		return nil, err
+	}
+	if err := s.checkAssignableRoles(ctx, firstID(actorID), in.RoleIDs); err != nil {
 		return nil, err
 	}
 	status := model.StatusEnabled
@@ -200,7 +207,8 @@ func (s *UserService) Create(ctx context.Context, in CreateUserInput) (*model.Us
 
 // Update 更新用户资料、状态、部门和角色。
 // 状态或角色发生变化时会给用户发送站内通知。
-func (s *UserService) Update(ctx context.Context, id uint64, in UpdateUserInput) (*model.User, error) {
+func (s *UserService) Update(ctx context.Context, id uint64, in UpdateUserInput, actorID ...uint64) (*model.User, error) {
+	actor := firstID(actorID)
 	user, err := s.users.Get(ctx, id)
 	if err != nil {
 		if IsNotFound(err) {
@@ -223,6 +231,9 @@ func (s *UserService) Update(ctx context.Context, id uint64, in UpdateUserInput)
 		if user.Username == "admin" && *in.Status != model.StatusEnabled {
 			return nil, apperr.New(apperr.CodeForbidden, "内置管理员不可停用")
 		}
+		if actor != 0 && id == actor && *in.Status != model.StatusEnabled {
+			return nil, apperr.New(apperr.CodeConflict, "不能停用当前登录账号")
+		}
 		user.Status = *in.Status
 	}
 	if in.DeptID != nil {
@@ -231,27 +242,51 @@ func (s *UserService) Update(ctx context.Context, id uint64, in UpdateUserInput)
 		}
 		user.DeptID = in.DeptID
 	}
+	roleChanged := false
 	if in.RoleIDs != nil {
 		if err := s.checkRoles(ctx, *in.RoleIDs); err != nil {
 			return nil, err
 		}
+		roleChanged = !sameIDs(roleIDsOf(user), *in.RoleIDs)
+		// 只在实际调整角色时检查，避免编辑资料时因为保留了 super_admin 而被误拦。
+		if roleChanged {
+			if err := s.checkAssignSuper(ctx, actor, *in.RoleIDs); err != nil {
+				return nil, err
+			}
+			if err := s.checkAssignableRoles(ctx, actor, *in.RoleIDs); err != nil {
+				return nil, err
+			}
+			if err := s.ensureAdminKeepsSuper(ctx, user, *in.RoleIDs); err != nil {
+				return nil, err
+			}
+		}
 	}
-	user.Nickname = trim(in.Nickname)
-	user.Email = trim(in.Email)
-	user.Phone = trim(in.Phone)
-	user.Avatar = trim(in.Avatar)
-	user.Remark = trim(in.Remark)
-	if err := s.users.Update(ctx, user); err != nil {
+	// 只更新可编辑字段，避免整行 Save 覆盖并发修改的密码 / TOTP / session_version。
+	if err := s.users.UpdateFields(ctx, id, map[string]any{
+		"nickname": trim(in.Nickname),
+		"email":    trim(in.Email),
+		"phone":    trim(in.Phone),
+		"avatar":   trim(in.Avatar),
+		"remark":   trim(in.Remark),
+		"status":   user.Status,
+		"dept_id":  user.DeptID,
+	}); err != nil {
 		return nil, err
 	}
 	if in.RoleIDs != nil {
 		if err := s.users.SetRoles(ctx, id, *in.RoleIDs); err != nil {
 			return nil, err
 		}
-		s.notifyRoleChange(ctx, id)
+		// 只有角色真正变化时才发送通知，避免保存资料时刷出“角色已更新”。
+		if roleChanged {
+			s.notifyRoleChange(ctx, id)
+		}
 	}
 	if user.Status != previousStatus {
-		s.notifyStatusChange(ctx, id, user.Status, 0)
+		if err := s.users.BumpSessionVersion(ctx, id); err != nil {
+			return nil, err
+		}
+		s.notifyStatusChange(ctx, id, user.Status, actor)
 	}
 	return s.Get(ctx, id)
 }
@@ -275,8 +310,15 @@ func (s *UserService) SetStatus(ctx context.Context, id uint64, status int8, act
 	if id == actorID && status != model.StatusEnabled {
 		return apperr.New(apperr.CodeConflict, "不能停用当前登录账号")
 	}
+	changed := user.Status != status
 	if err := s.users.UpdateFields(ctx, id, map[string]any{"status": status}); err != nil {
 		return err
+	}
+	if changed {
+		// 停用/重新启用都会撤销旧会话，避免账号恢复后旧 token 重新生效。
+		if err := s.users.BumpSessionVersion(ctx, id); err != nil {
+			return err
+		}
 	}
 	s.notifyStatusChange(ctx, id, status, actorID)
 	return nil
@@ -325,7 +367,8 @@ func (s *UserService) ResetPassword(ctx context.Context, id uint64, password str
 	if err != nil {
 		return apperr.Wrap(err, apperr.CodeInternal, "密码加密失败")
 	}
-	if err := s.users.UpdateFields(ctx, id, map[string]any{"password": hash}); err != nil {
+	// 管理员重置密码后目标账号的所有旧会话立即失效。
+	if err := s.users.SetPassword(ctx, id, hash, true); err != nil {
 		return err
 	}
 	notify(ctx, s.notifier, NotificationInput{
@@ -360,8 +403,9 @@ func (s *UserService) Delete(ctx context.Context, ids []uint64, actorID uint64) 
 }
 
 // AssignRoles 整体替换用户的角色。
-func (s *UserService) AssignRoles(ctx context.Context, id uint64, roleIDs []uint64) error {
-	if _, err := s.users.Get(ctx, id); err != nil {
+func (s *UserService) AssignRoles(ctx context.Context, id uint64, roleIDs []uint64, actorID ...uint64) error {
+	user, err := s.users.Get(ctx, id)
+	if err != nil {
 		if IsNotFound(err) {
 			return apperr.ErrNotFound
 		}
@@ -370,10 +414,119 @@ func (s *UserService) AssignRoles(ctx context.Context, id uint64, roleIDs []uint
 	if err := s.checkRoles(ctx, roleIDs); err != nil {
 		return err
 	}
+	if !sameIDs(roleIDsOf(user), roleIDs) {
+		if err := s.checkAssignSuper(ctx, firstID(actorID), roleIDs); err != nil {
+			return err
+		}
+		if err := s.checkAssignableRoles(ctx, firstID(actorID), roleIDs); err != nil {
+			return err
+		}
+		if err := s.ensureAdminKeepsSuper(ctx, user, roleIDs); err != nil {
+			return err
+		}
+	}
 	if err := s.users.SetRoles(ctx, id, roleIDs); err != nil {
 		return err
 	}
+	// AssignRoles 是显式的角色分配操作，即使结果相同也发送通知。
 	s.notifyRoleChange(ctx, id)
+	return nil
+}
+
+// checkAssignSuper 限制只有超级管理员才能授予 super_admin 角色。
+// actorID 为 0 表示服务内部调用（导入、测试），不做限制。
+func (s *UserService) checkAssignSuper(ctx context.Context, actorID uint64, roleIDs []uint64) error {
+	if actorID == 0 {
+		return nil
+	}
+	super, err := s.roles.FindByCode(ctx, "super_admin")
+	if err != nil {
+		if IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+	if !containsID(roleIDs, super.ID) {
+		return nil
+	}
+	actor, err := s.users.Get(ctx, actorID)
+	if err != nil {
+		if IsNotFound(err) {
+			return apperr.ErrUnauthorized
+		}
+		return err
+	}
+	for _, role := range actor.Roles {
+		if role.Code == "super_admin" && role.Status == model.StatusEnabled {
+			return nil
+		}
+	}
+	return apperr.New(apperr.CodeForbidden, "只有超级管理员可以授予超级管理员角色")
+}
+
+// checkAssignableRoles 限制非超级管理员只能分配权限不超过自己的角色。
+// actorID 为 0 表示服务内部调用（导入、测试），不做限制。
+func (s *UserService) checkAssignableRoles(ctx context.Context, actorID uint64, roleIDs []uint64) error {
+	if actorID == 0 || len(roleIDs) == 0 {
+		return nil
+	}
+	actor, err := s.users.Get(ctx, actorID)
+	if err != nil {
+		if IsNotFound(err) {
+			return apperr.ErrUnauthorized
+		}
+		return err
+	}
+	for _, role := range actor.Roles {
+		if role.Code == "super_admin" && role.Status == model.StatusEnabled {
+			return nil
+		}
+	}
+	menus, err := s.menus.ForUser(ctx, actorID)
+	if err != nil {
+		return err
+	}
+	allowed := make(map[string]struct{}, len(menus))
+	for _, menu := range menus {
+		if menu.Permission != "" {
+			allowed[menu.Permission] = struct{}{}
+		}
+	}
+	for _, roleID := range roleIDs {
+		role, err := s.roles.Get(ctx, roleID)
+		if err != nil {
+			if IsNotFound(err) {
+				return apperr.New(apperr.CodeInvalidArgument, "角色不存在")
+			}
+			return err
+		}
+		for _, menu := range role.Menus {
+			if menu.Permission == "" {
+				continue
+			}
+			if _, ok := allowed[menu.Permission]; !ok {
+				return apperr.New(apperr.CodeForbidden, "不能分配权限超过自己的角色")
+			}
+		}
+	}
+	return nil
+}
+
+// ensureAdminKeepsSuper 防止内置 admin 被移除超级管理员角色。
+func (s *UserService) ensureAdminKeepsSuper(ctx context.Context, user *model.User, roleIDs []uint64) error {
+	if user.Username != "admin" {
+		return nil
+	}
+	super, err := s.roles.FindByCode(ctx, "super_admin")
+	if err != nil {
+		if IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+	if !containsID(roleIDs, super.ID) {
+		return apperr.New(apperr.CodeForbidden, "内置管理员必须保留超级管理员角色")
+	}
 	return nil
 }
 
@@ -464,6 +617,64 @@ func userExportHeaders() []string {
 // userImportHeaders 返回导入模板的表头。
 func userImportHeaders() []string {
 	return []string{"用户名", "昵称", "邮箱", "手机号", "部门ID", "部门名称", "密码", "状态(1正常/0停用)"}
+}
+
+// firstID 读取可选的操作者 ID；未传时返回 0（内部调用/测试）。
+func firstID(ids []uint64) uint64 {
+	if len(ids) == 0 {
+		return 0
+	}
+	return ids[0]
+}
+
+// containsID 判断 ID 列表中是否包含目标值。
+func containsID(ids []uint64, target uint64) bool {
+	for _, id := range ids {
+		if id == target {
+			return true
+		}
+	}
+	return false
+}
+
+// roleIDsOf 提取用户的角色 ID，用于判断角色是否真的发生变化。
+func roleIDsOf(user *model.User) []uint64 {
+	ids := make([]uint64, 0, len(user.Roles))
+	for _, role := range user.Roles {
+		ids = append(ids, role.ID)
+	}
+	return ids
+}
+
+// sameIDs 按集合比较两个 ID 列表，忽略顺序与重复项。
+func sameIDs(a, b []uint64) bool {
+	set := make(map[uint64]struct{}, len(a))
+	for _, id := range a {
+		set[id] = struct{}{}
+	}
+	if len(set) != len(uniqueIDs(b)) {
+		return false
+	}
+	for _, id := range b {
+		if _, ok := set[id]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+// uniqueIDs 对 ID 列表去重，配合 sameIDs 使用。
+func uniqueIDs(ids []uint64) []uint64 {
+	seen := make(map[uint64]struct{}, len(ids))
+	out := make([]uint64, 0, len(ids))
+	for _, id := range ids {
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		out = append(out, id)
+	}
+	return out
 }
 
 // ImportRowFromCells 把不含表头的表格行映射为 UserImportRow。

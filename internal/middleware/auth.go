@@ -21,9 +21,15 @@ type PrincipalLoader interface {
 	Authenticate(ctx context.Context, userID uint64) (*authn.Principal, error)
 }
 
+// SessionChecker 校验 access token 所属的登录会话是否仍然有效。
+// 单独抽出接口，便于在撤销设备后立即失效对应 access token。
+type SessionChecker interface {
+	SessionActive(ctx context.Context, userID uint64, sessionID string) (bool, error)
+}
+
 // Auth 校验 Authorization: Bearer <token>，解析 JWT 并把 Principal 写入请求上下文。
 // 令牌缺失、无效或过期时分别返回对应的业务错误码。
-func Auth(tokens *security.TokenManager, loader PrincipalLoader) gin.HandlerFunc {
+func Auth(tokens *security.TokenManager, loader PrincipalLoader, sessions SessionChecker) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		header := strings.TrimSpace(c.GetHeader("Authorization"))
 		parts := strings.Fields(header)
@@ -45,6 +51,32 @@ func Auth(tokens *security.TokenManager, loader PrincipalLoader) gin.HandlerFunc
 		if err != nil {
 			response.Error(c, err)
 			return
+		}
+		if principal == nil {
+			response.Error(c, apperr.ErrUnauthorized)
+			return
+		}
+		// session_version 变化（改密、重置密码、启停账号等）后旧 access token 立即失效。
+		if claims.SessionVersion != principal.SessionVersion {
+			response.Error(c, apperr.New(apperr.CodeTokenExpired, "登录状态已更新，请重新登录"))
+			return
+		}
+		// 单设备撤销后，对应的 access token 也立即失效。
+		if sessions != nil {
+			if claims.SessionID == "" {
+				response.Error(c, apperr.New(apperr.CodeTokenExpired, "登录状态已更新，请重新登录"))
+				return
+			}
+			active, err := sessions.SessionActive(c.Request.Context(), claims.UserID, claims.SessionID)
+			if err != nil {
+				response.Error(c, apperr.Wrap(err, apperr.CodeInternal, "校验登录状态失败"))
+				return
+			}
+			if !active {
+				response.Error(c, apperr.New(apperr.CodeTokenExpired, "登录已过期，请重新登录"))
+				return
+			}
+			principal.SessionID = claims.SessionID
 		}
 		c.Request = c.Request.WithContext(authn.With(c.Request.Context(), principal))
 		c.Next()

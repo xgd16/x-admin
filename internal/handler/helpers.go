@@ -34,6 +34,32 @@ func PathID(c *gin.Context) (uint64, bool) {
 	return id, true
 }
 
+// PathParamID 解析指定名称的路径参数，要求为正整数。
+func PathParamID(c *gin.Context, name string) (uint64, bool) {
+	id, err := strconv.ParseUint(c.Param(name), 10, 64)
+	if err != nil || id == 0 {
+		response.Error(c, apperr.New(apperr.CodeInvalidArgument, "ID 不合法"))
+		return 0, false
+	}
+	return id, true
+}
+
+// CurrentPrincipal 返回当前请求的认证身份；未登录时返回 nil。
+func CurrentPrincipal(c *gin.Context) *authn.Principal {
+	if p, ok := authn.FromContext(c.Request.Context()); ok {
+		return p
+	}
+	return nil
+}
+
+// CurrentSessionID 返回当前登录会话 ID；未登录时返回空串。
+func CurrentSessionID(c *gin.Context) string {
+	if p, ok := authn.FromContext(c.Request.Context()); ok {
+		return p.SessionID
+	}
+	return ""
+}
+
 // CurrentUserID 返回当前登录用户 ID；未登录时返回 0。
 func CurrentUserID(c *gin.Context) uint64 {
 	if p, ok := authn.FromContext(c.Request.Context()); ok {

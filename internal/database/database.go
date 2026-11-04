@@ -81,8 +81,8 @@ func AutoMigrate(db *gorm.DB) error {
 	return db.AutoMigrate(
 		&model.Department{}, &model.User{}, &model.Role{}, &model.Menu{},
 		&model.UserRole{}, &model.RoleMenu{},
-		&model.DictType{}, &model.DictItem{}, &model.Parameter{}, &model.File{},
-		&model.Job{}, &model.OperationLog{}, &model.LoginLog{}, &model.Notification{}, &model.Passkey{},
+		&model.DictType{}, &model.DictItem{}, &model.Parameter{}, &model.File{}, &model.FileShare{},
+		&model.Job{}, &model.JobRun{}, &model.OperationLog{}, &model.LoginLog{}, &model.Notification{}, &model.Passkey{},
 	)
 }
 

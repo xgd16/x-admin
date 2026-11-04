@@ -49,7 +49,7 @@ func (h *RoleHandler) Create(c *gin.Context) {
 	if !Bind(c, &in) {
 		return
 	}
-	role, err := h.roles.Create(c.Request.Context(), in)
+	role, err := h.roles.Create(c.Request.Context(), in, CurrentPrincipal(c))
 	if err != nil {
 		response.Error(c, err)
 		return
@@ -67,7 +67,7 @@ func (h *RoleHandler) Update(c *gin.Context) {
 	if !Bind(c, &in) {
 		return
 	}
-	role, err := h.roles.Update(c.Request.Context(), id, in)
+	role, err := h.roles.Update(c.Request.Context(), id, in, CurrentPrincipal(c))
 	if err != nil {
 		response.Error(c, err)
 		return
@@ -114,7 +114,7 @@ func (h *RoleHandler) AssignMenus(c *gin.Context) {
 	if !Bind(c, &in) {
 		return
 	}
-	if err := h.roles.AssignMenus(c.Request.Context(), id, in.MenuIDs); err != nil {
+	if err := h.roles.AssignMenus(c.Request.Context(), id, in.MenuIDs, CurrentPrincipal(c)); err != nil {
 		response.Error(c, err)
 		return
 	}

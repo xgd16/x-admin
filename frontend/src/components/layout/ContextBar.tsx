@@ -6,7 +6,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../../api/client'
 import type { DashboardSummary } from '../../api/types'
-import { railGroups } from '../../config/nav'
+import { useNav } from '../../config/nav'
 import { useAuth } from '../../stores/auth'
 import { Icon } from '../Icon'
 import { useContextNav } from './useContextNav'
@@ -14,15 +14,16 @@ import { useContextNav } from './useContextNav'
 export function ContextBar() {
   const navigate = useNavigate()
   const can = useAuth((state) => state.can)
+  const { groups } = useNav()
   const reduceMotion = useReducedMotion()
   const { active: activeItem, items, open, toggle, isAccount } = useContextNav()
-  const moduleMeta = railGroups.find((module) => module.group === activeItem.group)
+  const moduleMeta = groups.find((module) => module.group === activeItem.group)
   const title = isAccount ? '个人中心' : activeItem.group
   const subtitle = isAccount
     ? 'WORKSPACE / ACCOUNT'
     : activeItem.group === '工作台'
       ? 'WORKSPACE / OVERVIEW'
-      : `LEVEL 1 / ${moduleMeta?.key.toUpperCase() ?? 'MODULE'}`
+      : `LEVEL 1 / ${moduleMeta?.label ?? 'MODULE'}`
 
   // 二级导航里的数量角标来自首页汇总；没有权限时不请求。
   const summary = useQuery({

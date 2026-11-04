@@ -2,24 +2,79 @@ package handler
 
 import (
 	"encoding/json"
+	"net/http"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"x-admin/internal/pkg/captcha"
 	"x-admin/internal/pkg/response"
+	"x-admin/internal/pkg/security"
 	"x-admin/internal/service"
 )
 
 // AuthHandler 处理登录、令牌刷新、登出以及 Passkey 登录入口。
 type AuthHandler struct {
-	auth     *service.AuthService
-	captcha  *captcha.Generator
-	passkeys *service.PasskeyService
+	auth         *service.AuthService
+	captcha      *captcha.Generator
+	passkeys     *service.PasskeyService
+	tokens       *security.TokenManager
+	secureCookie bool
+	fileTTL      time.Duration
 }
 
 // NewAuthHandler 创建认证处理器。
-func NewAuthHandler(auth *service.AuthService, captcha *captcha.Generator, passkeys *service.PasskeyService) *AuthHandler {
-	return &AuthHandler{auth: auth, captcha: captcha, passkeys: passkeys}
+// secureCookie 在生产环境应为 true；fileTTL 控制 /uploads 访问凭证的有效期。
+func NewAuthHandler(auth *service.AuthService, captcha *captcha.Generator, passkeys *service.PasskeyService,
+	tokens *security.TokenManager, secureCookie bool, fileTTL time.Duration) *AuthHandler {
+	if fileTTL <= 0 {
+		fileTTL = 24 * time.Hour
+	}
+	return &AuthHandler{
+		auth: auth, captcha: captcha, passkeys: passkeys,
+		tokens: tokens, secureCookie: secureCookie, fileTTL: fileTTL,
+	}
+}
+
+// setFileCookie 从 access token 中读取用户与会话版本，写入 /uploads 访问 Cookie。
+func (h *AuthHandler) setFileCookie(c *gin.Context, accessToken string) {
+	if h.tokens == nil || accessToken == "" {
+		return
+	}
+	claims, err := h.tokens.Parse(accessToken)
+	if err != nil {
+		return
+	}
+	h.writeFileCookie(c, claims.UserID, claims.SessionVersion, claims.SessionID)
+}
+
+// writeFileCookie 写入 HttpOnly 文件访问 Cookie。
+func (h *AuthHandler) writeFileCookie(c *gin.Context, userID uint64, sessionVersion int64, sessionID string) {
+	if h.tokens == nil || userID == 0 || sessionID == "" {
+		return
+	}
+	value := h.tokens.IssueFileAccess(userID, sessionVersion, sessionID, h.fileTTL)
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie(security.FileAccessCookie, value, int(h.fileTTL.Seconds()), "/uploads", "", h.cookieSecure(c), true)
+}
+
+// clearFileCookie 清除文件访问 Cookie。
+func (h *AuthHandler) clearFileCookie(c *gin.Context) {
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie(security.FileAccessCookie, "", -1, "/uploads", "", h.cookieSecure(c), true)
+}
+
+// cookieSecure 只在生产环境且请求确实走 HTTPS 时设置 Secure，
+// 避免默认的 HTTP 部署（http://localhost）无法保存 Cookie。
+func (h *AuthHandler) cookieSecure(c *gin.Context) bool {
+	if !h.secureCookie {
+		return false
+	}
+	if c.Request.TLS != nil {
+		return true
+	}
+	return strings.EqualFold(c.GetHeader("X-Forwarded-Proto"), "https")
 }
 
 // Captcha 生成图形验证码，返回 captcha_id 与 SVG data URL。
@@ -43,6 +98,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		response.Error(c, err)
 		return
 	}
+	if result.TokenPair != nil && result.AccessToken != "" {
+		h.setFileCookie(c, result.AccessToken)
+	}
 	response.OK(c, result)
 }
 
@@ -56,6 +114,9 @@ func (h *AuthHandler) LoginMFA(c *gin.Context) {
 	if err != nil {
 		response.Error(c, err)
 		return
+	}
+	if result.TokenPair != nil && result.AccessToken != "" {
+		h.setFileCookie(c, result.AccessToken)
 	}
 	response.OK(c, result)
 }
@@ -75,6 +136,7 @@ func (h *AuthHandler) PasskeyLoginFinish(c *gin.Context) {
 	var in struct {
 		SessionID  string          `json:"session_id" binding:"required"`
 		Credential json.RawMessage `json:"credential" binding:"required"`
+		RememberMe bool            `json:"remember_me"`
 	}
 	if !Bind(c, &in) {
 		return
@@ -84,10 +146,14 @@ func (h *AuthHandler) PasskeyLoginFinish(c *gin.Context) {
 		response.Error(c, err)
 		return
 	}
-	result, err := h.auth.LoginPasskey(c.Request.Context(), user, service.LoginMeta{IP: c.ClientIP(), UserAgent: c.Request.UserAgent()})
+	result, err := h.auth.LoginPasskey(c.Request.Context(), user,
+		service.LoginMeta{IP: c.ClientIP(), UserAgent: c.Request.UserAgent()}, in.RememberMe)
 	if err != nil {
 		response.Error(c, err)
 		return
+	}
+	if result.TokenPair != nil && result.AccessToken != "" {
+		h.setFileCookie(c, result.AccessToken)
 	}
 	response.OK(c, result)
 }
@@ -100,11 +166,13 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	if !Bind(c, &in) {
 		return
 	}
-	pair, err := h.auth.Refresh(c.Request.Context(), in.RefreshToken)
+	pair, err := h.auth.Refresh(c.Request.Context(), in.RefreshToken,
+		service.LoginMeta{IP: c.ClientIP(), UserAgent: c.Request.UserAgent()})
 	if err != nil {
 		response.Error(c, err)
 		return
 	}
+	h.setFileCookie(c, pair.AccessToken)
 	response.OK(c, pair)
 }
 
@@ -116,10 +184,11 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	if !Bind(c, &in) {
 		return
 	}
-	if err := h.auth.Logout(c.Request.Context(), in.RefreshToken); err != nil {
+	if err := h.auth.Logout(c.Request.Context(), CurrentUserID(c), in.RefreshToken, CurrentSessionID(c)); err != nil {
 		response.Error(c, err)
 		return
 	}
+	h.clearFileCookie(c)
 	response.OK(c, nil)
 }
 
@@ -130,5 +199,7 @@ func (h *AuthHandler) Me(c *gin.Context) {
 		response.Error(c, err)
 		return
 	}
+	// 页面刷新后重新下发文件访问 Cookie，避免旧 Cookie 到期导致图片全部 401。
+	h.writeFileCookie(c, me.User.ID, me.User.SessionVersion, CurrentSessionID(c))
 	response.OK(c, me)
 }

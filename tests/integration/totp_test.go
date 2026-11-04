@@ -128,13 +128,16 @@ func TestTOTPEnrollmentLoginAndDisable(t *testing.T) {
 	require.Len(t, enabled.RecoveryCodes, totp.RecoveryCodeCount)
 
 	// Other devices' refresh tokens are invalidated; the enrolling session is kept.
-	rotated, err := app.Services.Auth.Refresh(ctx, initial.RefreshToken)
+	rotated, err := app.Services.Auth.Refresh(ctx, initial.RefreshToken, service.LoginMeta{})
 	require.NoError(t, err)
 	assert.NotEmpty(t, rotated.AccessToken)
-	_, err = app.Services.Auth.Refresh(ctx, other.RefreshToken)
+	_, err = app.Services.Auth.Refresh(ctx, other.RefreshToken, service.LoginMeta{})
 	assert.Equal(t, apperr.CodeTokenExpired, apperr.From(err).Code)
 
+	// The access token issued before enrollment carries the old session version.
 	rr = app.Do(http.MethodGet, "/admin/v1/profile/totp", nil, token)
+	assert.Equal(t, 40102, testsupport.Decode(t, rr).Code)
+	rr = app.Do(http.MethodGet, "/admin/v1/profile/totp", nil, rotated.AccessToken)
 	require.NoError(t, json.Unmarshal(testsupport.Decode(t, rr).Data, &status))
 	assert.True(t, status.Enabled)
 	assert.Equal(t, totp.RecoveryCodeCount, status.RecoveryCodesLeft)
@@ -169,14 +172,14 @@ func TestTOTPEnrollmentLoginAndDisable(t *testing.T) {
 	// Disable requires the password and a valid code.
 	rr = app.Do(http.MethodDelete, "/admin/v1/profile/totp", map[string]string{
 		"password": "Admin@123456", "otp_code": wrongCode(t, setup.Secret),
-	}, token)
+	}, rotated.AccessToken)
 	assert.Equal(t, 40001, testsupport.Decode(t, rr).Code)
 
 	code, err = totp.Code(setup.Secret, time.Now())
 	require.NoError(t, err)
 	rr = app.Do(http.MethodDelete, "/admin/v1/profile/totp", map[string]string{
 		"password": "Admin@123456", "otp_code": code,
-	}, token)
+	}, rotated.AccessToken)
 	require.Equal(t, 0, testsupport.Decode(t, rr).Code, rr.Body.String())
 
 	// Password-only login works again.

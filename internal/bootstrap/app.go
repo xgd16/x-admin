@@ -42,10 +42,13 @@ type App struct {
 	Logs      *service.LogService
 }
 
+// openDB 是数据库连接入口，测试可替换为 SQLite 以覆盖完整装配流程。
+var openDB = database.Open
+
 // New 创建并装配整个应用。
 // 任一步骤失败都会按相反顺序回收已创建的资源，避免连接泄漏。
 func New(cfg config.Config) (*App, error) {
-	db, err := database.Open(cfg.Database, cfg.App.Env)
+	db, err := openDB(cfg.Database, cfg.App.Env)
 	if err != nil {
 		return nil, err
 	}
@@ -94,8 +97,9 @@ func New(cfg config.Config) (*App, error) {
 		MaxLoginFails: cfg.Security.MaxLoginFails,
 		LockDuration:  cfg.Security.LockDuration,
 		RefreshTTL:    cfg.JWT.RefreshTTL,
+		SessionTTL:    cfg.JWT.SessionTTL,
 	})
-	userSvc := service.NewUserService(userRepo, roleRepo, deptRepo, hasher, cfg.Security.PasswordMinLen, notifications)
+	userSvc := service.NewUserService(userRepo, roleRepo, menuRepo, deptRepo, hasher, cfg.Security.PasswordMinLen, notifications)
 	roleSvc := service.NewRoleService(roleRepo, menuRepo)
 	menuSvc := service.NewMenuService(menuRepo)
 	deptSvc := service.NewDepartmentService(deptRepo)
@@ -119,7 +123,7 @@ func New(cfg config.Config) (*App, error) {
 
 	// 定时任务：启动时把数据库中启用的任务注册到调度器。
 	scheduler := jobs.New()
-	jobSvc := service.NewJobService(jobRepo, scheduler, jobExecutor(logRepo, notificationRepo))
+	jobSvc := service.NewJobService(jobRepo, scheduler, jobExecutor(logRepo, notificationRepo), store)
 	if err := jobSvc.Boot(context.Background()); err != nil {
 		logs.Close()
 		_ = store.Close()
@@ -129,7 +133,7 @@ func New(cfg config.Config) (*App, error) {
 	scheduler.Start()
 
 	handlers := router.Handlers{
-		Auth:         handler.NewAuthHandler(authSvc, captchaGen, passkeySvc),
+		Auth:         handler.NewAuthHandler(authSvc, captchaGen, passkeySvc, tokens, cfg.App.Env == "production", cfg.JWT.RefreshTTL),
 		Dashboard:    handler.NewDashboardHandler(dashboardSvc),
 		User:         handler.NewUserHandler(userSvc),
 		Role:         handler.NewRoleHandler(roleSvc),

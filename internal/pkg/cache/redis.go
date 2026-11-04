@@ -66,6 +66,29 @@ func (r *Redis) Exists(ctx context.Context, key string) (bool, error) {
 	return n > 0, err
 }
 
+// SetNX 仅在键不存在时写入，用于分布式锁。
+func (r *Redis) SetNX(ctx context.Context, key, value string, ttl time.Duration) (bool, error) {
+	return r.client.SetNX(ctx, key, value, ttl).Result()
+}
+
+// Keys 使用 SCAN 按前缀查找键，避免 KEYS 阻塞 Redis。
+func (r *Redis) Keys(ctx context.Context, prefix string) ([]string, error) {
+	var cursor uint64
+	keys := make([]string, 0)
+	for {
+		batch, next, err := r.client.Scan(ctx, cursor, prefix+"*", 100).Result()
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, batch...)
+		cursor = next
+		if cursor == 0 {
+			break
+		}
+	}
+	return keys, nil
+}
+
 // Incr 原子自增，并在键首次创建时设置过期时间（毫秒）。
 func (r *Redis) Incr(ctx context.Context, key string, ttl time.Duration) (int64, error) {
 	return r.incr.Run(ctx, r.client, []string{key}, ttl.Milliseconds()).Int64()

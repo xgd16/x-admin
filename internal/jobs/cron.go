@@ -16,8 +16,10 @@ type Cron struct {
 }
 
 // New 创建一个尚未启动的调度器。
+// 上一个执行尚未结束时跳过本次触发，避免清理类任务重叠执行。
 func New() *Cron {
-	return &Cron{engine: cron.New(), entries: make(map[string]cron.EntryID)}
+	engine := cron.New(cron.WithChain(cron.SkipIfStillRunning(cron.DiscardLogger)))
+	return &Cron{engine: engine, entries: make(map[string]cron.EntryID)}
 }
 
 // Validate 校验标准 5 段 Cron 表达式（分 时 日 月 周）。

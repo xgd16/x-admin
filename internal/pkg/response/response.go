@@ -5,6 +5,8 @@
 package response
 
 import (
+	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -63,12 +65,24 @@ func Page(c *gin.Context, list any, total int64, page, pageSize int) {
 // 未知错误统一转为 500，并且不把内部错误信息泄露给客户端。
 func Error(c *gin.Context, err error) {
 	biz := apperr.From(err)
+	if biz.Code == apperr.CodeOK {
+		biz.Code = apperr.CodeInternal
+	}
 	message := biz.Message
 	if biz.Code == apperr.CodeInternal {
 		message = "服务器内部错误"
 	}
-	if biz.Code == apperr.CodeOK {
-		biz.Code = apperr.CodeInternal
+	// 审计中间件通过 c.Errors 记录错误摘要；这里只写入可安全展示的消息，
+	// 不把底层数据库错误等内部细节带进审计表。
+	_ = c.Error(errors.New(message))
+	if biz.Code == apperr.CodeInternal {
+		// 内部错误必须留服务端日志，否则只能看到 access log 里的 500。
+		slog.Error("request error",
+			"request_id", requestid.FromContext(c.Request.Context()),
+			"method", c.Request.Method,
+			"path", c.Request.URL.Path,
+			"error", biz.Error(),
+		)
 	}
 	c.AbortWithStatusJSON(apperr.HTTPStatus(biz.Code), Envelope{
 		Code:      int(biz.Code),

@@ -45,6 +45,16 @@ func (r *ParameterRepo) List(ctx context.Context, q pagination.Query) ([]model.P
 	return rows, total, nil
 }
 
+// ListPublic 返回全部公开参数，供未登录页面读取站点名称、Logo 等配置。
+func (r *ParameterRepo) ListPublic(ctx context.Context) ([]model.Parameter, error) {
+	var rows []model.Parameter
+	err := r.db.WithContext(ctx).
+		Where("public = ?", true).
+		Order("`key` ASC").
+		Find(&rows).Error
+	return rows, err
+}
+
 // GetByKey 按参数键查询。
 func (r *ParameterRepo) GetByKey(ctx context.Context, key string) (*model.Parameter, error) {
 	var p model.Parameter
@@ -68,6 +78,22 @@ func (r *ParameterRepo) ExistsKey(ctx context.Context, key string, excludeID uin
 }
 
 // Delete 按 ID 批量删除参数。
+// key 在软删除前改成墓碑值，避免之后重建同 key 参数撞唯一索引。
 func (r *ParameterRepo) Delete(ctx context.Context, ids ...uint64) error {
-	return r.Base.Delete(ctx, ids...)
+	if len(ids) == 0 {
+		return nil
+	}
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var rows []model.Parameter
+		if err := tx.Where("id IN ?", ids).Find(&rows).Error; err != nil {
+			return err
+		}
+		for i := range rows {
+			if err := tx.Model(&model.Parameter{}).Where("id = ?", rows[i].ID).
+				UpdateColumn("`key`", tombstoneValue(rows[i].Key, rows[i].ID, 128)).Error; err != nil {
+				return err
+			}
+		}
+		return tx.Delete(&model.Parameter{}, ids).Error
+	})
 }

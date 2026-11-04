@@ -25,7 +25,8 @@ type CaptchaVerifier interface {
 type AuthOptions struct {
 	MaxLoginFails int           // 连续密码错误上限
 	LockDuration  time.Duration // 账号锁定时长
-	RefreshTTL    time.Duration // refresh token 有效期
+	RefreshTTL    time.Duration // 勾选“记住我”时的 refresh token 有效期
+	SessionTTL    time.Duration // 未勾选“记住我”时的 refresh token 有效期
 	// MFAChallengeTTL 限制密码校验通过后到输入动态码之间的时间窗口。
 	MFAChallengeTTL time.Duration
 	// MaxMFAFails 限制单个 MFA 挑战允许的错误次数，超过后挑战作废。
@@ -38,12 +39,14 @@ type LoginInput struct {
 	Password    string `json:"password" binding:"required"`
 	CaptchaID   string `json:"captcha_id" binding:"required"`
 	CaptchaCode string `json:"captcha_code" binding:"required"`
+	RememberMe  bool   `json:"remember_me"` // true 使用 RefreshTTL，false 使用 SessionTTL
 }
 
 // LoginMFAInput 是二次验证请求，Code 可以是 TOTP 动态码或恢复码。
 type LoginMFAInput struct {
-	MFAToken string `json:"mfa_token" binding:"required"`
-	Code     string `json:"otp_code" binding:"required"`
+	MFAToken   string `json:"mfa_token" binding:"required"`
+	Code       string `json:"otp_code" binding:"required"`
+	RememberMe bool   `json:"remember_me"`
 }
 
 // LoginMeta 是记录登录审计与通知所需的客户端信息。
@@ -65,6 +68,7 @@ type LoginResult struct {
 	MFARequired  bool   `json:"mfa_required,omitempty"`
 	MFAToken     string `json:"mfa_token,omitempty"`
 	MFAExpiresIn int64  `json:"mfa_expires_in,omitempty"`
+	RememberMe   bool   `json:"remember_me,omitempty"`
 	*TokenPair
 }
 
@@ -108,6 +112,9 @@ func NewAuthService(
 	}
 	if opts.RefreshTTL <= 0 {
 		opts.RefreshTTL = 7 * 24 * time.Hour
+	}
+	if opts.SessionTTL <= 0 {
+		opts.SessionTTL = 12 * time.Hour
 	}
 	if opts.MFAChallengeTTL <= 0 {
 		opts.MFAChallengeTTL = 5 * time.Minute
@@ -187,9 +194,10 @@ func (s *AuthService) Login(ctx context.Context, in LoginInput, meta LoginMeta) 
 			MFARequired:  true,
 			MFAToken:     challenge,
 			MFAExpiresIn: int64(s.opts.MFAChallengeTTL / time.Second),
+			RememberMe:   in.RememberMe,
 		}, nil
 	}
-	return s.completeLogin(ctx, user, meta)
+	return s.completeLogin(ctx, user, meta, in.RememberMe)
 }
 
 // LoginMFA 完成 Login 发起的二次验证。
@@ -248,28 +256,28 @@ func (s *AuthService) LoginMFA(ctx context.Context, in LoginMFAInput, meta Login
 		return nil, apperr.New(apperr.CodeUnauthorized, "验证码或恢复码不正确")
 	}
 	s.clearMFA(ctx, in.MFAToken)
-	return s.completeLogin(ctx, user, meta)
+	return s.completeLogin(ctx, user, meta, in.RememberMe)
 }
 
 // completeLogin 统一普通登录与二次验证成功后的收尾。
-func (s *AuthService) completeLogin(ctx context.Context, user *model.User, meta LoginMeta) (*LoginResult, error) {
+func (s *AuthService) completeLogin(ctx context.Context, user *model.User, meta LoginMeta, remember bool) (*LoginResult, error) {
 	message := "登录成功"
 	if user.TOTPEnabled {
 		message = "登录成功（双重验证）"
 	}
-	return s.finishLogin(ctx, user, meta, message)
+	return s.finishLogin(ctx, user, meta, message, remember)
 }
 
 // LoginPasskey 完成免密码的 WebAuthn 登录。
-func (s *AuthService) LoginPasskey(ctx context.Context, user *model.User, meta LoginMeta) (*LoginResult, error) {
+func (s *AuthService) LoginPasskey(ctx context.Context, user *model.User, meta LoginMeta, remember bool) (*LoginResult, error) {
 	if user.Status != model.StatusEnabled {
 		return nil, apperr.New(apperr.CodeForbidden, "账号已停用")
 	}
-	return s.finishLogin(ctx, user, meta, "登录成功（Passkey）")
+	return s.finishLogin(ctx, user, meta, "登录成功（Passkey）", remember)
 }
 
 // finishLogin 记录登录信息、发送新登录提醒并签发令牌。
-func (s *AuthService) finishLogin(ctx context.Context, user *model.User, meta LoginMeta, message string) (*LoginResult, error) {
+func (s *AuthService) finishLogin(ctx context.Context, user *model.User, meta LoginMeta, message string, remember bool) (*LoginResult, error) {
 	now := time.Now()
 	_ = s.users.UpdateFields(ctx, user.ID, map[string]any{
 		"last_login_at": now,
@@ -284,7 +292,11 @@ func (s *AuthService) finishLogin(ctx context.Context, user *model.User, meta Lo
 		Type: model.NotificationInfo,
 		Link: "/profile",
 	})
-	pair, err := s.issue(ctx, user)
+	sessionID, err := security.RandomToken()
+	if err != nil {
+		return nil, apperr.Wrap(err, apperr.CodeInternal, "创建登录会话失败")
+	}
+	pair, err := s.issue(ctx, user, sessionID, meta, s.refreshTTL(remember), remember)
 	if err != nil {
 		return nil, err
 	}
@@ -294,7 +306,7 @@ func (s *AuthService) finishLogin(ctx context.Context, user *model.User, meta Lo
 // Refresh 轮换 refresh token。
 // Take 原子地读取并删除旧 token，保证同一 token 只能使用一次；
 // 同时校验 session_version，安全变更后旧 token 立即失效。
-func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*TokenPair, error) {
+func (s *AuthService) Refresh(ctx context.Context, refreshToken string, meta LoginMeta) (*TokenPair, error) {
 	if refreshToken == "" {
 		return nil, apperr.New(apperr.CodeTokenExpired, "登录已过期，请重新登录")
 	}
@@ -305,8 +317,16 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*TokenP
 		}
 		return nil, err
 	}
-	userID, version, err := parseRefreshValue(raw)
-	if err != nil || userID == 0 {
+	userID, version, sessionID, remember, err := parseRefreshValue(raw)
+	if err != nil || userID == 0 || sessionID == "" {
+		return nil, apperr.New(apperr.CodeTokenExpired, "登录状态已更新，请重新登录")
+	}
+	// 会话被单独撤销后，残留的 refresh token 也不能再使用。
+	active, err := s.SessionActive(ctx, userID, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	if !active {
 		return nil, apperr.New(apperr.CodeTokenExpired, "登录已过期，请重新登录")
 	}
 	user, err := s.users.Get(ctx, userID)
@@ -322,7 +342,7 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*TokenP
 	if user.SessionVersion != version {
 		return nil, apperr.New(apperr.CodeTokenExpired, "登录状态已更新，请重新登录")
 	}
-	return s.issue(ctx, user)
+	return s.issue(ctx, user, sessionID, meta, s.refreshTTL(remember), remember)
 }
 
 // RefreshSession 把已有 refresh token 重新指向用户当前的 session_version。
@@ -336,23 +356,43 @@ func (s *AuthService) RefreshSession(ctx context.Context, userID uint64, refresh
 	if err != nil {
 		return
 	}
-	id, _, err := parseRefreshValue(raw)
-	if err != nil || id != userID {
+	id, _, sessionID, remember, err := parseRefreshValue(raw)
+	if err != nil || id != userID || sessionID == "" {
 		return
 	}
 	user, err := s.users.Get(ctx, userID)
 	if err != nil {
 		return
 	}
-	_ = s.store.Set(ctx, refreshKey(refreshToken), refreshValue(user), s.opts.RefreshTTL)
+	active, err := s.SessionActive(ctx, userID, sessionID)
+	if err != nil || !active {
+		return
+	}
+	// 同步会话记录的版本号，设备列表才不会把当前设备当成过期会话。
+	ttl := s.refreshTTL(remember)
+	s.touchSession(ctx, userID, sessionID, user.SessionVersion, LoginMeta{}, ttl, remember)
+	_ = s.store.Set(ctx, refreshKey(refreshToken), refreshValue(user, sessionID, remember), ttl)
 }
 
-// Logout 删除 refresh token，使其无法再换取新令牌。
-func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
-	if refreshToken == "" {
-		return nil
+// Logout 删除 refresh token 与登录会话，使其无法再换取新令牌。
+// currentSessionID 用于额外撤销当前 access token 所属会话。
+func (s *AuthService) Logout(ctx context.Context, userID uint64, refreshToken, currentSessionID string) error {
+	if refreshToken != "" {
+		if raw, err := s.store.Get(ctx, refreshKey(refreshToken)); err == nil {
+			id, _, sessionID, _, parseErr := parseRefreshValue(raw)
+			// 只允许注销自己的令牌，避免拿他人 refresh token 做破坏。
+			if parseErr == nil && id == userID {
+				_ = s.store.Del(ctx, refreshKey(refreshToken))
+				if sessionID != "" {
+					_ = s.store.Del(ctx, sessionKey(userID, sessionID))
+				}
+			}
+		}
 	}
-	return s.store.Del(ctx, refreshKey(refreshToken))
+	if currentSessionID != "" {
+		_ = s.store.Del(ctx, sessionKey(userID, currentSessionID))
+	}
+	return nil
 }
 
 // Authenticate 为每个已认证请求加载身份与权限，供中间件调用。
@@ -362,11 +402,12 @@ func (s *AuthService) Authenticate(ctx context.Context, userID uint64) (*authn.P
 		return nil, err
 	}
 	return &authn.Principal{
-		UserID:      user.ID,
-		Username:    user.Username,
-		Nickname:    user.Nickname,
-		Super:       super,
-		Permissions: perms,
+		UserID:         user.ID,
+		Username:       user.Username,
+		Nickname:       user.Nickname,
+		SessionVersion: user.SessionVersion,
+		Super:          super,
+		Permissions:    perms,
 	}, nil
 }
 
@@ -440,9 +481,9 @@ func (s *AuthService) load(ctx context.Context, userID uint64) (*model.User, []m
 }
 
 // issue 签发 access token 与 refresh token。
-// refresh token 是 32 字节随机串，Redis 值为 "uid:session_version"。
-func (s *AuthService) issue(ctx context.Context, user *model.User) (*TokenPair, error) {
-	access, _, err := s.tokens.Issue(user.ID, user.Username)
+// refresh token 是 32 字节随机串，缓存值为 "uid:session_version:session_id"。
+func (s *AuthService) issue(ctx context.Context, user *model.User, sessionID string, meta LoginMeta, ttl time.Duration, remember bool) (*TokenPair, error) {
+	access, _, err := s.tokens.Issue(user.ID, user.Username, user.SessionVersion, sessionID)
 	if err != nil {
 		return nil, apperr.Wrap(err, apperr.CodeInternal, "签发令牌失败")
 	}
@@ -450,9 +491,10 @@ func (s *AuthService) issue(ctx context.Context, user *model.User) (*TokenPair, 
 	if err != nil {
 		return nil, apperr.Wrap(err, apperr.CodeInternal, "签发令牌失败")
 	}
-	if err := s.store.Set(ctx, refreshKey(refresh), refreshValue(user), s.opts.RefreshTTL); err != nil {
+	if err := s.store.Set(ctx, refreshKey(refresh), refreshValue(user, sessionID, remember), ttl); err != nil {
 		return nil, apperr.Wrap(err, apperr.CodeInternal, "保存登录状态失败")
 	}
+	s.touchSession(ctx, user.ID, sessionID, user.SessionVersion, meta, ttl, remember)
 	return &TokenPair{
 		AccessToken:  access,
 		RefreshToken: refresh,
@@ -530,27 +572,45 @@ func mfaChallengeKey(token string) string { return "mfa:challenge:" + token }
 // mfaFailKey 返回二次验证错误计数的缓存键。
 func mfaFailKey(token string) string { return "mfa:fail:" + token }
 
-// refreshValue 生成 refresh token 的 Redis 值：用户 ID + 会话版本。
-func refreshValue(user *model.User) string {
-	return strconv.FormatUint(user.ID, 10) + ":" + strconv.FormatInt(user.SessionVersion, 10)
+// refreshValue 生成 refresh token 的缓存值：
+// 用户 ID + 会话版本 + 会话 ID + 是否“记住我”。
+func refreshValue(user *model.User, sessionID string, remember bool) string {
+	flag := "0"
+	if remember {
+		flag = "1"
+	}
+	return strconv.FormatUint(user.ID, 10) + ":" + strconv.FormatInt(user.SessionVersion, 10) + ":" + sessionID + ":" + flag
 }
 
-// parseRefreshValue 解析 "uid:session_version"。
-// 兼容早期没有版本号的旧值（版本按 0 处理）。
-func parseRefreshValue(raw string) (uint64, int64, error) {
-	parts := strings.SplitN(strings.TrimSpace(raw), ":", 2)
+// parseRefreshValue 解析 "uid:session_version:session_id[:remember]"。
+// 缺少会话 ID 的旧值会被调用方视为过期，强制重新登录。
+func parseRefreshValue(raw string) (uint64, int64, string, bool, error) {
+	parts := strings.SplitN(strings.TrimSpace(raw), ":", 4)
+	if len(parts) < 2 {
+		return 0, 0, "", false, fmt.Errorf("invalid refresh value")
+	}
 	userID, err := strconv.ParseUint(parts[0], 10, 64)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, "", false, err
 	}
-	var version int64
-	if len(parts) == 2 {
-		version, err = strconv.ParseInt(parts[1], 10, 64)
-		if err != nil {
-			return 0, 0, err
-		}
+	version, err := strconv.ParseInt(parts[1], 10, 64)
+	if err != nil {
+		return 0, 0, "", false, err
 	}
-	return userID, version, nil
+	var sessionID string
+	if len(parts) >= 3 {
+		sessionID = strings.TrimSpace(parts[2])
+	}
+	remember := len(parts) == 4 && parts[3] == "1"
+	return userID, version, sessionID, remember, nil
+}
+
+// refreshTTL 根据是否“记住我”返回 refresh token 有效期。
+func (s *AuthService) refreshTTL(remember bool) time.Duration {
+	if remember {
+		return s.opts.RefreshTTL
+	}
+	return s.opts.SessionTTL
 }
 
 // deviceLabel 根据 User-Agent 给出粗略的设备提示，便于用户判断登录提醒是否可信。

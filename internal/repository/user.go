@@ -19,6 +19,49 @@ func NewUserRepo(db *gorm.DB) *UserRepo {
 	return &UserRepo{Base: NewBase[model.User](db), db: db}
 }
 
+// SetPassword 更新密码哈希；bumpSessionVersion 为 true 时原子递增会话版本，
+// 使该账号此前签发的 access / refresh token 立即失效。
+func (r *UserRepo) SetPassword(ctx context.Context, id uint64, hash string, bumpSessionVersion bool) error {
+	fields := map[string]any{"password": hash}
+	if bumpSessionVersion {
+		fields["session_version"] = gorm.Expr("session_version + 1")
+	}
+	res := r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", id).Updates(fields)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// BumpSessionVersion 递增会话版本，撤销该用户当前所有 access / refresh token。
+func (r *UserRepo) BumpSessionVersion(ctx context.Context, id uint64) error {
+	res := r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", id).
+		UpdateColumn("session_version", gorm.Expr("session_version + 1"))
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// SessionState 只读取状态与会话版本，供文件访问等高频率鉴权使用。
+func (r *UserRepo) SessionState(ctx context.Context, id uint64) (int8, int64, error) {
+	var row struct {
+		Status         int8
+		SessionVersion int64
+	}
+	if err := r.db.WithContext(ctx).Model(&model.User{}).
+		Select("status", "session_version").First(&row, id).Error; err != nil {
+		return 0, 0, err
+	}
+	return row.Status, row.SessionVersion, nil
+}
+
 // Get 按 ID 查询用户，并预加载部门和角色。
 func (r *UserRepo) Get(ctx context.Context, id uint64) (*model.User, error) {
 	var user model.User
@@ -94,8 +137,13 @@ func (r *UserRepo) SetRoles(ctx context.Context, userID uint64, roleIDs []uint64
 		if len(roleIDs) == 0 {
 			return nil
 		}
+		seen := make(map[uint64]struct{}, len(roleIDs))
 		rows := make([]model.UserRole, 0, len(roleIDs))
 		for _, roleID := range roleIDs {
+			if _, ok := seen[roleID]; ok {
+				continue
+			}
+			seen[roleID] = struct{}{}
 			rows = append(rows, model.UserRole{UserID: userID, RoleID: roleID})
 		}
 		return tx.Create(&rows).Error
@@ -103,12 +151,23 @@ func (r *UserRepo) SetRoles(ctx context.Context, userID uint64, roleIDs []uint64
 }
 
 // Delete 在事务中删除用户，并清理角色关联和通行密钥。
-// 通行密钥是物理删除，避免唯一的 credential_id 索引被软删除记录永久占用。
+// 通行密钥是物理删除，避免唯一的 credential_id 索引被软删除记录永久占用；
+// 用户名在软删除前改成墓碑值，否则重建同名账号会撞 uk_users_username。
 func (r *UserRepo) Delete(ctx context.Context, ids ...uint64) error {
 	if len(ids) == 0 {
 		return nil
 	}
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var users []model.User
+		if err := tx.Where("id IN ?", ids).Find(&users).Error; err != nil {
+			return err
+		}
+		for i := range users {
+			if err := tx.Model(&model.User{}).Where("id = ?", users[i].ID).
+				UpdateColumn("username", tombstoneValue(users[i].Username, users[i].ID, 64)).Error; err != nil {
+				return err
+			}
+		}
 		if err := tx.Where("user_id IN ?", ids).Delete(&model.UserRole{}).Error; err != nil {
 			return err
 		}

@@ -117,8 +117,13 @@ func TestUserUpdate(t *testing.T) {
 	_, err = app.Services.Users.Update(ctx, 404, service.UpdateUserInput{})
 	assert.Equal(t, apperr.CodeNotFound, apperr.From(err).Code)
 
+	_, err = app.Services.Users.Update(ctx, user.ID, service.UpdateUserInput{Status: int8Ptr(0)}, user.ID)
+	assert.Equal(t, apperr.CodeConflict, apperr.From(err).Code)
+
 	admin := app.SeedAdmin(t)
 	_, err = app.Services.Users.Update(ctx, admin.ID, service.UpdateUserInput{Status: int8Ptr(0)})
+	assert.Equal(t, apperr.CodeForbidden, apperr.From(err).Code)
+	err = app.Services.Users.AssignRoles(ctx, admin.ID, nil, admin.ID)
 	assert.Equal(t, apperr.CodeForbidden, apperr.From(err).Code)
 }
 
@@ -132,6 +137,9 @@ func TestUserStatusAndPassword(t *testing.T) {
 	err = app.Services.Users.SetStatus(ctx, 404, 0, 1)
 	assert.Equal(t, apperr.CodeNotFound, apperr.From(err).Code)
 	require.NoError(t, app.Services.Users.SetStatus(ctx, user.ID, 0, 999))
+	afterDisable, err := app.Repos.Users.Get(ctx, user.ID)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), afterDisable.SessionVersion)
 	err = app.Services.Users.SetStatus(ctx, user.ID, 0, user.ID)
 	assert.Equal(t, apperr.CodeConflict, apperr.From(err).Code)
 
@@ -144,6 +152,9 @@ func TestUserStatusAndPassword(t *testing.T) {
 	err = app.Services.Users.ResetPassword(ctx, 404, "Passw0rd")
 	assert.Equal(t, apperr.CodeNotFound, apperr.From(err).Code)
 	require.NoError(t, app.Services.Users.ResetPassword(ctx, user.ID, "NewPass123"))
+	afterReset, err := app.Repos.Users.Get(ctx, user.ID)
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), afterReset.SessionVersion)
 }
 
 func TestUserDeleteAndAssignRoles(t *testing.T) {
@@ -162,6 +173,12 @@ func TestUserDeleteAndAssignRoles(t *testing.T) {
 	assert.Equal(t, apperr.CodeForbidden, apperr.From(err).Code)
 	err = app.Services.Users.Delete(ctx, []uint64{user.ID}, user.ID)
 	assert.Equal(t, apperr.CodeConflict, apperr.From(err).Code)
+
+	super, err := app.Repos.Roles.FindByCode(ctx, "super_admin")
+	require.NoError(t, err)
+	actor := app.CreateUser(t, "actor", "Passw0rd", model.StatusEnabled, "operator")
+	err = app.Services.Users.AssignRoles(ctx, user.ID, []uint64{super.ID}, actor.ID)
+	assert.Equal(t, apperr.CodeForbidden, apperr.From(err).Code)
 
 	err = app.Services.Users.AssignRoles(ctx, 404, nil)
 	assert.Equal(t, apperr.CodeNotFound, apperr.From(err).Code)

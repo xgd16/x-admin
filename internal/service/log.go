@@ -2,10 +2,12 @@ package service
 
 import (
 	"context"
+	"strconv"
 	"sync"
 	"time"
 
 	"x-admin/internal/model"
+	"x-admin/internal/pkg/excel"
 )
 
 // LogService 通过有界队列异步写入审计日志，
@@ -93,6 +95,63 @@ func (s *LogService) ClearOperations(ctx context.Context) error {
 func (s *LogService) Logins(ctx context.Context, f model.LoginLogFilter) ([]model.LoginLog, int64, error) {
 	f.Normalize()
 	return s.repo.ListLogins(ctx, f)
+}
+
+// ExportOperations 按筛选条件导出全部操作日志（忽略分页）。
+func (s *LogService) ExportOperations(ctx context.Context, f model.OperationLogFilter) ([]byte, error) {
+	f.Page = 1
+	f.PageSize = 0
+	rows, _, err := s.repo.ListOperations(ctx, f)
+	if err != nil {
+		return nil, err
+	}
+	data := make([][]string, 0, len(rows))
+	for _, row := range rows {
+		data = append(data, []string{
+			strconv.FormatUint(row.ID, 10),
+			strconv.FormatUint(row.UserID, 10),
+			row.Username,
+			row.Method,
+			row.Path,
+			row.IP,
+			strconv.Itoa(row.Status),
+			strconv.FormatInt(row.LatencyMS, 10),
+			row.RequestID,
+			row.Body,
+			row.Error,
+			row.CreatedAt.Format("2006-01-02 15:04:05"),
+		})
+	}
+	return excel.Write("操作日志", []string{
+		"ID", "用户ID", "操作人", "方法", "路径", "IP", "状态",
+		"耗时(ms)", "RequestID", "请求体", "错误", "时间",
+	}, data)
+}
+
+// ExportLogins 按筛选条件导出全部登录日志（忽略分页）。
+func (s *LogService) ExportLogins(ctx context.Context, f model.LoginLogFilter) ([]byte, error) {
+	f.Page = 1
+	f.PageSize = 0
+	rows, _, err := s.repo.ListLogins(ctx, f)
+	if err != nil {
+		return nil, err
+	}
+	data := make([][]string, 0, len(rows))
+	for _, row := range rows {
+		data = append(data, []string{
+			strconv.FormatUint(row.ID, 10),
+			strconv.FormatUint(row.UserID, 10),
+			row.Username,
+			row.IP,
+			row.UserAgent,
+			strconv.Itoa(row.Status),
+			row.Message,
+			row.CreatedAt.Format("2006-01-02 15:04:05"),
+		})
+	}
+	return excel.Write("登录日志", []string{
+		"ID", "用户ID", "账号", "IP", "User-Agent", "状态", "说明", "时间",
+	}, data)
 }
 
 // ClearLogins 清空登录日志。

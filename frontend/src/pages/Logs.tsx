@@ -3,9 +3,9 @@
  */
 import { useState, type Key } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { App, Button, DatePicker, Input, Select, Tag } from 'antd'
+import { App, Button, DatePicker, Descriptions, Drawer, Input, Select, Tag } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
-import { api } from '../api/client'
+import { api, saveBlob } from '../api/client'
 import type { LoginLog, OperationLog, PageResult } from '../api/types'
 import { useAuth } from '../stores/auth'
 import { PageHeader } from '../components/PageHeader'
@@ -34,10 +34,17 @@ export function Logs({ mode }: { mode: Mode }) {
   const [status, setStatus] = useState<number>()
   const [range, setRange] = useState<[Dayjs, Dayjs] | null>(null)
   const [selected, setSelected] = useState<Key[]>([])
+  const [detail, setDetail] = useState<OperationLog | LoginLog | null>(null)
 
   // 同一个组件复用操作日志与登录日志两套接口和列定义。
   const operations = mode === 'operations'
   const path = operations ? '/logs/operations' : '/logs/logins'
+  const filterParams = {
+    keyword,
+    status,
+    start: range?.[0]?.startOf('day').toISOString(),
+    end: range?.[1]?.endOf('day').toISOString(),
+  }
 
   const query = useQuery({
     queryKey: [mode, page, pageSize, keyword, status, range?.[0]?.valueOf(), range?.[1]?.valueOf()],
@@ -45,10 +52,7 @@ export function Logs({ mode }: { mode: Mode }) {
       api.get<PageResult<OperationLog | LoginLog>>(path, {
         page,
         page_size: pageSize,
-        keyword,
-        status,
-        start: range?.[0]?.startOf('day').toISOString(),
-        end: range?.[1]?.endOf('day').toISOString(),
+        ...filterParams,
       }),
   })
 
@@ -70,6 +74,15 @@ export function Logs({ mode }: { mode: Mode }) {
     },
     onError: (error: Error) => message.error(error.message),
   })
+
+  const exportLogs = async () => {
+    try {
+      const blob = await api.download(`${path}/export`, filterParams)
+      saveBlob(blob, `${operations ? 'operation' : 'login'}-logs-${Date.now()}.xlsx`)
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '导出失败')
+    }
+  }
 
   const rows = query.data?.list ?? []
 
@@ -98,22 +111,27 @@ export function Logs({ mode }: { mode: Mode }) {
         sub={`${query.data?.total ?? 0} 条记录 · ${operations ? '写操作自动审计，密码与令牌已脱敏' : '登录成功与失败都会记录，连续失败 5 次锁定'}`}
         actions={
           can(operations ? 'system:log:operation' : 'system:log:login') ? (
-            <button
-              className="btn"
-              type="button"
-              onClick={() => {
-                modal.confirm({
-                  title: '清空全部日志？',
-                  content: '此操作不可恢复，建议先导出备份。',
-                  okText: '清空',
-                  okButtonProps: { danger: true },
-                  cancelText: '取消',
-                  onOk: () => clearMutation.mutateAsync(),
-                })
-              }}
-            >
-              <Icon name="trash" size={13} /> 清空
-            </button>
+            <>
+              <button className="btn" type="button" onClick={() => void exportLogs()}>
+                <Icon name="download" size={13} /> 导出
+              </button>
+              <button
+                className="btn"
+                type="button"
+                onClick={() => {
+                  modal.confirm({
+                    title: '清空全部日志？',
+                    content: '此操作不可恢复，建议先导出备份。',
+                    okText: '清空',
+                    okButtonProps: { danger: true },
+                    cancelText: '取消',
+                    onOk: () => clearMutation.mutateAsync(),
+                  })
+                }}
+              >
+                <Icon name="trash" size={13} /> 清空
+              </button>
+            </>
           ) : undefined
         }
       />
@@ -128,6 +146,7 @@ export function Logs({ mode }: { mode: Mode }) {
         pageSize={pageSize}
         onPageChange={(nextPage, nextSize) => { setPage(nextPage); setPageSize(nextSize) }}
         onRefresh={() => void query.refetch()}
+        onRow={(row) => ({ onClick: () => setDetail(row as unknown as OperationLog | LoginLog), style: { cursor: 'pointer' } })}
         columns={(operations ? operationColumns : loginColumns) as never}
         selection={operations ? { selectedRowKeys: selected, onChange: (keys) => setSelected(keys) } : undefined}
         filters={
@@ -183,6 +202,46 @@ export function Logs({ mode }: { mode: Mode }) {
           )
         }
       />
+
+      <Drawer
+        open={!!detail}
+        onClose={() => setDetail(null)}
+        width={520}
+        title={operations ? '操作日志详情' : '登录日志详情'}
+      >
+        {detail && (
+          <Descriptions column={1} size="small" bordered>
+            {'message' in detail ? (
+              <>
+                <Descriptions.Item label="账号">{detail.username || '—'}</Descriptions.Item>
+                <Descriptions.Item label="结果">{statusTag(detail.status)}</Descriptions.Item>
+                <Descriptions.Item label="说明">{detail.message || '—'}</Descriptions.Item>
+                <Descriptions.Item label="IP">{detail.ip || '—'}</Descriptions.Item>
+                <Descriptions.Item label="User-Agent">{detail.user_agent || '—'}</Descriptions.Item>
+                <Descriptions.Item label="时间">{dayjs(detail.created_at).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
+              </>
+            ) : (
+              <>
+                <Descriptions.Item label="操作人">{detail.username || `UID ${detail.user_id}`}</Descriptions.Item>
+                <Descriptions.Item label="方法">{detail.method}</Descriptions.Item>
+                <Descriptions.Item label="路径">{detail.path}</Descriptions.Item>
+                <Descriptions.Item label="状态">{statusTag(detail.status)}</Descriptions.Item>
+                <Descriptions.Item label="IP">{detail.ip || '—'}</Descriptions.Item>
+                <Descriptions.Item label="耗时">{detail.latency_ms} ms</Descriptions.Item>
+                <Descriptions.Item label="Request ID">{detail.request_id || '—'}</Descriptions.Item>
+                <Descriptions.Item label="User-Agent">{detail.user_agent || '—'}</Descriptions.Item>
+                <Descriptions.Item label="请求体">
+                  <pre className="mono" style={{ margin: 0, maxHeight: 220, overflow: 'auto', whiteSpace: 'pre-wrap' }}>
+                    {detail.body || '—'}
+                  </pre>
+                </Descriptions.Item>
+                <Descriptions.Item label="错误">{detail.error || '—'}</Descriptions.Item>
+                <Descriptions.Item label="时间">{dayjs(detail.created_at).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
+              </>
+            )}
+          </Descriptions>
+        )}
+      </Drawer>
     </>
   )
 }

@@ -344,6 +344,11 @@ paths:
     post:
       tags: [Parameter]
       summary: 创建参数
+  /admin/v1/parameters/public:
+    get:
+      tags: [Parameter]
+      summary: 公开参数列表（无需登录）
+      security: []
   /admin/v1/parameters/{id}:
     put:
       tags: [Parameter]
@@ -374,6 +379,27 @@ paths:
               type: object
               properties:
                 file: { type: string, format: binary }
+  /admin/v1/files/{id}/shares:
+    get:
+      tags: [File]
+      summary: 文件分享记录
+      parameters:
+        - $ref: '#/components/parameters/ID'
+    post:
+      tags: [File]
+      summary: 创建可撤销分享链接
+      parameters:
+        - $ref: '#/components/parameters/ID'
+  /admin/v1/files/{id}/shares/{shareID}:
+    delete:
+      tags: [File]
+      summary: 撤销分享链接
+      parameters:
+        - $ref: '#/components/parameters/ID'
+        - name: shareID
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
   /admin/v1/files/{id}/download:
     get:
       tags: [File]
@@ -416,6 +442,13 @@ paths:
       summary: 立即执行任务
       parameters:
         - $ref: '#/components/parameters/ID'
+  /admin/v1/jobs/{id}/runs:
+    get:
+      tags: [Job]
+      summary: 任务执行历史
+      parameters:
+        - $ref: '#/components/parameters/ID'
+        - $ref: '#/components/parameters/Page'
   /admin/v1/logs/operations:
     get:
       tags: [Audit]
@@ -423,6 +456,10 @@ paths:
     delete:
       tags: [Audit]
       summary: 删除指定操作日志
+  /admin/v1/logs/operations/export:
+    get:
+      tags: [Audit]
+      summary: 导出操作日志 Excel
   /admin/v1/logs/operations/clear:
     delete:
       tags: [Audit]
@@ -431,6 +468,10 @@ paths:
     get:
       tags: [Audit]
       summary: 登录日志分页
+  /admin/v1/logs/logins/export:
+    get:
+      tags: [Audit]
+      summary: 导出登录日志 Excel
   /admin/v1/logs/logins/clear:
     delete:
       tags: [Audit]
@@ -442,6 +483,27 @@ paths:
     put:
       tags: [Profile]
       summary: 更新个人资料
+  /admin/v1/profile/sessions:
+    get:
+      tags: [Profile]
+      summary: 在线设备列表
+  /admin/v1/profile/sessions/{id}:
+    delete:
+      tags: [Profile]
+      summary: 退出指定设备
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+  /admin/v1/profile/session-actions/revoke-others:
+    post:
+      tags: [Profile]
+      summary: 退出其他设备
+  /admin/v1/profile/session-actions/revoke-all:
+    post:
+      tags: [Profile]
+      summary: 退出全部设备
   /admin/v1/profile/password:
     put:
       tags: [Profile]
