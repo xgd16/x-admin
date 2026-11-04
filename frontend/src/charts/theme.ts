@@ -1,9 +1,11 @@
+/**
+ * 图表明暗主题色板与品牌强调色。
+ */
 export type ChartMode = 'light' | 'dark'
 
 /**
- * Canvas colors for ECharts. The DOM parts of the tooltip still inherit
- * `--ink` / `--muted` from global.css; these values mirror the theme so the
- * canvas can repaint without reading computed styles.
+ * ECharts 画布色板。
+ * tooltip 的 DOM 部分仍继承全局样式变量；这里的值用于画布重绘，避免每次读取计算样式。
  */
 export interface ChartPalette {
   ink: string
@@ -16,6 +18,7 @@ export interface ChartPalette {
   tooltipInset: string
 }
 
+/** 浅色/深色画布色板，与 CSS 变量保持同步。 */
 const PALETTES: Record<ChartMode, ChartPalette> = {
   light: {
     ink: '#0b1c2c',

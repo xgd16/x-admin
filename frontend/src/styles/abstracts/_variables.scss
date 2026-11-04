@@ -1,0 +1,15 @@
+// 仅供 SCSS 编译期使用的变量；运行时设计令牌放在 `base/_tokens.scss`。
+
+// 响应式断点。`below()` mixin 通过这里的键名取最大宽度，保证各 partial 使用一致。
+$breakpoints: (
+  'xl': 1200px,
+  'lg': 1024px,
+  'md': 900px,
+  'sm': 820px,
+  'xs': 700px,
+  'xxs': 640px,
+);
+
+// 浮层使用的层级索引。
+$z-command-bar: 20;
+$z-tab-menu: 1100;

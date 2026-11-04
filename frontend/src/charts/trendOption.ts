@@ -1,3 +1,6 @@
+/**
+ * 登录趋势图的 ECharts option 构建。
+ */
 import dayjs from 'dayjs'
 import type { ComposeOption } from 'echarts/core'
 import type { LineSeriesOption } from 'echarts/charts'
@@ -11,11 +14,12 @@ export type TrendChartOption = ComposeOption<
 
 const numberFormat = new Intl.NumberFormat('zh-CN')
 
+/** 返回登录次数最多那天的下标；空数组或全为 0 时返回 0。 */
 export function trendPeakIndex(trend: TrendPoint[]): number {
   return trend.reduce((best, point, index, all) => (point.count > all[best].count ? index : best), 0)
 }
 
-/** Markup rendered inside the ECharts tooltip; the look lives in global.css. */
+/** 生成 tooltip 内部 HTML；具体视觉样式由 styles/index.scss 控制。 */
 export function trendTooltipHtml(trend: TrendPoint[], index: number): string {
   const point = trend[index]
   if (!point) return ''
@@ -29,6 +33,7 @@ export interface TrendOptionConfig {
   animate?: boolean
 }
 
+/** 根据趋势数据和当前主题构建折线图配置。 */
 export function buildTrendOption(
   trend: TrendPoint[],
   { palette, animate = true }: TrendOptionConfig,
@@ -66,6 +71,7 @@ export function buildTrendOption(
         snap: true,
         lineStyle: { color: 'rgba(255, 95, 51, 0.3)', width: 1, type: 'dashed' },
       },
+      // ECharts 可能传入单个对象或数组，这里统一取第一条数据。
       formatter: (params: unknown) => {
         const items = Array.isArray(params) ? params : [params]
         const first = items[0] as { dataIndex?: number } | undefined
@@ -103,6 +109,7 @@ export function buildTrendOption(
       },
       splitLine: { show: true, lineStyle: { color: palette.grid, width: 1 } },
     },
+    // 珊瑚色渐变折线 + 向下淡出的面积填充。
     series: [
       {
         type: 'line',

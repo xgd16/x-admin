@@ -1,0 +1,193 @@
+// 数据表格、工具栏、筛选器与单元格辅助样式。
+
+.data-panel {
+  border-radius: 22px;
+  overflow: hidden;
+  min-width: 0;
+}
+.table-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+  min-height: 48px;
+}
+.table-toolbar .left,
+.table-toolbar .right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.table-toolbar .ant-btn {
+  height: 29px;
+  font-size: 9.5px;
+  padding: 0 10px;
+}
+.table-toolbar .icon-btn {
+  width: 29px;
+  height: 29px;
+  border: 1px solid var(--line);
+  background: var(--glass-soft);
+}
+.table-panel {
+  border-radius: 22px;
+  overflow: hidden;
+  min-width: 0;
+}
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px;
+  border-bottom: 1px solid var(--line);
+  align-items: center;
+}
+.filter-bar .ant-input-affix-wrapper,
+.filter-bar .ant-select,
+.filter-bar .ant-picker {
+  height: 32px;
+  border-radius: 11px !important;
+  font-size: 10.5px;
+}
+.filter-bar .ant-select .ant-select-content,
+.filter-bar .ant-select .ant-select-input {
+  font-size: 10.5px;
+}
+.filter-bar .ant-input-affix-wrapper {
+  min-width: 150px;
+  flex: 1 1 150px;
+  width: auto;
+}
+.filter-bar .ant-input-affix-wrapper input {
+  font-size: 10.5px;
+}
+.filter-bar .ant-input {
+  flex: 1 1 150px;
+  width: auto;
+}
+
+.ant-table-wrapper .ant-table {
+  background: transparent;
+}
+.ant-table-wrapper .ant-table-thead > tr > th {
+  background: transparent !important;
+  font-family: var(--mono);
+  font-size: 7.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dim);
+  border-bottom: 1px solid var(--line) !important;
+  padding: 8px 9px !important;
+}
+.ant-table-wrapper .ant-table-tbody > tr > td {
+  border-bottom: 1px solid var(--line-soft) !important;
+  font-size: 10.5px;
+  padding: 9px !important;
+  color: var(--ink-soft);
+  transition: background 0.18s;
+}
+.ant-table-wrapper .ant-table-thead > tr > th:first-child,
+.ant-table-wrapper .ant-table-tbody > tr > td:first-child {
+  padding-left: 14px !important;
+}
+.ant-table-wrapper .ant-table-thead > tr > th:last-child,
+.ant-table-wrapper .ant-table-tbody > tr > td:last-child {
+  padding-right: 14px !important;
+}
+.ant-table-wrapper .ant-table-tbody > tr:last-child > td {
+  border-bottom: 0 !important;
+}
+.ant-table-wrapper .ant-table-tbody > tr.ant-table-row-selected > td {
+  background: linear-gradient(90deg, rgba(255, 138, 92, 0.16), rgba(255, 255, 255, 0.14)) !important;
+}
+.ant-table-wrapper .ant-table-tbody > tr.ant-table-row-selected > td:first-child {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.ant-table-wrapper .ant-pagination {
+  padding: 0 10px;
+  font-family: var(--mono);
+  font-size: 9px;
+}
+.ant-table-wrapper .ant-pagination .ant-pagination-item {
+  border-radius: 9px;
+  font-size: 10px;
+}
+.ant-table-wrapper .ant-pagination .ant-pagination-prev,
+.ant-table-wrapper .ant-pagination .ant-pagination-next {
+  border-radius: 9px;
+}
+.ant-table-wrapper .ant-table-cell-scrollbar {
+  box-shadow: none;
+  padding: 0 !important;
+}
+.cell-user {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.cell-avatar {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.5));
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 8.5px;
+  box-shadow: inset 0 1px 0 #fff;
+}
+:root[data-theme='dark'] .cell-avatar {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--line);
+  box-shadow: none;
+}
+.cell-user b {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+.cell-user small {
+  display: block;
+  margin-top: 1px;
+  font-family: var(--mono);
+  font-size: 7.5px;
+  color: var(--dim);
+}
+.mono {
+  font-family: var(--mono);
+  font-size: 8px;
+  color: var(--muted);
+}
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9.5px;
+  color: var(--muted);
+}
+.status i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--mint);
+  box-shadow: 0 0 8px rgba(47, 185, 138, 0.7);
+}
+.status.off i {
+  background: var(--dim);
+  box-shadow: none;
+}
+.status.wait {
+  color: #9a5a0a;
+}
+.status.wait i {
+  background: #f3a93c;
+  box-shadow: 0 0 8px rgba(243, 169, 60, 0.7);
+}

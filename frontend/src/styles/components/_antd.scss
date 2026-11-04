@@ -1,0 +1,190 @@
+// Ant Design 主题微调与浮层表面。
+
+.ant-btn-primary {
+  background: linear-gradient(145deg, #ff8a5c, #ff5f33) !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+  box-shadow: 0 10px 24px rgba(255, 95, 51, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.45) !important;
+}
+.ant-btn-primary:hover {
+  filter: brightness(1.04);
+}
+.ant-modal .ant-modal-container {
+  background: rgba(250, 253, 255, 0.97);
+  backdrop-filter: blur(30px) saturate(160%);
+  border: 1px solid var(--line);
+  box-shadow: 0 30px 80px rgba(23, 43, 63, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+:root[data-theme='dark'] .ant-modal .ant-modal-container {
+  background: rgba(18, 26, 39, 0.97);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.ant-modal-mask {
+  backdrop-filter: blur(3px);
+}
+.ant-modal .ant-form-item {
+  margin-bottom: 10px;
+}
+.ant-modal .detail-grid {
+  gap: 4px 12px;
+}
+.ant-modal .ant-modal-footer {
+  margin-top: 14px;
+}
+.ant-drawer .ant-drawer-content {
+  backdrop-filter: blur(28px) saturate(160%);
+}
+.ant-dropdown .ant-dropdown-menu,
+.ant-select-dropdown,
+.ant-picker-dropdown .ant-picker-panel-container,
+.ant-popover .ant-popover-container {
+  backdrop-filter: blur(22px) saturate(160%);
+}
+/* ---------------- antd 6 浮层表面 ---------------- */
+:root .ant-popover .ant-popover-container {
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg), inset 0 0 0 1px var(--line);
+}
+:root .ant-dropdown .ant-dropdown-menu {
+  padding: 5px;
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg), inset 0 0 0 1px var(--line);
+}
+:root .ant-dropdown .ant-dropdown-menu .ant-dropdown-menu-item {
+  min-height: 30px;
+  padding: 5px 10px;
+  border-radius: 9px;
+  font-size: 12px;
+  line-height: 20px;
+}
+:root .ant-dropdown .ant-dropdown-menu .ant-dropdown-menu-item-divider {
+  margin: 4px 6px;
+  background: var(--line);
+}
+:root .ant-dropdown .ant-dropdown-menu .ant-dropdown-menu-item-selected {
+  background: rgba(255, 95, 51, 0.14);
+  color: var(--ink);
+  font-weight: 600;
+}
+:root .ant-dropdown .ant-dropdown-menu .ant-dropdown-menu-item-selected:hover {
+  background: rgba(255, 95, 51, 0.2);
+}
+:root .ant-segmented {
+  padding: 2px;
+  border-radius: 999px;
+  background: rgba(11, 28, 44, 0.05);
+  color: var(--muted);
+}
+:root .ant-segmented .ant-segmented-item,
+:root .ant-segmented .ant-segmented-thumb {
+  border-radius: 999px;
+}
+:root .ant-segmented .ant-segmented-item {
+  color: var(--muted);
+  transition: color 0.16s, background-color 0.16s;
+}
+:root .ant-segmented .ant-segmented-item-label {
+  padding: 0 9px;
+  font-size: 10.5px;
+  line-height: 20px;
+}
+:root .ant-segmented .ant-segmented-item-selected,
+:root .ant-segmented .ant-segmented-thumb {
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(23, 43, 63, 0.08), 0 3px 8px -3px rgba(23, 43, 63, 0.16);
+}
+:root .ant-segmented .ant-segmented-item-selected .ant-segmented-item-label {
+  color: var(--ink);
+}
+:root[data-theme='dark'] .ant-segmented {
+  background: rgba(255, 255, 255, 0.06);
+}
+:root[data-theme='dark'] .ant-segmented .ant-segmented-item-selected,
+:root[data-theme='dark'] .ant-segmented .ant-segmented-thumb {
+  background: rgba(255, 255, 255, 0.13);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+:root .ant-select-tree .ant-select-tree-treenode {
+  padding: 1px 0;
+}
+:root .ant-select-tree .ant-select-tree-node-content-wrapper {
+  min-height: 26px;
+  padding: 0 8px;
+  border-radius: 9px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 26px;
+}
+:root .ant-select-tree .ant-select-tree-node-content-wrapper:hover {
+  background: var(--glass-soft);
+}
+:root .ant-select-tree .ant-select-tree-node-content-wrapper.ant-select-tree-node-selected {
+  background: rgba(255, 95, 51, 0.14);
+  color: var(--ink);
+}
+:root .ant-picker-dropdown .ant-picker-panel-container {
+  overflow: hidden;
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg), inset 0 0 0 1px var(--line);
+}
+:root .ant-picker-dropdown .ant-picker-cell-inner {
+  border-radius: 8px;
+}
+:root .ant-select-dropdown {
+  padding: 5px;
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg), inset 0 0 0 1px var(--line);
+}
+:root .ant-select-dropdown .ant-select-item {
+  border-radius: 9px;
+  min-height: 30px;
+  padding: 5px 10px;
+  font-size: 12px;
+  line-height: 20px;
+  color: var(--ink-soft);
+}
+:root .ant-select-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background: rgba(255, 95, 51, 0.14);
+  color: var(--ink);
+}
+:root
+  .ant-select-dropdown
+  .ant-select-item-option-selected.ant-select-item-option-active:not(
+    .ant-select-item-option-disabled
+  ) {
+  background: rgba(255, 95, 51, 0.2);
+}
+:root .ant-select-outlined:not(.ant-select-disabled):hover {
+  border-color: rgba(255, 95, 51, 0.45);
+}
+:root .ant-select-outlined:not(.ant-select-disabled):focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(255, 95, 51, 0.12);
+}
+.ant-form-item-label > label {
+  font-size: 11px !important;
+}
+.ant-tag {
+  border-radius: 999px;
+  font-size: 9px;
+  line-height: 18px;
+}
+.ant-empty-description {
+  font-size: 11px;
+  color: var(--dim);
+}
+.panel .ant-table-wrapper,
+.data-panel .ant-table-wrapper {
+  margin: 0;
+}
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.toolbar-actions .ant-btn {
+  height: 29px;
+  font-size: 10px;
+  padding: 0 10px;
+}

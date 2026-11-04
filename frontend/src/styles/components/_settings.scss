@@ -1,0 +1,99 @@
+// 命令面板与设置菜单行。
+
+.settings-menu {
+  min-width: 230px;
+  padding: 0;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 9px;
+  border-radius: 9px;
+  font-size: 11px;
+  transition: background 0.18s;
+}
+.settings-row:hover {
+  background: var(--glass-soft);
+}
+.settings-row .label {
+  color: var(--muted);
+}
+.settings-row .value {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--dim);
+}
+.settings-row.button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: var(--ink);
+  text-align: left;
+}
+.settings-row.button:hover {
+  background: var(--glass-soft);
+}
+.palette {
+  display: grid;
+  gap: 4px;
+}
+.palette button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 9px 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.16s, border-color 0.16s, transform 0.16s;
+}
+.palette button:hover,
+.palette button.active {
+  background: var(--glass-strong);
+  border-color: var(--line);
+}
+.palette button:active {
+  transform: scale(0.985);
+}
+.palette .meta {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 8px;
+  color: var(--dim);
+}
+.palette .kicker {
+  font-family: var(--mono);
+  font-size: 8px;
+  color: var(--dim);
+  padding: 8px 10px 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.palette-esc {
+  display: inline-grid;
+  place-items: center;
+  min-width: 30px;
+  height: 20px;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--glass-soft);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: color 0.16s, background 0.16s, border-color 0.16s;
+}
+.palette-esc:hover {
+  color: var(--ink);
+  background: var(--glass-strong);
+  border-color: var(--line);
+}

@@ -1,0 +1,51 @@
+// 圆形图标按钮与通知角标。
+
+.icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  position: relative;
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.16s;
+  cursor: pointer;
+}
+.icon-btn.mobile-nav-btn {
+  display: none;
+}
+.icon-btn.ctx-toggle {
+  color: var(--dim);
+}
+.icon-btn.ctx-toggle.on {
+  color: var(--ink);
+  background: var(--glass-soft);
+  border-color: var(--line);
+}
+.icon-btn:hover {
+  background: var(--glass-soft);
+  border-color: var(--line);
+  color: var(--ink);
+}
+.icon-btn:active {
+  transform: scale(0.92);
+}
+.icon-btn .badge {
+  position: absolute;
+  top: -1px;
+  right: -2px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--mono);
+  font-size: 8px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 0 10px rgba(255, 95, 51, 0.55);
+}

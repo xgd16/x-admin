@@ -1,0 +1,44 @@
+// 浅色/深色主题的设计令牌（CSS 自定义属性）。
+
+:root {
+  --ink: #0b1c2c;
+  --ink-soft: #20384c;
+  --muted: #5b7186;
+  --dim: #8ba0b2;
+  --accent: #ff5f33;
+  --accent-2: #ff8a5c;
+  --accent-3: #ff4d8d;
+  --cyan: #2fb8d9;
+  --violet: #8b7cf6;
+  --mint: #2fb98a;
+  --danger: #e14b4b;
+  --amber: #f3a93c;
+  --bg: #edf3f9;
+  --glass-border: rgba(255, 255, 255, 0.72);
+  --glass-strong: rgba(255, 255, 255, 0.58);
+  --glass-soft: rgba(255, 255, 255, 0.32);
+  --line: rgba(255, 255, 255, 0.55);
+  --line-soft: rgba(255, 255, 255, 0.42);
+  --shadow-lg: 0 2px 4px rgba(23, 43, 63, 0.05), 0 12px 32px -8px rgba(23, 43, 63, 0.14);
+  --shadow-sm: 0 1px 2px rgba(23, 43, 63, 0.04), 0 6px 16px -6px rgba(23, 43, 63, 0.1);
+  --radius: 22px;
+  --radius-sm: 14px;
+  --ui: "Avenir Next", "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --mono: "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, monospace;
+}
+
+:root[data-theme='dark'] {
+  --ink: #f3f7fc;
+  --ink-soft: #d3dfea;
+  --muted: #a0b1c3;
+  --dim: #7d8fa4;
+  --bg: #070c15;
+  --glass-border: rgba(154, 180, 210, 0.16);
+  --glass-strong: rgba(30, 42, 59, 0.68);
+  --glass-soft: rgba(255, 255, 255, 0.05);
+  --line: rgba(156, 182, 210, 0.14);
+  --line-soft: rgba(156, 182, 210, 0.085);
+  --shadow-lg: 0 2px 6px rgba(0, 0, 0, 0.28), 0 14px 34px -10px rgba(0, 0, 0, 0.42);
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.25), 0 8px 20px -8px rgba(0, 0, 0, 0.35);
+  --ui: "Avenir Next", "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}

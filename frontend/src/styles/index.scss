@@ -1,0 +1,50 @@
+// x-admin 样式入口。
+//
+// 加载顺序沿用原 global.css 的层叠关系：基础层 → 表面 → 布局 → 通用组件
+// → 页面 → 覆盖层 → 响应式。新增 partial 时请放到对应业务附近，并保持
+// 预期的优先级顺序。
+
+// 基础层：主题变量、重置与背景
+@use 'base/tokens';
+@use 'base/reset';
+@use 'base/ambient';
+
+// 共享表面
+@use 'components/glass';
+
+// 应用外框
+@use 'layout/shell';
+@use 'layout/rail';
+@use 'layout/context-bar';
+@use 'layout/command-bar';
+@use 'components/icon-button';
+@use 'layout/notifications';
+@use 'layout/tabs';
+
+// 通用 UI
+@use 'components/page-header';
+@use 'components/buttons';
+
+// 页面
+@use 'pages/dashboard';
+@use 'components/panels';
+@use 'components/table';
+@use 'pages/users';
+@use 'pages/login';
+
+// Ant Design 集成
+@use 'components/antd';
+
+// 共享组件
+@use 'components/utilities';
+@use 'components/settings';
+@use 'components/file-icon';
+@use 'pages/profile/profile';
+@use 'pages/profile/totp';
+@use 'pages/profile/passkey';
+@use 'components/file-picker';
+@use 'components/file-select';
+
+// 依赖顺序的覆盖与响应式规则
+@use 'overrides/canvas-glass';
+@use 'responsive';

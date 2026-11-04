@@ -793,7 +793,7 @@ TanStack Query 默认配置：`retry: 1`、关闭窗口聚焦重取、`staleTime
 - 暗色模式写入 `<html data-theme="dark">`，CSS 变量与 antd token 同步切换。
 - 水印使用 antd `Watermark`，内容为“x-admin · 昵称 + 日期”。
 - 动效统一由 `motion` 驱动；系统开启“减少动态效果”时关闭位移动画。
-- 视觉基线为 `design-preview/02-workbench.html`，实现以 `frontend/src/styles/global.css` 为准：
+- 视觉基线为 `design-preview/02-workbench.html`，实现以 `frontend/src/styles/index.scss` 及同目录下按功能拆分的 partial 为准：
   - 背景 `#edf3f9`，深色 `#07131f`
   - ink `#0b1c2c`、accent `#ff5f33`、violet `#8b7cf6`、cyan `#2fb8d9`、mint `#2fb98a`
   - 字体 Avenir Next / SF Pro Display / PingFang SC；数字 `tabular-nums`
@@ -979,4 +979,4 @@ Cron 在进程内运行，每个副本都会注册任务。改为单副本、主
 - `02-workbench.html`：Workbench Liquid Glass（当前实现）
 - `03-night-shift.html`：夜班模式
 
-实现细节以 `frontend/src/styles/global.css` 与 `frontend/src/components/ThemeProvider.tsx` 为准。
+实现细节以 `frontend/src/styles/index.scss`（样式拆分说明见 `frontend/src/styles/README.md`）与 `frontend/src/components/ThemeProvider.tsx` 为准。

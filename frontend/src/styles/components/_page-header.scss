@@ -1,0 +1,35 @@
+// 页面标题区与右侧操作按钮。
+
+.page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 2px 12px;
+}
+.page-head h1 {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.08;
+}
+.page-head .sub {
+  margin: 6px 0 0;
+  font-family: var(--mono);
+  font-size: 8.5px;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+.page-head .sub b {
+  color: #0c7a55;
+  font-weight: 600;
+}
+:root[data-theme='dark'] .page-head .sub b {
+  color: #55d6a8;
+}
+.head-actions {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}

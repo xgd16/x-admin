@@ -1,0 +1,116 @@
+// 背景极光与漂浮光斑。
+
+.lg-app,
+.lg-login {
+  position: relative;
+  min-height: 100vh;
+  overflow: clip;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+/* 管理后台锁定在视口内，只有内容区滚动 */
+.lg-app {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ambient {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.8;
+}
+/* 装饰层只在导航后短暂播放，随后暂停，详见 Ambient.tsx。 */
+html .blob,
+html .login-orb {
+  animation-play-state: paused;
+}
+html .blob {
+  will-change: auto;
+}
+html.ambient-live .blob,
+html.ambient-live .login-orb {
+  animation-play-state: running;
+}
+html.ambient-live .blob {
+  will-change: transform;
+}
+.blob-a {
+  width: 680px;
+  height: 680px;
+  left: -190px;
+  top: -240px;
+  background: radial-gradient(circle, #8ed8ff 0%, rgba(142, 216, 255, 0) 66%);
+  animation: drift-a 19s ease-in-out infinite alternate;
+}
+.blob-b {
+  width: 620px;
+  height: 620px;
+  right: -170px;
+  top: -190px;
+  background: radial-gradient(circle, #c7b8ff 0%, rgba(199, 184, 255, 0) 66%);
+  animation: drift-b 24s ease-in-out infinite alternate;
+}
+.blob-c {
+  width: 700px;
+  height: 700px;
+  right: 8%;
+  bottom: -330px;
+  background: radial-gradient(circle, #ffc6a8 0%, rgba(255, 198, 168, 0) 66%);
+  animation: drift-c 27s ease-in-out infinite alternate;
+}
+.blob-d {
+  width: 520px;
+  height: 520px;
+  left: 26%;
+  bottom: -240px;
+  background: radial-gradient(circle, #9ff0d8 0%, rgba(159, 240, 216, 0) 66%);
+  animation: drift-d 22s ease-in-out infinite alternate;
+}
+:root[data-theme='dark'] .blob {
+  opacity: 0.24;
+}
+:root[data-theme='dark'] .blob-a {
+  background: radial-gradient(circle, #1d4ed8 0%, rgba(29, 78, 216, 0) 66%);
+}
+:root[data-theme='dark'] .blob-b {
+  background: radial-gradient(circle, #6d4aff 0%, rgba(109, 74, 255, 0) 66%);
+}
+:root[data-theme='dark'] .blob-c {
+  background: radial-gradient(circle, #b45309 0%, rgba(180, 83, 9, 0) 66%);
+}
+:root[data-theme='dark'] .blob-d {
+  background: radial-gradient(circle, #0e7490 0%, rgba(14, 116, 144, 0) 66%);
+}
+
+@keyframes drift-a {
+  to {
+    transform: translate3d(70px, 50px, 0) scale(1.08);
+  }
+}
+@keyframes drift-b {
+  to {
+    transform: translate3d(-60px, 70px, 0) scale(1.1);
+  }
+}
+@keyframes drift-c {
+  to {
+    transform: translate3d(-90px, -50px, 0) scale(1.06);
+  }
+}
+@keyframes drift-d {
+  to {
+    transform: translate3d(60px, -40px, 0) scale(1.12);
+  }
+}

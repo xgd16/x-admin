@@ -1,0 +1,61 @@
+// 文件名行与媒体类型图标配色。
+
+.file-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.file-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: rgba(47, 184, 217, 0.14);
+  color: #0e7490;
+  flex: none;
+}
+
+.file-icon img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+  display: block;
+}
+:root[data-theme='dark'] .file-icon {
+  background: rgba(47, 184, 217, 0.16);
+  color: #7fdff3;
+}
+.file-icon.video {
+  background: rgba(139, 124, 246, 0.14);
+  color: #6d5ce0;
+}
+.file-icon.audio {
+  background: rgba(47, 185, 138, 0.14);
+  color: #0c7a55;
+}
+.file-icon.document {
+  background: rgba(255, 95, 51, 0.12);
+  color: #b44724;
+}
+.file-icon.archive {
+  background: rgba(243, 169, 60, 0.15);
+  color: #9a5a0a;
+}
+:root[data-theme='dark'] .file-icon.video {
+  background: rgba(139, 124, 246, 0.18);
+  color: #b7adff;
+}
+:root[data-theme='dark'] .file-icon.audio {
+  background: rgba(47, 185, 138, 0.18);
+  color: #55d6a8;
+}
+:root[data-theme='dark'] .file-icon.document {
+  background: rgba(255, 95, 51, 0.18);
+  color: #ff9b78;
+}
+:root[data-theme='dark'] .file-icon.archive {
+  background: rgba(243, 169, 60, 0.18);
+  color: #ffc46a;
+}

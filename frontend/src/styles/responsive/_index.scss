@@ -1,0 +1,145 @@
+// 响应式规则：按断点分组，顺序与拆分前保持一致。
+
+@use '../abstracts/mixins' as *;
+
+@include below('xl') {
+  .cmd {
+    width: 220px;
+  }
+}
+@include below('lg') {
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .grid-main,
+  .grid-bottom {
+    grid-template-columns: 1fr;
+  }
+  .users-layout,
+  .split-panels,
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+  .context {
+    display: none;
+  }
+  .icon-btn.ctx-toggle {
+    display: none;
+  }
+  .login-stage {
+    grid-template-columns: 1fr;
+    max-width: 620px;
+  }
+  .login-hero {
+    min-height: 380px;
+  }
+  .login-orb {
+    width: 260px;
+    height: 260px;
+  }
+}
+@include below('sm') {
+  .rail {
+    width: 60px;
+  }
+  .cmd {
+    display: none;
+  }
+  .mobile-nav-btn {
+    display: grid;
+  }
+  .cmd-user .who {
+    display: none;
+  }
+  .page-head h1 {
+    font-size: 27px;
+  }
+}
+@include below('xs') {
+  .rail {
+    display: none;
+  }
+  .lg-shell {
+    padding: 8px;
+  }
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+  .page-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .login-stage {
+    padding: 16px;
+  }
+  .login-hero {
+    padding: 26px;
+    min-height: 300px;
+  }
+  .login-hero h1 {
+    font-size: 38px;
+  }
+  .login-card {
+    padding: 24px;
+  }
+  .totp-panel {
+    flex-direction: column;
+  }
+  .passkey-panel {
+    flex-direction: column;
+  }
+  .totp-qr {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+  .totp-qr-side {
+    width: 100%;
+  }
+  .totp-code-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@include below('md') {
+  .file-picker-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .file-picker-search {
+    margin-left: 0;
+    flex: 1 1 100%;
+  }
+  .file-picker-search .ant-input-affix-wrapper {
+    flex: 1;
+    width: auto;
+  }
+}
+@include below('xxs') {
+  .file-picker-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .file-picker-tabs {
+    width: 100%;
+    overflow-x: auto;
+  }
+  .file-picker-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-end;
+  }
+  .file-picker-footer .ant-pagination {
+    margin-left: auto;
+  }
+}
+@include reduced-motion {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .blob,
+  .login-orb {
+    animation: none !important;
+  }
+}

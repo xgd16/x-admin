@@ -1,0 +1,49 @@
+// 通用小工具类与空状态。
+
+.stat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--glass-soft);
+  font-family: var(--mono);
+  font-size: 8px;
+  color: var(--muted);
+}
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.detail-grid .full {
+  grid-column: 1 / -1;
+}
+.split-panels {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+.inline-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.splash {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+.empty-hint {
+  padding: 26px;
+  text-align: center;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 9px;
+}

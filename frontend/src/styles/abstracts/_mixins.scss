@@ -1,0 +1,28 @@
+@use 'sass:map';
+@use 'variables' as *;
+
+// 按断点名称生成 max-width 媒体查询。
+// 用法：`@include below('lg') { ... }`
+@mixin below($breakpoint) {
+  @if not map.has-key($breakpoints, $breakpoint) {
+    @error '未知断点 `#{$breakpoint}`，可用值：#{map.keys($breakpoints)}。';
+  }
+
+  @media (max-width: map.get($breakpoints, $breakpoint)) {
+    @content;
+  }
+}
+
+// 单行文本省略。
+@mixin truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// 系统开启“减少动态效果”时应用的样式。
+@mixin reduced-motion {
+  @media (prefers-reduced-motion: reduce) {
+    @content;
+  }
+}

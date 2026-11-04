@@ -1,0 +1,112 @@
+// 用户页：列表/检查器分栏与角色标签。
+
+.users-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 288px;
+  gap: 10px;
+  align-items: start;
+}
+.inspector {
+  border-radius: 22px;
+  padding: 13px;
+}
+.ins-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.ins-head .big-avatar {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, #ffd0bd, #ff8a5c);
+  color: #8f2a0d;
+  font-size: 18px;
+  font-weight: 600;
+  box-shadow: 0 10px 22px rgba(255, 138, 92, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+.ins-head b {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+}
+.ins-head span {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--mono);
+  font-size: 7.5px;
+  color: var(--muted);
+}
+.ins-body {
+  padding: 13px 0 4px;
+  display: grid;
+  gap: 13px;
+}
+.field label {
+  display: block;
+  margin-bottom: 5px;
+  font-family: var(--mono);
+  font-size: 7.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.ins-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.ins-foot .hint {
+  font-family: var(--mono);
+  font-size: 7.5px;
+  color: var(--dim);
+}
+.role-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.role-chip {
+  position: relative;
+}
+.role-chip input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.role-chip span {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.38);
+  border: 1px solid rgba(255, 255, 255, 0.66);
+  box-shadow: inset 0 1px 0 #fff;
+  font-size: 9.5px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+.role-chip span:hover {
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--ink);
+}
+.role-chip input:checked + span {
+  background: linear-gradient(145deg, #ff8a5c, #ff5f33);
+  border-color: rgba(255, 255, 255, 0.35);
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(255, 95, 51, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+:root[data-theme='dark'] .role-chip span {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: var(--line);
+  box-shadow: none;
+}

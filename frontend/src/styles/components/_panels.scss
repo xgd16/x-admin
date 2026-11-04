@@ -1,0 +1,37 @@
+// 通用面板容器与面板标题。
+
+.panel {
+  border-radius: 22px;
+  padding: 15px;
+  min-width: 0;
+  overflow: hidden;
+}
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.panel-head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.panel-head span {
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  color: var(--dim);
+}
+.panel-head .link {
+  font-size: 9.5px;
+  color: var(--accent);
+  font-weight: 500;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.panel-head .link:hover {
+  text-decoration: underline;
+}

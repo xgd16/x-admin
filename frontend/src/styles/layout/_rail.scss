@@ -1,0 +1,212 @@
+// 左侧图标栏：品牌、模块按钮、主题切换与头像。
+
+.rail {
+  width: 66px;
+  flex: none;
+  border-radius: 24px;
+  padding: 0 0 11px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  position: sticky;
+  top: 10px;
+  height: 100%;
+  overflow: hidden;
+}
+.rail-brand {
+  width: 100%;
+  height: 54px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 24px 24px 0 0;
+  background: radial-gradient(80% 140% at 50% 0%, rgba(255, 95, 51, 0.14), rgba(255, 120, 160, 0.04) 48%, transparent 76%);
+}
+.rail-logo {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.4));
+  box-shadow: 0 2px 4px rgba(23, 43, 63, 0.08), 0 12px 22px -12px rgba(255, 95, 51, 0.55), inset 0 1px 0 #fff;
+  cursor: pointer;
+  transition: transform 0.24s, box-shadow 0.24s, border-color 0.24s;
+}
+.rail-logo::before {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 56%, rgba(255, 95, 51, 0.22), rgba(255, 77, 141, 0.1) 46%, transparent 72%);
+  filter: blur(5px);
+  opacity: 0.7;
+  transition: opacity 0.24s;
+}
+.rail-logo svg {
+  position: relative;
+  z-index: 1;
+}
+.rail-logo:hover {
+  transform: translateY(-1px);
+  border-color: #fff;
+  box-shadow: 0 3px 6px rgba(23, 43, 63, 0.09), 0 16px 28px -12px rgba(255, 95, 51, 0.66), inset 0 1px 0 #fff;
+}
+.rail-logo:hover::before {
+  opacity: 1;
+}
+.rail-logo:active {
+  transform: scale(0.95);
+}
+.rail-sep {
+  width: 26px;
+  height: 1px;
+  flex: none;
+  margin: 3px 0 7px;
+  background: linear-gradient(90deg, transparent, rgba(11, 28, 44, 0.16), transparent);
+}
+.rail-btn {
+  width: 40px;
+  height: 40px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  position: relative;
+  transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.18s;
+}
+.rail-btn:hover {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.5);
+}
+.rail-btn:active {
+  transform: scale(0.94);
+}
+.rail-btn.active {
+  color: #b23a12;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+.rail-btn.active:hover {
+  background: transparent;
+}
+.rail-active {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: 14px;
+  pointer-events: none;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.52));
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 6px 16px rgba(23, 43, 63, 0.12), inset 0 1px 0 #fff;
+}
+:root[data-theme='dark'] .rail {
+  background:
+    radial-gradient(110% 42% at 50% 0%, rgba(120, 160, 255, 0.12), transparent 62%),
+    linear-gradient(165deg, rgba(24, 33, 48, 0.96), rgba(10, 15, 24, 0.92));
+  border-color: rgba(148, 174, 204, 0.14);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+:root[data-theme='dark'] .rail-btn {
+  color: #9db0c4;
+}
+:root[data-theme='dark'] .rail-brand {
+  background: radial-gradient(80% 140% at 50% 0%, rgba(255, 95, 51, 0.16), rgba(255, 77, 141, 0.04) 48%, transparent 76%);
+}
+:root[data-theme='dark'] .rail-logo {
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.03));
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+:root[data-theme='dark'] .rail-logo:hover {
+  border-color: rgba(255, 255, 255, 0.26);
+  box-shadow: 0 14px 28px -10px rgba(0, 0, 0, 0.8), 0 0 26px rgba(255, 95, 51, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+:root[data-theme='dark'] .rail-sep {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16), transparent);
+}
+:root[data-theme='dark'] .rail-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.07);
+}
+:root[data-theme='dark'] .rail-btn.active {
+  color: #ffc2ad;
+}
+:root[data-theme='dark'] .rail-active {
+  background: linear-gradient(145deg, rgba(255, 138, 92, 0.18), rgba(255, 95, 51, 0.07));
+  border-color: rgba(255, 138, 92, 0.22);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.rail-active::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 15px;
+  width: 3px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--accent);
+  box-shadow: 0 0 12px rgba(255, 95, 51, 0.8);
+}
+.rail-glyph {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  transition: transform 0.22s;
+}
+.rail-btn.active .rail-glyph {
+  transform: scale(1.04);
+}
+.theme-swap {
+  position: relative;
+  display: block;
+  width: 17px;
+  height: 17px;
+}
+.theme-swap > span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transform: rotate(-55deg) scale(0.62);
+  transition: opacity 0.24s, transform 0.32s cubic-bezier(0.22, 0.8, 0.28, 1);
+}
+.theme-swap > span.on {
+  opacity: 1;
+  transform: rotate(0) scale(1);
+}
+.rail-spacer {
+  margin-top: auto;
+}
+.rail-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, #c7b8ff, #8b7cf6);
+  color: #fff;
+  border: 0;
+  font-family: var(--mono);
+  font-size: 9px;
+  box-shadow: 0 6px 16px rgba(139, 124, 246, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  margin-top: 4px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.rail-avatar:hover {
+  transform: scale(1.06);
+  box-shadow: 0 8px 20px rgba(139, 124, 246, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.rail-avatar:active {
+  transform: scale(0.96);
+}
