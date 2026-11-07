@@ -420,6 +420,7 @@ npm run dev
 | `make coverage-html` | 生成 `coverage.html` |
 | `make lint` | `go vet` + `oxlint` |
 | `make fmt` | `gofmt` |
+| `make wire` | 修改装配后重新生成 `wire_gen.go` |
 | `make compose-up` | 启动完整 Docker Compose |
 | `make compose-logs` | 查看 Compose 日志 |
 
@@ -432,7 +433,7 @@ x-admin/
 ├── cmd/
 │   └── server/main.go              # 进程入口：配置 → 装配 → 监听 → 优雅退出
 ├── internal/
-│   ├── bootstrap/                  # 依赖装配：DB / Redis / repo / service / router
+│   ├── bootstrap/                  # 依赖装配：wire.go 声明 + wire_gen.go 自动生成
 │   ├── config/                     # YAML + X_ADMIN_* 环境变量
 │   ├── database/                   # GORM 连接、迁移、健康检查
 │   ├── model/                      # GORM 模型与查询过滤器
@@ -458,7 +459,7 @@ x-admin/
 │       └── tree/                   # 通用树构建
 ├── migrations/                     # golang-migrate SQL（embed 到二进制）
 ├── tests/                          # Go 测试（unit / integration）
-│   ├── unit/                       # pkg / service / middleware / database / repository
+│   ├── unit/                       # pkg / service / handler / middleware / database / repository / bootstrap / jobs
 │   ├── integration/                # SQLite + 内存缓存的完整 HTTP 链路
 │   └── testsupport/                # 测试装配
 ├── frontend/
@@ -706,6 +707,7 @@ npm run build     # tsc -b && vite build → dist/
 npm run preview   # 预览生产构建
 npm run lint      # oxlint
 npm test          # vitest run
+npm run test:coverage  # vitest run --coverage（@vitest/coverage-v8）
 npm run test:watch
 ```
 
@@ -843,7 +845,7 @@ TanStack Query 默认配置：`retry: 1`、关闭窗口聚焦重取、`staleTime
 ### 9.1 后端
 
 ```bash
-make test          # go test ./tests/...
+make test          # go test ./...
 make coverage      # 覆盖率汇总（-coverpkg=./internal/...）
 make coverage-html # 生成 coverage.html
 make lint          # go vet
@@ -855,24 +857,25 @@ make fmt           # gofmt
 - `tests/unit/pkg`：错误码、分页、JWT、密码、缓存（含 miniredis）、验证码、TOTP、存储、Excel、树。
 - `tests/unit/service`：认证、用户、角色、菜单、部门、字典、参数、文件、任务、日志、看板、个人中心、通知、Passkey。
 - `tests/unit/middleware`：request-id、recovery、CORS、认证、权限、限流、审计脱敏。
-- `tests/unit/database`：迁移辅助与健康检查。
-- `tests/unit/repository`：日志保留策略等仓储行为。
+- `tests/unit/database`：迁移辅助、健康检查与 MySQL 真实连接路径（本机不可用时自动跳过）。
+- `tests/unit/repository`：日志保留策略、筛选组合与软删除墓碑等仓储行为。
 - `tests/unit/bootstrap`：完整依赖装配、缓存不可用与任务执行器。
-- `tests/unit/handler`：处理器在数据库故障下的错误分支。
+- `tests/unit/handler`：处理器错误分支（service 报错 → 统一响应）与文件访问 Cookie 下发。
 - `tests/unit/jobs`：Cron 调度封装。
 - `tests/integration`：SQLite + 内存缓存跑完整 HTTP 登录与 CRUD 链路，含两步登录、恢复码、关闭双重验证、Passkey 设备管理与 WebAuthn 会话校验。
 - `tests/testsupport`：可复用的测试装配（SQLite / 内存缓存 / 完整 Router）。
 
-`make coverage` 当前整体约 **90%**（随测试变化，以命令输出为准）；启动装配、数据库错误路径和 Passkey 主要分支均已纳入测试。
+`make coverage` 当前整体约 **92%**（随测试变化，以命令输出为准）；启动装配、数据库错误路径和 Passkey 主要分支均已纳入测试。
 
 ### 9.2 前端
 
 ```bash
 cd frontend
-npm test
+npm test              # vitest run
+npm run test:coverage # 生成覆盖率报告（coverage/ 目录）
 ```
 
-覆盖：趋势图坐标/路径/吸附、登录趋势组件、TabBar 右键菜单、通知中心、文件选择组件、tabs store、文件工具、Passkey base64url 与错误提示。
+覆盖：API 客户端（Bearer 注入、错误解析、401 单飞刷新与重放、下载/上传、saveBlob）、趋势图坐标/路径/吸附、登录趋势组件、TabBar 右键菜单、通知中心、文件选择组件、移动端记录列表、导航配置、tabs store、文件工具、menuTree、useToast、Passkey base64url 与错误提示。整体覆盖率约 **71%**，`api/` 目录约 94%。
 
 ### 9.3 提交前检查
 
@@ -1012,6 +1015,7 @@ Cron 在进程内运行，每个副本都会注册任务。改为单副本、主
 - 列表接口复用 `pagination.Query` 与 `Normalize()`。
 - 树结构复用 `internal/pkg/tree`。
 - 所有测试放在 `tests/`，不与被测代码同目录。
+- 依赖装配使用 google/wire：改动 `internal/bootstrap` 的 provider 后运行 `make wire` 重新生成 `wire_gen.go`，不手工编辑生成文件。
 - 前端接口类型集中在 `frontend/src/api/types.ts`，页面不直接写 `fetch`。
 - 前端权限显隐使用 `useAuth().can()`，后端权限校验不可省略。
 
