@@ -3,7 +3,7 @@ GO ?= go
 NPM ?= npm
 
 .PHONY: run build test coverage coverage-html lint fmt frontend frontend-build \
-	frontend-test test-all dev-infra dev-infra-down compose-up compose-down compose-logs tidy
+	frontend-test test-all dev-infra dev-infra-down compose-up compose-down compose-logs tidy wire
 
 run:
 	$(GO) run ./cmd/server -config configs/config.yaml
@@ -36,6 +36,9 @@ fmt:
 
 tidy:
 	$(GO) mod tidy
+
+wire:
+	$(GO) run github.com/google/wire/cmd/wire@latest ./internal/bootstrap
 
 frontend:
 	cd frontend && $(NPM) run dev
