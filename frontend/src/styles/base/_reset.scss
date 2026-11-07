@@ -35,32 +35,14 @@ button {
   font-family: inherit;
 }
 
-/* 桌面端细滚动条：6px、轨道全透明、滑块为 muted 色低透明度胶囊，
-   悬停加深；颜色走主题令牌，深浅主题自动切换。
-   触屏/窄窗口由 responsive 层整体隐藏，此处只服务鼠标环境。 */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
-  border-radius: 999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover);
-}
-::-webkit-scrollbar-track,
-::-webkit-scrollbar-corner {
-  background: transparent;
-}
-/* Firefox 不支持 ::-webkit-scrollbar，走标准属性。
-   注意标准属性会被继承，且 Chrome 一旦命中就会禁用上面的自定义样式
-   （退回系统悬浮滚动条），所以必须用 @supports 隔离在 Firefox 内。 */
-@supports not selector(::-webkit-scrollbar) {
-  html {
-    scrollbar-width: thin;
-    scrollbar-color: var(--scrollbar-thumb) transparent;
-  }
+/* 滚动条：标准属性 scrollbar-width/scrollbar-color，只给滑块上主题色、
+   轨道全透明。与 ::-webkit-scrollbar 自定义样式不同，标准属性在
+   macOS/触控板上保持系统悬浮滚动条行为——默认隐身、滚动时浮现、
+   停止后淡出；Windows 等经典滚动条平台则是常显的细滚动条。
+   属性可继承，挂在 html 上覆盖所有滚动容器；深浅主题随令牌切换。 */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 .app-watermark-layer {

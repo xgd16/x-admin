@@ -78,10 +78,9 @@
 .ant-table-wrapper .ant-table {
   background: transparent;
 }
-/* antd 给 .ant-table 注入了标准 scrollbar-color（为它的吸附滚动条着色）。
-   Chrome 一旦命中标准属性就会禁用 ::-webkit-scrollbar 自定义样式，
-   表格横向滚动条会退回系统粗滚动条；这里复位为 inherit——
-   Chrome 端交还给全站细滚动条，Firefox 端继续继承 html 的 thin + 主题色。 */
+/* antd 给 .ant-table 注入了标准 scrollbar-color（为它的吸附滚动条着色，
+   深灰滑块 + 白轨道）。全站滚动条走 html 继承的主题色，这里复位为
+   inherit，让表格滚动条与页面滚动条同色。 */
 :root .ant-table-wrapper .ant-table {
   scrollbar-width: inherit;
   scrollbar-color: inherit;

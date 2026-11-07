@@ -441,7 +441,9 @@
 
 // 手机端隐藏滚动条但保留原生滚动，避免滚动条持续占用可视宽度。
 // 判定与 useIsCompactViewport() 保持一致：窄屏或触屏窄窗口。
+// html 要单独点名：base 层的 html { scrollbar-width: thin } 比通配符优先级高。
 @media (max-width: 900px), (pointer: coarse) and (max-width: 1024px) {
+  html,
   * {
     scrollbar-width: none;
     -ms-overflow-style: none;
