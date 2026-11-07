@@ -3,8 +3,10 @@ node_modules/
 frontend/node_modules/
 frontend/dist/
 bin/
+coverage/
 coverage.out
 coverage.html
+*.prof
 
 # runtime data
 data/uploads/*
