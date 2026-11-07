@@ -12,6 +12,10 @@ const ok = <T,>(data: T) =>
 const envelope = (code: number, message: string) =>
   new Response(JSON.stringify({ code, message, data: null }), { status: 200 })
 
+// 捕获被拒绝的 Promise 并按 ApiError 断言，避免 success 类型与错误的联合类型。
+const errOf = async <T>(p: Promise<T>): Promise<ApiError> =>
+  (await p.catch((e: unknown) => e)) as ApiError
+
 describe('api client', () => {
   let fetchMock: ReturnType<typeof vi.fn>
 
@@ -40,7 +44,7 @@ describe('api client', () => {
 
   it('业务 code 非 0 抛出 ApiError', async () => {
     fetchMock.mockResolvedValue(envelope(40001, '参数错误'))
-    const err = await api.get('/x').catch((e: ApiError) => e)
+    const err = await errOf(api.get('/x'))
     expect(err).toBeInstanceOf(ApiError)
     expect(err.code).toBe(40001)
     expect(err.message).toBe('参数错误')
@@ -48,7 +52,7 @@ describe('api client', () => {
 
   it('HTTP 401 且 code 缺失时使用状态码', async () => {
     fetchMock.mockResolvedValue(new Response('{"message":"denied"}', { status: 401 }))
-    const err = await api.get('/x').catch((e: ApiError) => e)
+    const err = await errOf(api.get('/x'))
     expect(err.code).toBe(401)
   })
 
@@ -136,14 +140,14 @@ describe('api client', () => {
 
   it('download 错误响应解析 JSON 提示', async () => {
     fetchMock.mockResolvedValue(new Response('{"code":40301,"message":"没有权限"}', { status: 403 }))
-    const err = await api.download('/users/export').catch((e: ApiError) => e)
+    const err = await errOf(api.download('/users/export'))
     expect(err.code).toBe(403)
     expect(err.message).toBe('没有权限')
   })
 
   it('download 错误响应非 JSON 时保留默认提示', async () => {
     fetchMock.mockResolvedValue(new Response('<html>oops</html>', { status: 502 }))
-    const err = await api.download('/users/export').catch((e: ApiError) => e)
+    const err = await errOf(api.download('/users/export'))
     expect(err.code).toBe(502)
     expect(err.message).toBe('下载失败')
   })
