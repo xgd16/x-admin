@@ -111,3 +111,48 @@ func TestConfigValidation(t *testing.T) {
 	_, err = config.Load("")
 	require.Error(t, err)
 }
+
+func TestConfigProductionRejectsComposeExampleSecret(t *testing.T) {
+	t.Setenv("X_ADMIN_APP_ENV", "production")
+	t.Setenv("X_ADMIN_JWT_SECRET", "change-me-x-admin-production-secret-2026")
+	_, err := config.Load("")
+	require.Error(t, err)
+}
+
+func TestConfigStorageRootRequired(t *testing.T) {
+	t.Setenv("X_ADMIN_STORAGE_ROOT", "")
+	_, err := config.Load("")
+	require.Error(t, err)
+}
+
+func TestConfigEmptyTrustedProxiesDisablesTrust(t *testing.T) {
+	t.Setenv("X_ADMIN_TRUSTED_PROXIES", "  ")
+	cfg, err := config.Load("")
+	require.NoError(t, err)
+	assert.Empty(t, cfg.Server.TrustedProxies)
+}
+
+func TestConfigInvalidNumericEnvIsIgnored(t *testing.T) {
+	t.Setenv("X_ADMIN_REDIS_DB", "not-a-number")
+	t.Setenv("X_ADMIN_STORAGE_MAX_MB", "not-a-number")
+	cfg, err := config.Load("")
+	require.NoError(t, err)
+	assert.Equal(t, 0, cfg.Redis.DB)
+	assert.Equal(t, int64(20), cfg.Storage.MaxUploadMB)
+}
+
+func TestConfigListEnvOverrides(t *testing.T) {
+	t.Setenv("X_ADMIN_WEBAUTHN_RP_ORIGINS", "https://a.test, https://b.test")
+	cfg, err := config.Load("")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"https://a.test", "https://b.test"}, cfg.WebAuthn.RPOrigins)
+}
+
+func TestConfigUnreadableFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "noperm.yaml")
+	require.NoError(t, os.WriteFile(path, []byte("app:"), 0o600))
+	require.NoError(t, os.Chmod(path, 0o000))
+	t.Cleanup(func() { _ = os.Chmod(path, 0o600) })
+	_, err := config.Load(path)
+	require.Error(t, err)
+}

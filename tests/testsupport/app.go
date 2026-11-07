@@ -198,6 +198,13 @@ func (a *App) Do(method, path string, body any, token string) *httptest.Response
 	return rr
 }
 
+// DoRaw 发送预构建的请求，供 multipart 等自定义请求场景使用。
+func (a *App) DoRaw(req *http.Request) *httptest.ResponseRecorder {
+	rr := httptest.NewRecorder()
+	a.Router.ServeHTTP(rr, req)
+	return rr
+}
+
 type Envelope struct {
 	Code    int             `json:"code"`
 	Message string          `json:"message"`

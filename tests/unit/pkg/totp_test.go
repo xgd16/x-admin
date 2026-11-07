@@ -133,3 +133,40 @@ func TestRecoveryCodes(t *testing.T) {
 		}
 	}
 }
+
+func TestCodeRejectsInvalidSecret(t *testing.T) {
+	_, err := totp.Code("not-base32!!", time.Now())
+	if err == nil {
+		t.Fatal("invalid secret accepted")
+	}
+	// 去掉填充符后为空，解码结果长度为 0。
+	if _, err = totp.Code("=", time.Now()); err == nil {
+		t.Fatal("empty secret accepted")
+	}
+	if _, err = totp.Code("", time.Now()); err == nil {
+		t.Fatal("blank secret accepted")
+	}
+}
+
+func TestValidateSkewEdgeCases(t *testing.T) {
+	secret := "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
+	// counter 为负（1970 之前）：越界步长应被跳过而不是 panic。
+	code := "287082" // counter 1 的 RFC 测试向量
+	if !totp.ValidateSkew(secret, code, time.Unix(-45, 0), 2) {
+		t.Fatal("negative-step window should still validate the previous code")
+	}
+	// skew 为负时按 0 处理：只检查当前步，不再回看上一步。
+	// 上一步（counter 0）的验证码在当前步不应命中。
+	if totp.ValidateSkew(secret, "755224", time.Unix(30, 0), -1) {
+		t.Fatal("negative skew must disable backward lookup")
+	}
+	if !totp.ValidateSkew(secret, code, time.Unix(30, 0), 0) {
+		t.Fatal("current step should validate without skew")
+	}
+}
+
+func TestQRCodeRejectsOversizedPayload(t *testing.T) {
+	if _, err := totp.QRCodeDataURL(strings.Repeat("x", 4000)); err == nil {
+		t.Fatal("oversized payload should fail to encode")
+	}
+}

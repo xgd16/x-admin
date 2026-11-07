@@ -2,9 +2,11 @@ package pkg_test
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
+	jwtlib "github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -62,4 +64,62 @@ func TestRandomToken(t *testing.T) {
 	other, err := security.RandomToken()
 	require.NoError(t, err)
 	assert.NotEqual(t, token, other)
+}
+
+func TestFileAccessTokens(t *testing.T) {
+	m := security.NewTokenManager("0123456789abcdef", "x-admin", time.Hour)
+	tok := m.IssueFileAccess(7, 3, "sid-1", time.Hour)
+	uid, ver, sid, err := m.ParseFileAccess(tok)
+	require.NoError(t, err)
+	assert.Equal(t, uint64(7), uid)
+	assert.Equal(t, int64(3), ver)
+	assert.Equal(t, "sid-1", sid)
+
+	// 另一把密钥签发无法通过签名校验。
+	other := security.NewTokenManager("other-secret-00000", "x-admin", time.Hour)
+	_, _, _, err = other.ParseFileAccess(tok)
+	require.ErrorIs(t, err, security.ErrInvalidToken)
+
+	// 签发时间在未来的凭证未过期，可以校验通过。
+	future := m.IssueFileAccess(7, 3, "sid-1", time.Minute)
+	_, _, _, err = m.ParseFileAccess(future)
+	require.NoError(t, err)
+}
+
+func TestParseFileAccessRejectsMalformed(t *testing.T) {
+	m := security.NewTokenManager("0123456789abcdef", "x-admin", time.Hour)
+	validSig := m.IssueFileAccess(1, 1, "sid", time.Hour)
+	parts := strings.Split(validSig, ":")
+	require.Len(t, parts, 5)
+
+	cases := map[string]string{
+		"空串":       "",
+		"段数不足":     "a:b:c:d",
+		"段数过多":     "a:b:c:d:e:f",
+		"UID 非数字":  "x:1:sid:9999999999:aa",
+		"UID 为零":   "0:1:sid:9999999999:aa",
+		"版本非数字":    "1:x:sid:9999999999:aa",
+		"会话 ID 为空": "1:1::9999999999:aa",
+		"过期时间非数字":  "1:1:sid:bad:aa",
+		"凭证已过期":    "1:1:sid:1:aa",
+		"签名错误":     parts[0] + ":" + parts[1] + ":" + parts[2] + ":" + parts[3] + ":deadbeef",
+	}
+	for name, raw := range cases {
+		_, _, _, err := m.ParseFileAccess(raw)
+		require.Error(t, err, name)
+	}
+}
+
+func TestParseRejectsZeroUserID(t *testing.T) {
+	m := security.NewTokenManager("0123456789abcdef", "x-admin", time.Hour)
+	token, err := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, security.Claims{}).SignedString([]byte("0123456789abcdef"))
+	require.NoError(t, err)
+	_, err = m.Parse(token)
+	require.ErrorIs(t, err, security.ErrInvalidToken)
+}
+
+func TestHashRejectsOverlongPassword(t *testing.T) {
+	h := security.NewBcryptHasher(4)
+	_, err := h.Hash(strings.Repeat("a", 100))
+	require.Error(t, err)
 }

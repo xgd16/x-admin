@@ -35,3 +35,17 @@ func TestReadInvalidWorkbook(t *testing.T) {
 	_, err := excel.Read(bytes.NewReader([]byte("not excel")))
 	require.Error(t, err)
 }
+
+func TestWriteInvalidSheetName(t *testing.T) {
+	_, err := excel.Write("bad/name", []string{"A"}, nil)
+	require.Error(t, err)
+}
+
+func TestReadTrimsTrailingEmptyRows(t *testing.T) {
+	data, err := excel.Write("", []string{"A", "B"}, [][]string{{"1", "2"}, {"", ""}})
+	require.NoError(t, err)
+	rows, err := excel.Read(bytes.NewReader(data))
+	require.NoError(t, err)
+	require.Len(t, rows, 2) // 末尾全空行被裁剪
+	assert.Equal(t, []string{"1", "2"}, rows[1])
+}
