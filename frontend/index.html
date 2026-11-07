@@ -3,16 +3,141 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#edf3f9" />
     <title>x-admin</title>
+    <script>
+      // 尽早恢复主题，避免深色用户刷新时先闪白。
+      try {
+        var persisted = JSON.parse(localStorage.getItem('x-admin.ui') || 'null')
+        if (persisted && persisted.state && persisted.state.theme === 'dark') {
+          document.documentElement.dataset.theme = 'dark'
+          document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#070c15')
+        }
+      } catch (error) {
+        // 首屏脚本失败时保持默认浅色，不影响应用启动。
+      }
+    </script>
+    <style>
+      /* React 挂载前的启动占位：沿用主题色与品牌标记，避免白屏和主题闪烁。 */
+      html {
+        background: #edf3f9;
+      }
+      html[data-theme='dark'] {
+        background: #070c15;
+      }
+      body {
+        margin: 0;
+      }
+      .boot-splash {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-content: center;
+        justify-items: center;
+        gap: 14px;
+        background:
+          radial-gradient(circle at 30% 30%, rgba(142, 216, 255, 0.5), transparent 46%),
+          radial-gradient(circle at 70% 20%, rgba(199, 184, 255, 0.4), transparent 44%),
+          radial-gradient(circle at 55% 80%, rgba(255, 198, 168, 0.5), transparent 48%),
+          #edf3f9;
+        color: #5b7186;
+        font-family: 'Avenir Next', 'SF Pro Display', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+      }
+      html[data-theme='dark'] .boot-splash {
+        background:
+          radial-gradient(circle at 30% 30%, rgba(47, 184, 217, 0.14), transparent 46%),
+          radial-gradient(circle at 70% 20%, rgba(139, 124, 246, 0.12), transparent 44%),
+          radial-gradient(circle at 55% 80%, rgba(255, 138, 92, 0.12), transparent 48%),
+          #070c15;
+        color: #a0b1c3;
+      }
+      .boot-mark {
+        position: relative;
+        width: 56px;
+        height: 56px;
+      }
+      .boot-mark::before {
+        content: '';
+        position: absolute;
+        inset: -10px;
+        border: 1px solid rgba(255, 95, 51, 0.28);
+        border-top-color: #ff5f33;
+        border-right-color: #ff8a5c;
+        border-radius: 24px;
+        animation: boot-spin 1s linear infinite;
+      }
+      .boot-mark img {
+        display: block;
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        box-shadow: 0 12px 26px -12px rgba(255, 95, 51, 0.55);
+      }
+      .boot-name {
+        font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.3em;
+        color: inherit;
+      }
+      .boot-track {
+        position: relative;
+        width: 122px;
+        height: 3px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(11, 28, 44, 0.08);
+      }
+      html[data-theme='dark'] .boot-track {
+        background: rgba(255, 255, 255, 0.1);
+      }
+      .boot-track i {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 36%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #ff8a5c, #ff5f33 58%, #ff4d8d);
+        animation: boot-run 1.4s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+      }
+      @keyframes boot-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @keyframes boot-run {
+        0% {
+          transform: translateX(-115%) scaleX(0.72);
+        }
+        55% {
+          transform: translateX(120%) scaleX(1);
+        }
+        100% {
+          transform: translateX(340%) scaleX(0.66);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .boot-mark::before,
+        .boot-track i {
+          animation: none;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="boot-splash" role="status" aria-label="正在加载 x-admin">
+        <div class="boot-mark">
+          <img src="/favicon.svg" alt="" width="56" height="56" />
+        </div>
+        <span class="boot-name">X-ADMIN</span>
+        <span class="boot-track" aria-hidden="true"><i></i></span>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

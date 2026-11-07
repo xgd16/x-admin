@@ -1,0 +1,253 @@
+// 菜单管理：可拖拽树形列表的桌面与手机布局。
+
+@use '../abstracts/mixins' as *;
+
+.menu-tree-panel {
+  overflow: hidden;
+}
+.menu-tree-toolbar {
+  min-height: 46px;
+}
+.menu-tree-hint {
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 8.5px;
+  letter-spacing: 0.03em;
+  color: var(--dim);
+  @include truncate;
+}
+.menu-tree-body {
+  padding: 6px 10px 10px;
+}
+.menu-tree-empty {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 38px 12px;
+}
+.menu-tree-empty .ant-empty {
+  margin: 0;
+}
+
+.menu-tree .ant-tree {
+  background: transparent;
+  color: var(--ink);
+}
+.menu-tree .ant-tree-list-holder-inner {
+  gap: 1px;
+}
+.menu-tree .ant-tree-treenode {
+  width: 100%;
+  align-items: center;
+  padding: 1px 4px;
+  border-radius: 10px;
+  transition: background-color 0.16s;
+}
+.menu-tree .ant-tree-treenode:hover {
+  background: var(--glass-soft);
+}
+.menu-tree .ant-tree-treenode-draggable .ant-tree-node-content-wrapper {
+  cursor: grab;
+}
+.menu-tree .ant-tree-treenode-draggable .ant-tree-node-content-wrapper:active {
+  cursor: grabbing;
+}
+.menu-tree .ant-tree-node-content-wrapper,
+.menu-tree .ant-tree-node-content-wrapper:hover,
+.menu-tree .ant-tree-node-content-wrapper.ant-tree-node-selected {
+  flex: 1;
+  min-width: 0;
+  padding: 0 !important;
+  background: transparent !important;
+}
+.menu-tree .ant-tree-title {
+  display: block;
+  width: 100%;
+}
+.menu-tree .ant-tree-switcher {
+  display: flex;
+  align-self: stretch;
+  align-items: center;
+  color: var(--muted);
+}
+/* 展开按钮只保留箭头本身；antd 默认的方形 hover 背景在自定义行高下显得过大。 */
+.menu-tree .ant-tree-switcher::before {
+  display: none;
+}
+.menu-tree .ant-tree-switcher:hover .menu-tree-switcher-icon {
+  color: var(--ink);
+}
+.menu-tree-switcher-icon {
+  color: var(--muted);
+  transform: rotate(-90deg);
+  transition: transform 0.18s, color 0.18s;
+}
+.menu-tree-switcher-icon.is-open {
+  transform: none;
+}
+.menu-tree .ant-tree-indent-unit {
+  width: 18px;
+}
+.menu-tree .ant-tree-show-line .ant-tree-indent-unit::before {
+  border-inline-end-color: var(--line);
+}
+
+.menu-tree-node {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  min-width: 0;
+  padding: 2px 0;
+}
+.menu-tree-icon {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 95, 51, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 95, 51, 0.1);
+  color: var(--accent);
+}
+:root[data-theme='dark'] .menu-tree-icon {
+  border-color: rgba(255, 138, 92, 0.18);
+  background: rgba(255, 95, 51, 0.14);
+}
+.menu-tree-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 1 260px;
+  min-width: 0;
+}
+.menu-tree-main .ant-tag {
+  flex: none;
+  margin-inline-end: 0;
+}
+.menu-tree-name {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.menu-tree-type {
+  flex: none;
+  font-size: 8.5px;
+}
+.menu-tree-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+.menu-tree-code,
+.menu-tree-permission {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.menu-tree-code {
+  flex: 0 1 auto;
+  max-width: 220px;
+}
+.menu-tree-permission {
+  flex: 0 1 200px;
+  color: var(--dim);
+}
+.menu-tree-actions {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  margin-left: auto;
+}
+.menu-tree-actions .ant-btn {
+  height: 28px;
+  padding: 0 8px;
+  font-size: 10px;
+}
+.menu-tree-more {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  margin-left: auto;
+}
+
+@include below('md') {
+  .menu-tree-toolbar {
+    min-height: 42px;
+    padding: 7px 8px;
+  }
+  .menu-tree-hint {
+    font-size: 7.5px;
+  }
+  .menu-tree-body {
+    padding: 4px 4px 8px;
+  }
+  .menu-tree .ant-tree-treenode {
+    padding: 0 2px;
+  }
+  .menu-tree .ant-tree-indent-unit {
+    width: 14px;
+  }
+  .menu-tree .ant-tree-draggable-icon {
+    display: none;
+  }
+  .menu-tree-node {
+    flex-wrap: wrap;
+    gap: 3px 7px;
+    min-height: 0;
+    padding: 7px 2px;
+  }
+  .menu-tree-icon {
+    width: 24px;
+    height: 24px;
+  }
+  .menu-tree-main {
+    order: 1;
+    flex: 1 1 auto;
+  }
+  .menu-tree-name {
+    max-width: calc(100vw - 190px);
+    font-size: 12.5px;
+  }
+  .menu-tree-type {
+    font-size: 8px;
+  }
+  .menu-tree-actions,
+  .menu-tree-more {
+    order: 2;
+  }
+  .menu-tree-meta {
+    order: 3;
+    flex: 1 1 100%;
+    gap: 6px;
+    padding-left: 31px;
+  }
+  .menu-tree-code,
+  .menu-tree-permission {
+    max-width: none;
+    font-size: 8.5px;
+  }
+  .menu-tree-empty {
+    padding: 30px 10px;
+  }
+}
+
+@include reduced-motion {
+  .menu-tree .ant-tree-treenode {
+    transition: none;
+  }
+  .menu-tree-switcher-icon {
+    transition: none;
+  }
+}

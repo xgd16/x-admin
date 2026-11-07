@@ -7,11 +7,13 @@ import { App, Button, Form, Input, InputNumber, Modal, Select, Tree } from 'antd
 import type { TreeDataNode } from 'antd'
 import { api } from '../api/client'
 import type { Menu, PageResult, Role } from '../api/types'
+import { useToast } from '../hooks/useToast'
 import { useAuth } from '../stores/auth'
 import { PageHeader } from '../components/PageHeader'
 import { DataTable } from '../components/DataTable'
 import { FormModal } from '../components/FormModal'
 import { Icon } from '../components/Icon'
+import { InlineLoader } from '../components/Loading'
 import { StatusTag } from '../components/StatusTag'
 
 interface RoleValues {
@@ -32,7 +34,8 @@ function toTreeData(menus: Menu[]): TreeDataNode[] {
 }
 
 export function Roles() {
-  const { message, modal } = App.useApp()
+  const { modal } = App.useApp()
+  const toast = useToast()
   const queryClient = useQueryClient()
   const can = useAuth((state) => state.can)
   const [page, setPage] = useState(1)
@@ -89,32 +92,32 @@ export function Roles() {
     mutationFn: (values: RoleValues) =>
       editing ? api.put<Role>(`/roles/${editing.id}`, values) : api.post<Role>('/roles', values),
     onSuccess: () => {
-      message.success(editing ? '角色已更新' : '角色已创建')
+      toast.success(editing ? '角色已更新' : '角色已创建')
       setCreateOpen(false)
       setEditing(undefined)
       form.resetFields()
       invalidate()
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => api.del(`/roles/${id}`),
     onSuccess: () => {
-      message.success('角色已删除')
+      toast.success('角色已删除')
       invalidate()
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   const assignMutation = useMutation({
     mutationFn: (menuIDs: number[]) => api.put(`/roles/${assigning?.id}/menus`, { menu_ids: menuIDs }),
     onSuccess: () => {
-      message.success('权限已保存')
+      toast.success('权限已保存')
       setAssigning(undefined)
       void queryClient.invalidateQueries({ queryKey: ['role-menus'] })
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   const openCreate = () => {
@@ -283,7 +286,7 @@ export function Roles() {
         destroyOnHidden
       >
         {menuQuery.isLoading ? (
-          <div className="empty-hint">加载菜单中…</div>
+          <InlineLoader block label="正在加载权限菜单" />
         ) : (
           <Tree
             checkable

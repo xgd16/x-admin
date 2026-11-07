@@ -11,11 +11,14 @@ import { useAuth } from '../stores/auth'
 import { PageHeader } from '../components/PageHeader'
 import { DataTable } from '../components/DataTable'
 import { Icon } from '../components/Icon'
+import { ListSkeleton } from '../components/Loading'
+import { useToast } from '../hooks/useToast'
 import { formatSize } from '../utils/format'
 import { FILE_KIND_OPTIONS, fileKind, fileKindIcon, type FileKind } from '../utils/file'
 
 export function Files() {
-  const { message, modal } = App.useApp()
+  const { modal } = App.useApp()
+  const toast = useToast()
   const queryClient = useQueryClient()
   const can = useAuth((state) => state.can)
   const [page, setPage] = useState(1)
@@ -44,19 +47,19 @@ export function Files() {
   const uploadMutation = useMutation({
     mutationFn: (file: File) => api.upload<FileItem>('/files', file),
     onSuccess: (file) => {
-      message.success(`${file.name} 已上传`)
+      toast.success(`${file.name} 已上传`)
       invalidate()
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => api.del(`/files/${id}`),
     onSuccess: () => {
-      message.success('文件已删除')
+      toast.success('文件已删除')
       invalidate()
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   const sharesQuery = useQuery({
@@ -72,42 +75,54 @@ export function Files() {
       const absolute = new URL(result.url, window.location.origin).toString()
       setLatestShareURL(absolute)
       void queryClient.invalidateQueries({ queryKey: ['file-shares'] })
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(absolute)
-        message.success('分享链接已复制，24 小时内有效')
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(absolute)
+          toast.success('分享链接已复制，24 小时内有效')
+        } else {
+          toast.success('分享链接已创建，24 小时内有效')
+        }
+      } catch {
+        toast.warning('分享链接已创建，请手动复制')
       }
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   const revokeShareMutation = useMutation({
     mutationFn: ({ fileID, shareID }: { fileID: number; shareID: number }) =>
       api.del(`/files/${fileID}/shares/${shareID}`),
     onSuccess: () => {
-      message.success('分享链接已撤销')
+      toast.success('分享链接已撤销')
       setLatestShareURL('')
       void queryClient.invalidateQueries({ queryKey: ['file-shares'] })
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   const copyLatestShare = async () => {
     if (!latestShareURL) return
     if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(latestShareURL)
-      message.success('分享链接已复制')
+      try {
+        await navigator.clipboard.writeText(latestShareURL)
+        toast.success('分享链接已复制')
+      } catch {
+        toast.error('复制失败，请手动选择文本')
+      }
     } else {
       window.prompt('复制分享链接', latestShareURL)
     }
   }
 
   // 下载走后端鉴权接口，再用 Blob 触发浏览器保存。
-  const download = async (file: FileItem) => {
-    try {
-      saveBlob(await api.download(`/files/${file.id}/download`), file.name)
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : '下载失败')
-    }
+  const download = (file: FileItem) => {
+    void toast
+      .promise(api.download(`/files/${file.id}/download`).then((blob) => saveBlob(blob, file.name)), {
+        loading: `正在下载 ${file.name}…`,
+        success: `${file.name} 已下载`,
+        error: (error) => (error instanceof Error ? error.message : '下载失败'),
+      })
+      .catch(() => undefined)
   }
 
   return (
@@ -268,7 +283,7 @@ export function Files() {
 
           <div className="passkey-list">
             {sharesQuery.isLoading ? (
-              <div className="passkey-empty">正在读取分享记录…</div>
+              <ListSkeleton rows={2} compact />
             ) : (sharesQuery.data?.length ?? 0) === 0 ? (
               <div className="passkey-empty">还没有分享链接。</div>
             ) : (

@@ -10,6 +10,7 @@ import { useAuth } from '../../stores/auth'
 import { useTabs } from '../../stores/tabs'
 import { useUi } from '../../stores/ui'
 import { Icon } from '../Icon'
+import { useToast } from '../../hooks/useToast'
 import { NotificationCenter } from './NotificationCenter'
 import { useContextNav } from './useContextNav'
 
@@ -26,6 +27,7 @@ export function CommandBar() {
   const setDensity = useUi((state) => state.setDensity)
   const watermark = useUi((state) => state.watermark)
   const toggleWatermark = useUi((state) => state.toggleWatermark)
+  const toast = useToast()
 
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -150,6 +152,7 @@ export function CommandBar() {
               if (key === 'settings') setSettingsOpen(true)
               if (key === 'logout') {
                 void logout().then(() => {
+                  toast.success('已安全退出')
                   resetTabs()
                   navigate('/login')
                 })

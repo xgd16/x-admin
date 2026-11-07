@@ -11,6 +11,8 @@ import { useAuth } from '../stores/auth'
 import { PageHeader } from '../components/PageHeader'
 import { FileSelect } from '../components/FileSelect'
 import { Icon } from '../components/Icon'
+import { ListSkeleton } from '../components/Loading'
+import { useToast } from '../hooks/useToast'
 import { formatDate, initials } from '../utils/format'
 import { createPasskey, isPasskeySupported, passkeyErrorMessage } from '../utils/passkey'
 
@@ -27,7 +29,8 @@ interface TOTPFormValues {
 }
 
 export function Profile() {
-  const { message, modal } = App.useApp()
+  const { modal } = App.useApp()
+  const toast = useToast()
   const queryClient = useQueryClient()
   const storeUser = useAuth((state) => state.user)
   const can = useAuth((state) => state.can)
@@ -78,30 +81,30 @@ export function Profile() {
   const updateMutation = useMutation({
     mutationFn: (values: ProfileValues) => api.put<User>('/profile', values),
     onSuccess: (updated) => {
-      message.success('个人资料已更新')
+      toast.success('个人资料已更新')
       profileForm.setFieldsValue({ ...updated, avatar: updated.avatar ?? '' })
       void queryClient.invalidateQueries({ queryKey: ['profile'] })
       void useAuth.getState().bootstrap()
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   const revokeSessionMutation = useMutation({
     mutationFn: (id: string) => api.del(`/profile/sessions/${encodeURIComponent(id)}`),
     onSuccess: () => {
-      message.success('该设备已退出登录')
+      toast.success('该设备已退出登录')
       void queryClient.invalidateQueries({ queryKey: ['profile-sessions'] })
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   const revokeOthersMutation = useMutation({
     mutationFn: () => api.post<{ revoked: number }>('/profile/session-actions/revoke-others'),
     onSuccess: (data) => {
-      message.success(`已退出 ${data.revoked} 台其他设备`)
+      toast.success(`已退出 ${data.revoked} 台其他设备`)
       void queryClient.invalidateQueries({ queryKey: ['profile-sessions'] })
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   const revokeAllMutation = useMutation({
@@ -110,19 +113,19 @@ export function Profile() {
       // 当前 access token 也已失效，清理本地登录态并回到登录页。
       void useAuth.getState().logout().finally(() => window.location.assign('/login'))
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   const passwordMutation = useMutation({
     mutationFn: (values: { old_password: string; new_password: string }) =>
       api.put('/profile/password', { ...values, refresh_token: tokenStore.refresh }),
     onSuccess: () => {
-      message.success('密码已修改，下次登录请使用新密码')
+      toast.success('密码已修改，下次登录请使用新密码')
       passwordForm.resetFields()
       // 改密会递增 session_version，主动拉取 /auth/me 以换取新 access token。
       void useAuth.getState().bootstrap()
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   // TOTP 开关会影响登录态里的 totp_enabled，因此同时刷新 auth store。
@@ -141,7 +144,7 @@ export function Profile() {
       enableForm.resetFields()
       setEnableOpen(true)
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   const enableMutation = useMutation({
@@ -152,22 +155,22 @@ export function Profile() {
       }),
     onSuccess: (data) => {
       setRecoveryCodes(data.recovery_codes)
-      message.success('双重验证已开启')
+      toast.success('双重验证已开启')
       refreshTOTP()
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   const disableMutation = useMutation({
     mutationFn: (values: TOTPFormValues) =>
       api.del('/profile/totp', { ...values, refresh_token: tokenStore.refresh }),
     onSuccess: () => {
-      message.success('双重验证已关闭')
+      toast.success('双重验证已关闭')
       setDisableOpen(false)
       disableForm.resetFields()
       refreshTOTP()
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   // —— 通行密钥：begin 取挑战 -> 浏览器创建凭证 -> finish 落库 ——
@@ -184,7 +187,7 @@ export function Profile() {
       })
     },
     onSuccess: (created) => {
-      message.success('通行密钥已添加')
+      toast.success('通行密钥已添加')
       setPasskeyOpen(false)
       passkeyForm.resetFields()
       queryClient.setQueryData<PasskeyItem[]>(['profile-passkeys'], (current) => [
@@ -193,14 +196,14 @@ export function Profile() {
       ])
       void queryClient.invalidateQueries({ queryKey: ['profile-passkeys'] })
     },
-    onError: (error: unknown) => message.error(passkeyErrorMessage(error)),
+    onError: (error: unknown) => toast.error(passkeyErrorMessage(error)),
   })
 
   const renamePasskeyMutation = useMutation({
     mutationFn: (values: { id: number; name: string }) =>
       api.put(`/profile/passkeys/${values.id}`, { name: values.name }),
     onSuccess: (_data, variables) => {
-      message.success('设备名称已更新')
+      toast.success('设备名称已更新')
       setRenameTarget(null)
       renameForm.resetFields()
       queryClient.setQueryData<PasskeyItem[]>(['profile-passkeys'], (current) =>
@@ -208,19 +211,19 @@ export function Profile() {
       )
       void queryClient.invalidateQueries({ queryKey: ['profile-passkeys'] })
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   const deletePasskeyMutation = useMutation({
     mutationFn: (id: number) => api.del(`/profile/passkeys/${id}`),
     onSuccess: (_data, id) => {
-      message.success('通行密钥已删除')
+      toast.success('通行密钥已删除')
       queryClient.setQueryData<PasskeyItem[]>(['profile-passkeys'], (current) =>
         (current ?? []).filter((item) => item.id !== id),
       )
       void queryClient.invalidateQueries({ queryKey: ['profile-passkeys'] })
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   const enabled = totpQuery.data?.enabled ?? user?.totp_enabled ?? false
@@ -266,9 +269,9 @@ export function Profile() {
         document.execCommand('copy')
         area.remove()
       }
-      message.success(label)
+      toast.success(label)
     } catch {
-      message.error('复制失败，请手动选择文本')
+      toast.error('复制失败，请手动选择文本')
     }
   }
 
@@ -442,7 +445,7 @@ export function Profile() {
             </div>
             <div className="passkey-list">
               {passkeysQuery.isLoading ? (
-                <div className="passkey-empty">正在读取设备…</div>
+                <ListSkeleton rows={2} compact />
               ) : passkeys.length === 0 ? (
                 <div className="passkey-empty">还没有通行密钥。添加后可以在登录页免密码进入。</div>
               ) : (
@@ -528,7 +531,7 @@ export function Profile() {
             </div>
             <div className="passkey-list">
               {sessionsQuery.isLoading ? (
-                <div className="passkey-empty">正在读取登录设备…</div>
+                <ListSkeleton rows={2} compact />
               ) : sessions.length === 0 ? (
                 <div className="passkey-empty">暂无在线设备。</div>
               ) : (
@@ -593,7 +596,7 @@ export function Profile() {
               style={{ marginTop: 12 }}
               onFinish={(values) => {
                 if (values.new_password !== values.confirm) {
-                  message.error('两次输入的新密码不一致')
+                  toast.error('两次输入的新密码不一致')
                   return
                 }
                 passwordMutation.mutate({ old_password: values.old_password, new_password: values.new_password })

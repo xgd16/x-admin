@@ -12,6 +12,7 @@ import { PageHeader } from '../components/PageHeader'
 import { DataTable } from '../components/DataTable'
 import { FormModal } from '../components/FormModal'
 import { Icon } from '../components/Icon'
+import { useToast } from '../hooks/useToast'
 
 interface JobValues {
   name: string
@@ -23,7 +24,8 @@ interface JobValues {
 }
 
 export function Jobs() {
-  const { message, modal } = App.useApp()
+  const { modal } = App.useApp()
+  const toast = useToast()
   const queryClient = useQueryClient()
   const can = useAuth((state) => state.can)
   const [page, setPage] = useState(1)
@@ -54,28 +56,28 @@ export function Jobs() {
     mutationFn: (values: JobValues) =>
       editing ? api.put<Job>(`/jobs/${editing.id}`, values) : api.post<Job>('/jobs', values),
     onSuccess: () => {
-      message.success(editing ? '任务已更新' : '任务已创建')
+      toast.success(editing ? '任务已更新' : '任务已创建')
       setOpen(false)
       setEditing(undefined)
       form.resetFields()
       invalidate()
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: number; status: 0 | 1 }) => api.put(`/jobs/${id}/status`, { status }),
     onSuccess: () => {
-      message.success('任务状态已更新')
+      toast.success('任务状态已更新')
       invalidate()
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   const runMutation = useMutation({
     mutationFn: (id: number) => api.post(`/jobs/${id}/run`),
     onSuccess: () => {
-      message.success('任务已执行')
+      toast.success('任务已执行')
       invalidate()
       void queryClient.invalidateQueries({ queryKey: ['job-runs'] })
     },
@@ -83,17 +85,17 @@ export function Jobs() {
       // 执行失败时 last_result 与执行记录已写入，刷新列表让用户看到具体原因。
       invalidate()
       void queryClient.invalidateQueries({ queryKey: ['job-runs'] })
-      message.error(error.message)
+      toast.fail(error)
     },
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => api.del(`/jobs/${id}`),
     onSuccess: () => {
-      message.success('任务已删除')
+      toast.success('任务已删除')
       invalidate()
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   // 新建时给出一份可直接运行的清理日志示例。

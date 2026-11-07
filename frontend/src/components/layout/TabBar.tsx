@@ -2,11 +2,13 @@
  * 页面多标签栏与右键菜单。
  */
 import { useQueryClient } from '@tanstack/react-query'
+import { Drawer } from 'antd'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { useTabs, type Tab } from '../../stores/tabs'
+import { useIsCompactViewport } from '../../hooks/useMediaQuery'
 import { EASE_OUT, SPRING } from '../../utils/motion'
 import { Icon } from '../Icon'
 
@@ -34,8 +36,51 @@ export function TabBar() {
   const reset = useTabs((state) => state.reset)
   const reduceMotion = useReducedMotion()
   const activeRef = useRef<HTMLDivElement>(null)
+  const stripRef = useRef<HTMLDivElement>(null)
+  const compact = useIsCompactViewport()
+  const [scrollState, setScrollState] = useState({ left: false, right: false })
+  const [tabSheetOpen, setTabSheetOpen] = useState(false)
   const [menu, setMenu] = useState<TabMenuState | null>(null)
   const visible = tabs.length > 1
+  const activeTab = tabs.find((tab) => tab.key === active)
+
+  // 记录页签条是否还能向左/向右滚动，用渐隐遮罩提示还有内容。
+  const syncScrollState = useCallback(() => {
+    const strip = stripRef.current
+    if (!strip) return
+    const left = strip.scrollLeft > 1
+    const right = strip.scrollLeft + strip.clientWidth < strip.scrollWidth - 1
+    setScrollState((current) => (current.left === left && current.right === right ? current : { left, right }))
+  }, [])
+
+  useEffect(() => {
+    const strip = stripRef.current
+    if (!strip) return
+    syncScrollState()
+    const observer = new ResizeObserver(syncScrollState)
+    observer.observe(strip)
+    window.addEventListener('resize', syncScrollState)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', syncScrollState)
+    }
+  }, [syncScrollState])
+
+  // 页签数量/宽度变化后，等布局完成再更新一次左右滚动状态。
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(syncScrollState)
+    return () => window.cancelAnimationFrame(frame)
+  }, [active, tabs.length, syncScrollState])
+
+  // 旋转到桌面布局时关闭手机页签面板。
+  useEffect(() => {
+    if (!compact) setTabSheetOpen(false)
+  }, [compact])
+
+  // 只剩一个页签时无需页签切换面板。
+  useEffect(() => {
+    if (!visible) setTabSheetOpen(false)
+  }, [visible])
 
   // 激活页签变化时保持它在可视区域内。
   useEffect(() => {
@@ -82,6 +127,16 @@ export function TabBar() {
     })
   }
 
+  // 关闭单个页签；关闭当前页时跳到右侧/左侧页签，全部关闭后回总览。
+  const closeTab = (tab: Tab) => {
+    const next = close(tab.key)
+    if (next) navigate(next.path)
+    else if (tabs.length === 1) {
+      reset()
+      navigate('/dashboard')
+    }
+  }
+
   // 统一处理右键菜单动作；关闭当前页后按 store 返回的下一 tab 跳转。
   const runAction = (action: MenuAction) => {
     if (!menu) return
@@ -95,12 +150,7 @@ export function TabBar() {
       return
     }
     if (action === 'close') {
-      const next = close(tab.key)
-      if (next) navigate(next.path)
-      else if (tabs.length === 1) {
-        reset()
-        navigate('/dashboard')
-      }
+      closeTab(tab)
       return
     }
     if (action === 'others') {
@@ -122,72 +172,177 @@ export function TabBar() {
     navigate(next?.path ?? '/dashboard')
   }
 
+  // 手机页签面板：切换页签、关闭其他与全部关闭。
+  const openTab = (tab: Tab) => {
+    activate(tab.key)
+    navigate(tab.path)
+    setTabSheetOpen(false)
+  }
+
+  const closeOtherTabs = () => {
+    if (!activeTab) return
+    const next = closeOthers(activeTab.key)
+    setTabSheetOpen(false)
+    if (next) navigate(next.path)
+  }
+
+  const closeAllTabs = () => {
+    const next = closeAll()
+    setTabSheetOpen(false)
+    navigate(next?.path ?? '/dashboard')
+  }
+
   const enter = reduceMotion ? false : { opacity: 0, scale: 0.94 }
   const leave = reduceMotion ? { opacity: 1 } : { opacity: 0, scale: 0.9 }
 
   return (
     <>
       <motion.div
-        className="tab-strip-wrap"
+        className={`tab-strip-wrap ${scrollState.left ? 'has-left' : ''} ${scrollState.right ? 'has-right' : ''}`}
         initial={false}
         animate={{
-          height: visible ? 30 : 0,
+          height: visible ? (compact ? 34 : 30) : 0,
           marginTop: visible ? 0 : -10,
           opacity: visible ? 1 : 0,
         }}
         style={{ pointerEvents: visible ? 'auto' : 'none' }}
         transition={reduceMotion ? { duration: 0 } : { duration: 0.24, ease: EASE_OUT }}
       >
-        <div className="tab-strip">
-          <AnimatePresence initial={false} mode="popLayout">
-            {visible &&
-              tabs.map((tab, index) => (
-                <motion.div
-                  layout="position"
-                  key={tab.key}
-                  ref={active === tab.key ? activeRef : undefined}
-                  className={`tab-chip ${active === tab.key ? 'active' : ''}`}
-                  initial={enter}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={leave}
-                  transition={
-                    reduceMotion
-                      ? { duration: 0 }
-                      : { duration: 0.18, ease: EASE_OUT, layout: SPRING }
-                  }
-                  onClick={() => {
-                    activate(tab.key)
-                    navigate(tab.path)
-                  }}
-                  onContextMenu={(event) => openMenu(event, tab, index)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') navigate(tab.path)
-                  }}
-                >
-                  <span>{tab.label}</span>
+        {compact ? (
+          visible ? (
+            <div className="mobile-tabbar">
+              {activeTab && (
+                <div className="mobile-tab-chip">
                   <button
                     type="button"
-                    className="close"
-                    aria-label={`关闭 ${tab.label}`}
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      const next = close(tab.key)
-                      if (next) navigate(next.path)
-                      else if (tabs.length === 1) {
-                        reset()
-                        navigate('/dashboard')
-                      }
-                    }}
+                    className="mobile-tab-main"
+                    onClick={() => setTabSheetOpen(true)}
+                    aria-label={`当前页签 ${activeTab.label}，展开全部页签`}
+                    aria-expanded={tabSheetOpen}
+                  >
+                    <span className="mobile-tab-label">{activeTab.label}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="mobile-tab-close"
+                    aria-label={`关闭 ${activeTab.label}`}
+                    onClick={() => closeTab(activeTab)}
                   >
                     <Icon name="x" size={10} />
                   </button>
-                </motion.div>
-              ))}
-          </AnimatePresence>
-        </div>
+                </div>
+              )}
+              <button
+                type="button"
+                className="mobile-tab-switch"
+                onClick={() => setTabSheetOpen(true)}
+                aria-label={`切换页签，共 ${tabs.length} 个`}
+                aria-expanded={tabSheetOpen}
+              >
+                <Icon name="panel" size={14} />
+                <span>{tabs.length}</span>
+              </button>
+            </div>
+          ) : null
+        ) : (
+          <div className="tab-strip" ref={stripRef} onScroll={syncScrollState}>
+            <AnimatePresence initial={false} mode="popLayout">
+              {visible &&
+                tabs.map((tab, index) => (
+                  <motion.div
+                    layout="position"
+                    key={tab.key}
+                    ref={active === tab.key ? activeRef : undefined}
+                    className={`tab-chip ${active === tab.key ? 'active' : ''}`}
+                    initial={enter}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={leave}
+                    transition={
+                      reduceMotion
+                        ? { duration: 0 }
+                        : { duration: 0.18, ease: EASE_OUT, layout: SPRING }
+                    }
+                    onClick={() => {
+                      activate(tab.key)
+                      navigate(tab.path)
+                    }}
+                    onContextMenu={(event) => openMenu(event, tab, index)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') navigate(tab.path)
+                    }}
+                  >
+                    <span>{tab.label}</span>
+                    <button
+                      type="button"
+                      className="close"
+                      aria-label={`关闭 ${tab.label}`}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        closeTab(tab)
+                      }}
+                    >
+                      <Icon name="x" size={10} />
+                    </button>
+                  </motion.div>
+                ))}
+            </AnimatePresence>
+          </div>
+        )}
       </motion.div>
+
+      {compact && (
+        <Drawer
+          open={tabSheetOpen}
+          onClose={() => setTabSheetOpen(false)}
+          placement="bottom"
+          size={`min(${180 + tabs.length * 54}px, 72dvh)`}
+          closable={false}
+          title={null}
+          className="tab-sheet"
+          styles={{ body: { padding: 0 } }}
+          destroyOnHidden
+        >
+          <div className="tab-sheet-handle" aria-hidden="true" />
+          <div className="tab-sheet-head">
+            <span>打开的页签 · {tabs.length}</span>
+            <button type="button" onClick={() => setTabSheetOpen(false)}>
+              完成
+            </button>
+          </div>
+          <div className="tab-sheet-list">
+            {tabs.map((tab) => (
+              <div className={`tab-sheet-item ${active === tab.key ? 'active' : ''}`} key={tab.key}>
+                <button type="button" className="tab-sheet-main" onClick={() => openTab(tab)}>
+                  <span className="tab-sheet-dot" aria-hidden="true" />
+                  <span className="tab-sheet-label">{tab.label}</span>
+                  <span className="tab-sheet-path">{tab.path}</span>
+                </button>
+                <button
+                  type="button"
+                  className="tab-sheet-close"
+                  aria-label={`关闭 ${tab.label}`}
+                  onClick={() => {
+                    closeTab(tab)
+                    if (tab.key === active) setTabSheetOpen(false)
+                  }}
+                >
+                  <Icon name="x" size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="tab-sheet-foot">
+            <button type="button" onClick={closeOtherTabs} disabled={tabs.length <= 1}>
+              关闭其他
+            </button>
+            <button type="button" className="danger" onClick={closeAllTabs}>
+              关闭全部
+            </button>
+          </div>
+        </Drawer>
+      )}
 
       {menu &&
         createPortal(

@@ -33,6 +33,11 @@
   border: 1px solid var(--line);
   background: var(--glass-soft);
 }
+.table-toolbar .icon-btn.on {
+  color: var(--accent);
+  border-color: rgba(255, 95, 51, 0.26);
+  background: rgba(255, 95, 51, 0.1);
+}
 .table-panel {
   border-radius: 22px;
   overflow: hidden;
@@ -73,6 +78,29 @@
 .ant-table-wrapper .ant-table {
   background: transparent;
 }
+/* antd 给 .ant-table 注入了标准 scrollbar-color（为它的吸附滚动条着色）。
+   Chrome 一旦命中标准属性就会禁用 ::-webkit-scrollbar 自定义样式，
+   表格横向滚动条会退回系统粗滚动条；这里复位为 inherit——
+   Chrome 端交还给全站细滚动条，Firefox 端继续继承 html 的 thin + 主题色。 */
+:root .ant-table-wrapper .ant-table {
+  scrollbar-width: inherit;
+  scrollbar-color: inherit;
+}
+/* 表格嵌在圆角玻璃面板里，外层圆角由面板的 overflow 裁切即可；
+   antd 按 tableRadius（borderRadiusLG）给表格容器和首行首尾单元格
+   发的物理+逻辑圆角，会把固定列的磨砂在右上角裁出一块缺口，
+   这里连逻辑属性一起归零。 */
+:root .ant-table-wrapper .ant-table,
+:root .ant-table-wrapper .ant-table table,
+:root .ant-table-wrapper .ant-table-header,
+:root .ant-table-wrapper .ant-table-container,
+:root .ant-table-wrapper .ant-table-container > .ant-table-content,
+:root .ant-table-wrapper .ant-table-container table > thead > tr:first-child > *:first-child,
+:root .ant-table-wrapper .ant-table-container table > thead > tr:first-child > *:last-child {
+  border-radius: 0;
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+}
 .ant-table-wrapper .ant-table-thead > tr > th {
   background: transparent !important;
   font-family: var(--mono);
@@ -107,6 +135,60 @@
 }
 .ant-table-wrapper .ant-table-tbody > tr.ant-table-row-selected > td:first-child {
   box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* 右侧固定操作列：横向滚动时数据会从操作列下方经过。
+   表格本身是透明玻璃底，不能依赖 antd 的 tableBg 兜底；
+   吸附（shadow-show）时用 backdrop blur 把下层内容糊成色斑，
+   再叠一条「左虚右实」的纱幕（::before，opacity 过渡不跳变），
+   代替一整块不透明的白板；列外 30px 的过渡带（antd 的 ::after）
+   负责把经过的内容先渐糊再交给列内纱幕，消除清晰文字被截断的脏边。 */
+.ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell-fix-end-shadow-show,
+.ant-table-wrapper .ant-table-tbody > tr > td.ant-table-cell-fix-end-shadow-show {
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+}
+.ant-table-wrapper .ant-table-cell-fix-end-shadow::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(250, 253, 255, 0.32), rgba(250, 253, 255, 0.6) 22%, rgba(250, 253, 255, 0.85) 52%);
+  opacity: 0;
+  transition: opacity 0.24s;
+}
+.ant-table-wrapper .ant-table-cell-fix-end-shadow-show::before {
+  opacity: 1;
+}
+.ant-table-wrapper .ant-table-tbody > tr.ant-table-row-selected > td.ant-table-cell-fix-end-shadow::before {
+  background:
+    linear-gradient(90deg, rgba(255, 138, 92, 0.2), rgba(255, 138, 92, 0.04)),
+    linear-gradient(90deg, rgba(250, 253, 255, 0.32), rgba(250, 253, 255, 0.6) 22%, rgba(250, 253, 255, 0.85) 52%);
+}
+/* antd 的 30px 阴影条：改成「渐糊 + 渐白」的过渡带，
+   让下层内容在被操作列盖住前先虚化，消除清晰文字被截断的脏边。 */
+.ant-table-wrapper .ant-table-cell-fix-end-shadow::after {
+  box-shadow: none !important;
+  background: linear-gradient(90deg, rgba(250, 253, 255, 0), rgba(250, 253, 255, 0.32));
+  opacity: 0;
+  transition: opacity 0.24s;
+}
+.ant-table-wrapper .ant-table-cell-fix-end-shadow-show::after {
+  opacity: 1;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+:root[data-theme='dark'] .ant-table-wrapper .ant-table-cell-fix-end-shadow::before {
+  background: linear-gradient(90deg, rgba(15, 23, 36, 0.35), rgba(15, 23, 36, 0.62) 22%, rgba(15, 23, 36, 0.86) 52%);
+}
+:root[data-theme='dark'] .ant-table-wrapper .ant-table-tbody > tr.ant-table-row-selected > td.ant-table-cell-fix-end-shadow::before {
+  background:
+    linear-gradient(90deg, rgba(255, 138, 92, 0.22), rgba(255, 138, 92, 0.05)),
+    linear-gradient(90deg, rgba(15, 23, 36, 0.35), rgba(15, 23, 36, 0.62) 22%, rgba(15, 23, 36, 0.86) 52%);
+}
+:root[data-theme='dark'] .ant-table-wrapper .ant-table-cell-fix-end-shadow::after {
+  background: linear-gradient(90deg, rgba(13, 20, 32, 0), rgba(13, 20, 32, 0.35));
 }
 .ant-table-wrapper .ant-pagination {
   padding: 0 10px;

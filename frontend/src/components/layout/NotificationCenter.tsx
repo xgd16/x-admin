@@ -2,13 +2,16 @@
  * 站内通知弹层：未读轮询、筛选与已读操作。
  */
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { App, Popover, Segmented } from 'antd'
+import { Drawer, Popover, Segmented } from 'antd'
 import dayjs from 'dayjs'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../../api/client'
 import type { Notification, PageResult } from '../../api/types'
+import { useIsCompactViewport } from '../../hooks/useMediaQuery'
+import { useToast } from '../../hooks/useToast'
 import { Icon } from '../Icon'
+import { ListSkeleton, LoadingIndicator } from '../Loading'
 
 type Filter = 'all' | 'unread'
 
@@ -31,10 +34,16 @@ function timeLabel(value: string) {
 
 export function NotificationCenter() {
   const navigate = useNavigate()
-  const { message } = App.useApp()
+  const toast = useToast()
   const queryClient = useQueryClient()
+  const compact = useIsCompactViewport()
   const [open, setOpen] = useState(false)
   const [filter, setFilter] = useState<Filter>('all')
+
+  // 切换到桌面布局时关闭手机端底部面板，避免浮层残留在错误位置。
+  useEffect(() => {
+    if (!compact) setOpen(false)
+  }, [compact])
 
   // 未读数每 60 秒轮询一次，窗口重新聚焦时立即刷新。
   const unread = useQuery({
@@ -66,16 +75,16 @@ export function NotificationCenter() {
   const markRead = useMutation({
     mutationFn: (id: number) => api.put(`/notifications/${id}/read`),
     onSuccess: refresh,
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   const markAllRead = useMutation({
     mutationFn: () => api.put('/notifications/read-all'),
     onSuccess: () => {
       refresh()
-      message.success('已全部标记为已读')
+      toast.success('已全部标记为已读')
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   const count = unread.data?.count ?? 0
@@ -95,14 +104,27 @@ export function NotificationCenter() {
           <strong>通知</strong>
           <span>{count > 0 ? `${count} 条未读` : '暂无未读'}</span>
         </div>
-        <button
-          type="button"
-          className="notif-clear"
-          disabled={count === 0 || markAllRead.isPending}
-          onClick={() => markAllRead.mutate()}
-        >
-          全部已读
-        </button>
+        <div className="notif-actions">
+          <button
+            type="button"
+            className="notif-clear"
+            disabled={count === 0 || markAllRead.isPending}
+            onClick={() => markAllRead.mutate()}
+          >
+            {markAllRead.isPending && <LoadingIndicator size="sm" />}
+            全部已读
+          </button>
+          {compact && (
+            <button
+              type="button"
+              className="notif-sheet-close"
+              aria-label="关闭通知"
+              onClick={() => setOpen(false)}
+            >
+              <Icon name="x" size={14} />
+            </button>
+          )}
+        </div>
       </div>
       <div className="notif-filter">
         <Segmented
@@ -117,7 +139,7 @@ export function NotificationCenter() {
       </div>
       <div className="notif-list">
         {list.isLoading ? (
-          <div className="notif-hint">加载中…</div>
+          <ListSkeleton rows={3} />
         ) : list.isError ? (
           <div className="notif-hint">
             通知加载失败
@@ -156,6 +178,47 @@ export function NotificationCenter() {
     </div>
   )
 
+  const bell = (
+    <button
+      type="button"
+      className="icon-btn"
+      title="通知"
+      aria-label={count > 0 ? `通知，${count} 条未读` : '通知'}
+      aria-expanded={open}
+      onClick={compact ? () => setOpen(true) : undefined}
+    >
+      <Icon name="bell" size={16} />
+      {count > 0 && <span className="badge">{count > 99 ? '99+' : count}</span>}
+    </button>
+  )
+
+  // 手机面板高度跟随内容，最多占 82% 视口；加载/空态也保留可读高度。
+  const contentHeight = rows.reduce((sum, row) => sum + (row.content ? 80 : 58), 0)
+  const sheetHeight = Math.min(620, 145 + Math.max(140, contentHeight))
+
+  // 手机端用底部面板展示通知，避免弹层在窄屏被触发器挤到屏幕外。
+  if (compact) {
+    return (
+      <>
+        {bell}
+        <Drawer
+          open={open}
+          onClose={() => setOpen(false)}
+          placement="bottom"
+          size={`min(${sheetHeight}px, 82dvh)`}
+          closable={false}
+          title={null}
+          className="notif-sheet"
+          styles={{ body: { padding: 0 } }}
+          destroyOnHidden
+        >
+          <div className="notif-sheet-handle" aria-hidden="true" />
+          {content}
+        </Drawer>
+      </>
+    )
+  }
+
   return (
     <Popover
       trigger="click"
@@ -165,16 +228,7 @@ export function NotificationCenter() {
       content={content}
       classNames={{ root: 'notif-popover' }}
     >
-      <button
-        type="button"
-        className="icon-btn"
-        title="通知"
-        aria-label={count > 0 ? `通知，${count} 条未读` : '通知'}
-        aria-expanded={open}
-      >
-        <Icon name="bell" size={16} />
-        {count > 0 && <span className="badge">{count > 99 ? '99+' : count}</span>}
-      </button>
+      {bell}
     </Popover>
   )
 }

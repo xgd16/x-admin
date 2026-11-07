@@ -49,6 +49,28 @@
   opacity: 0.55;
   cursor: default;
 }
+.notif-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+.notif-sheet-close {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: var(--glass-soft);
+  color: var(--muted);
+  cursor: pointer;
+}
+.notif-sheet-close:active {
+  color: var(--ink);
+  background: var(--glass-strong);
+}
 .notif-filter {
   padding: 0 14px 8px;
 }
@@ -180,4 +202,111 @@
   color: var(--accent);
   font-size: 10px;
   cursor: pointer;
+}
+
+/* ---------------- 手机底部面板：避免弹层被右侧触发器挤出屏幕 ---------------- */
+.notif-sheet,
+.notif-sheet .ant-drawer-content,
+.notif-sheet.ant-drawer-content,
+.notif-sheet.ant-drawer-section {
+  border-radius: 22px 22px 0 0;
+  background: rgba(250, 253, 255, 0.98);
+}
+.notif-sheet {
+  overflow: hidden;
+}
+:root[data-theme='dark'] .notif-sheet,
+:root[data-theme='dark'] .notif-sheet .ant-drawer-content,
+:root[data-theme='dark'] .notif-sheet.ant-drawer-content,
+:root[data-theme='dark'] .notif-sheet.ant-drawer-section {
+  background: rgba(18, 26, 39, 0.98);
+}
+.notif-sheet .ant-drawer-body,
+.notif-sheet.ant-drawer-body {
+  padding: 0 0 env(safe-area-inset-bottom);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.notif-sheet-handle {
+  width: 38px;
+  height: 4px;
+  flex: none;
+  margin: 10px auto 2px;
+  border-radius: 999px;
+  background: var(--line);
+}
+.notif-sheet .notif-pop {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+.notif-sheet .notif-head {
+  padding: 8px 16px 10px;
+}
+.notif-sheet .notif-heading {
+  gap: 2px;
+}
+.notif-sheet .notif-heading strong {
+  font-size: 15px;
+}
+.notif-sheet .notif-heading span {
+  font-size: 9.5px;
+}
+.notif-sheet .notif-clear {
+  padding: 8px 4px;
+  font-size: 12px;
+}
+.notif-sheet .notif-filter {
+  padding: 0 16px 10px;
+}
+.notif-sheet .notif-filter .ant-segmented {
+  padding: 3px;
+}
+:root .notif-sheet .notif-filter .ant-segmented-item-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
+  line-height: 1.2;
+}
+.notif-sheet .notif-list {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  gap: 3px;
+  padding: 2px 8px calc(10px + env(safe-area-inset-bottom));
+  overscroll-behavior: contain;
+}
+.notif-sheet .notif-item {
+  gap: 10px;
+  padding: 11px 10px;
+  border-radius: 12px;
+}
+.notif-sheet .notif-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+}
+.notif-sheet .notif-title b {
+  font-size: 13px;
+}
+.notif-sheet .notif-title i {
+  font-size: 9.5px;
+}
+.notif-sheet .notif-text {
+  font-size: 12px;
+  line-height: 1.55;
+}
+.notif-sheet .notif-dot {
+  margin-top: 7px;
+}
+.notif-sheet .notif-empty,
+.notif-sheet .notif-hint {
+  flex: 1;
+  min-height: 140px;
+  font-size: 10.5px;
 }

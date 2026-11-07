@@ -69,6 +69,31 @@
   font-size: 7.5px;
   color: var(--dim);
 }
+.inspector-drawer {
+  display: flex;
+  flex-direction: column;
+}
+.inspector-drawer .ins-foot {
+  flex-wrap: wrap;
+}
+@media (max-width: 460px) {
+  .inspector-drawer .ins-head {
+    align-items: flex-start;
+  }
+  .inspector-drawer .ins-foot {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .inspector-drawer .ins-foot > div {
+    width: 100%;
+  }
+  .inspector-drawer .ins-foot .hint {
+    display: none;
+  }
+  .inspector-drawer .ins-foot .ant-btn {
+    width: 100%;
+  }
+}
 .role-chips {
   display: flex;
   flex-wrap: wrap;

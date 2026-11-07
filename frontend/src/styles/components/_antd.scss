@@ -82,10 +82,10 @@
   color: var(--muted);
   transition: color 0.16s, background-color 0.16s;
 }
+/* 行高必须交给 antd 按控件高度计算，固定成 20px 会让文字在 21.5px 的轨道里偏上。 */
 :root .ant-segmented .ant-segmented-item-label {
-  padding: 0 9px;
-  font-size: 10.5px;
-  line-height: 20px;
+  padding: 0 10px;
+  font-size: 12px;
 }
 :root .ant-segmented .ant-segmented-item-selected,
 :root .ant-segmented .ant-segmented-thumb {

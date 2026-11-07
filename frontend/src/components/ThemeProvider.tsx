@@ -6,6 +6,7 @@ import { App as AntdApp, ConfigProvider, Watermark, theme as antdTheme } from 'a
 import zhCN from 'antd/locale/zh_CN'
 import dayjs from 'dayjs'
 import { useReducedMotion } from 'motion/react'
+import { useIsCompactViewport } from '../hooks/useMediaQuery'
 import { useAuth } from '../stores/auth'
 import { useUi } from '../stores/ui'
 
@@ -18,14 +19,38 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const user = useAuth((state) => state.user)
   const dark = themeMode === 'dark'
   const reduceMotion = useReducedMotion()
+  const compact = useIsCompactViewport()
+  // Toast 固定在命令栏与页签栏下方，避免遮挡导航和页签。
+  const toastTop = compact ? 104 : 110
 
   // 把主题写到 html[data-theme]，CSS 变量与暗色选择器都依赖这个属性。
   useEffect(() => {
     document.documentElement.dataset.theme = themeMode
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute('content', themeMode === 'dark' ? '#070c15' : '#edf3f9')
   }, [themeMode])
 
   const body = (
-    <AntdApp>
+    <AntdApp
+      message={{
+        top: toastTop,
+        duration: 2.4,
+        maxCount: 4,
+        stack: { threshold: 3 },
+        pauseOnHover: true,
+      }}
+      notification={{
+        placement: compact ? 'top' : 'topRight',
+        top: toastTop,
+        bottom: 24,
+        maxCount: 3,
+        duration: 4.5,
+        showProgress: true,
+        pauseOnHover: true,
+        stack: { threshold: 3 },
+      }}
+    >
       <div className="app-watermark-layer">{children}</div>
     </AntdApp>
   )
@@ -127,6 +152,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           },
           Popover: { colorBgElevated: dark ? 'rgba(18,26,39,.97)' : 'rgba(250,253,255,.96)' },
           Message: { contentBg: dark ? 'rgba(18,26,39,.97)' : 'rgba(250,253,255,.96)' },
+          Skeleton: {
+            gradientFromColor: dark ? 'rgba(255,255,255,.055)' : 'rgba(11,28,44,.045)',
+            gradientToColor: dark ? 'rgba(255,255,255,.12)' : 'rgba(11,28,44,.095)',
+            blockRadius: 9,
+          },
         },
       }}
     >

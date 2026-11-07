@@ -12,6 +12,7 @@ import { useUi } from '../../stores/ui'
 import { SPRING } from '../../utils/motion'
 import { BrandMark } from '../BrandMark'
 import { Icon } from '../Icon'
+import { useToast } from '../../hooks/useToast'
 
 export function Rail() {
   const navigate = useNavigate()
@@ -22,6 +23,7 @@ export function Rail() {
   const theme = useUi((state) => state.theme)
   const toggleTheme = useUi((state) => state.toggleTheme)
   const reduceMotion = useReducedMotion()
+  const toast = useToast()
 
   // 后端菜单树决定模块与顺序，只展示至少有一个可访问页面的模块。
   const { items, groups, byPath } = useNav()
@@ -98,6 +100,7 @@ export function Rail() {
             if (key === 'profile') navigate('/profile')
             if (key === 'logout') {
               void logout().then(() => {
+                toast.success('已安全退出')
                 resetTabs()
                 navigate('/login')
               })

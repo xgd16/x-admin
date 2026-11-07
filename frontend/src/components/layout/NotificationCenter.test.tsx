@@ -103,3 +103,38 @@ describe('NotificationCenter', () => {
     expect(document.querySelector('.icon-btn .badge')).toBeNull()
   })
 })
+
+describe('NotificationCenter mobile sheet', () => {
+  const originalMatchMedia = window.matchMedia
+
+  beforeEach(() => {
+    window.matchMedia = ((query: string) => ({
+      matches: query.includes('max-width: 900px'),
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    })) as typeof window.matchMedia
+  })
+
+  afterEach(() => {
+    window.matchMedia = originalMatchMedia
+  })
+
+  it('opens notifications in a bottom sheet instead of an anchored popover', async () => {
+    renderCenter()
+
+    fireEvent.click(await screen.findByRole('button', { name: '通知，1 条未读' }))
+
+    expect(await screen.findByText('新登录提醒')).toBeTruthy()
+    expect(document.querySelector('.notif-sheet')).toBeTruthy()
+    expect(document.querySelector('.notif-sheet-handle')).toBeTruthy()
+    expect(document.querySelector('.notif-popover')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: '关闭通知' }))
+    await waitFor(() => expect(document.querySelector('.notif-sheet')).toBeNull())
+  })
+})

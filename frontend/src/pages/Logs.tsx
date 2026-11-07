@@ -12,6 +12,7 @@ import { PageHeader } from '../components/PageHeader'
 import { DataTable } from '../components/DataTable'
 import { Icon } from '../components/Icon'
 import { MethodTag } from '../components/StatusTag'
+import { useToast } from '../hooks/useToast'
 
 const { RangePicker } = DatePicker
 
@@ -24,7 +25,8 @@ function statusTag(status: number) {
 }
 
 export function Logs({ mode }: { mode: Mode }) {
-  const { message, modal } = App.useApp()
+  const { modal } = App.useApp()
+  const toast = useToast()
   const queryClient = useQueryClient()
   const can = useAuth((state) => state.can)
   const [page, setPage] = useState(1)
@@ -59,29 +61,35 @@ export function Logs({ mode }: { mode: Mode }) {
   const clearMutation = useMutation({
     mutationFn: () => api.del(`${path}/clear`),
     onSuccess: () => {
-      message.success('日志已清空')
+      toast.success('日志已清空')
       void queryClient.invalidateQueries({ queryKey: [mode] })
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (ids: number[]) => api.del(path, { ids }),
     onSuccess: () => {
-      message.success('日志已删除')
+      toast.success('日志已删除')
       setSelected([])
       void queryClient.invalidateQueries({ queryKey: [mode] })
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
-  const exportLogs = async () => {
-    try {
-      const blob = await api.download(`${path}/export`, filterParams)
-      saveBlob(blob, `${operations ? 'operation' : 'login'}-logs-${Date.now()}.xlsx`)
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : '导出失败')
-    }
+  const exportLogs = () => {
+    void toast
+      .promise(
+        api
+          .download(`${path}/export`, filterParams)
+          .then((blob) => saveBlob(blob, `${operations ? 'operation' : 'login'}-logs-${Date.now()}.xlsx`)),
+        {
+          loading: '正在导出日志…',
+          success: '日志已导出',
+          error: (error) => (error instanceof Error ? error.message : '导出失败'),
+        },
+      )
+      .catch(() => undefined)
   }
 
   const rows = query.data?.list ?? []

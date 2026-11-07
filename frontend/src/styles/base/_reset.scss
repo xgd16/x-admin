@@ -10,6 +10,11 @@ body,
   min-height: 100%;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -18,6 +23,7 @@ body {
   font-size: 13px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  overflow-wrap: break-word;
 }
 
 a {
@@ -29,16 +35,32 @@ button {
   font-family: inherit;
 }
 
+/* 桌面端细滚动条：6px、轨道全透明、滑块为 muted 色低透明度胶囊，
+   悬停加深；颜色走主题令牌，深浅主题自动切换。
+   触屏/窄窗口由 responsive 层整体隐藏，此处只服务鼠标环境。 */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(90, 120, 145, 0.24);
-  border-radius: 8px;
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
 }
-::-webkit-scrollbar-track {
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
   background: transparent;
+}
+/* Firefox 不支持 ::-webkit-scrollbar，走标准属性。
+   注意标准属性会被继承，且 Chrome 一旦命中就会禁用上面的自定义样式
+   （退回系统悬浮滚动条），所以必须用 @supports 隔离在 Firefox 内。 */
+@supports not selector(::-webkit-scrollbar) {
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
 }
 
 .app-watermark-layer {

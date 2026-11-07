@@ -12,6 +12,7 @@ import { DataTable } from '../components/DataTable'
 import { FormModal } from '../components/FormModal'
 import { Icon } from '../components/Icon'
 import { StatusTag } from '../components/StatusTag'
+import { useToast } from '../hooks/useToast'
 
 interface TypeValues {
   name: string
@@ -29,7 +30,8 @@ interface ItemValues {
 }
 
 export function Dicts() {
-  const { message, modal } = App.useApp()
+  const { modal } = App.useApp()
+  const toast = useToast()
   const queryClient = useQueryClient()
   const can = useAuth((state) => state.can)
   const [typePage, setTypePage] = useState(1)
@@ -72,13 +74,13 @@ export function Dicts() {
     mutationFn: (values: TypeValues) =>
       editingType ? api.put<DictType>(`/dict/types/${editingType.id}`, values) : api.post<DictType>('/dict/types', values),
     onSuccess: () => {
-      message.success(editingType ? '字典类型已更新' : '字典类型已创建')
+      toast.success(editingType ? '字典类型已更新' : '字典类型已创建')
       setTypeOpen(false)
       setEditingType(undefined)
       typeForm.resetFields()
       invalidateTypes()
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   const itemMutation = useMutation({
@@ -87,13 +89,13 @@ export function Dicts() {
         ? api.put<DictItem>(`/dict/items/${editingItem.id}`, { ...values, dict_type_id: selectedType })
         : api.post<DictItem>(`/dict/types/${selectedType}/items`, { ...values, dict_type_id: selectedType }),
     onSuccess: () => {
-      message.success(editingItem ? '字典项已更新' : '字典项已创建')
+      toast.success(editingItem ? '字典项已更新' : '字典项已创建')
       setItemOpen(false)
       setEditingItem(undefined)
       itemForm.resetFields()
       invalidateItems()
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   // 删除字典类型会级联删除其下所有字典项，必须二次确认。
@@ -107,10 +109,10 @@ export function Dicts() {
       onOk: async () => {
         try {
           await api.del(`/dict/types/${type.id}`)
-          message.success('字典已删除')
+          toast.success('字典已删除')
           invalidateTypes()
         } catch (error) {
-          message.error(error instanceof Error ? error.message : '删除失败')
+          toast.fail(error, '删除失败')
         }
       },
     })
@@ -119,10 +121,10 @@ export function Dicts() {
   const deleteItem = async (item: DictItem) => {
     try {
       await api.del(`/dict/items/${item.id}`)
-      message.success('字典项已删除')
+      toast.success('字典项已删除')
       invalidateItems()
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '删除失败')
+      toast.fail(error, '删除失败')
     }
   }
 

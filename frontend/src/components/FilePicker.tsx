@@ -3,11 +3,12 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Button, Empty, Input, Modal, Pagination, Spin, Upload } from 'antd'
+import { Button, Empty, Input, Modal, Pagination, Upload } from 'antd'
 import { api } from '../api/client'
 import type { FileItem, PageResult } from '../api/types'
 import { useAuth } from '../stores/auth'
 import { Icon } from './Icon'
+import { FileGridSkeleton } from './Loading'
 import { formatSize } from '../utils/format'
 import {
   FILE_KIND_LABELS,
@@ -288,10 +289,7 @@ export function FilePicker({
 
         <div className="file-picker-body">
           {query.isLoading ? (
-            <div className="file-picker-state">
-              <Spin size="small" />
-              <span>正在读取文件库</span>
-            </div>
+            <FileGridSkeleton />
           ) : query.isError ? (
             <div className="file-picker-state error">
               <Icon name="file" size={22} />
@@ -354,7 +352,7 @@ export function FilePicker({
 
         <div className="file-picker-footer">
           <span className="file-picker-count">
-            共 {total} 个文件
+            {query.isLoading ? '正在读取文件库…' : `共 ${total} 个文件`}
             {selected.length > 0 ? ` · 已选 ${selected.length}` : ''}
           </span>
           {total > PAGE_SIZE && (

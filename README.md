@@ -775,7 +775,8 @@ TanStack Query 默认配置：`retry: 1`、关闭窗口聚焦重取、`staleTime
 | `TabBar` | 多标签页；右键刷新/关闭其他/关闭左侧/右侧/全部 |
 | `KeepAliveOutlet` | 页签保活；已访问页面保持挂载，切换时保留筛选条件、表单状态与滚动位置，关闭页签后释放 |
 | `NotificationCenter` | 未读数角标、全部/未读切换、单条与全部已读 |
-| `DataTable` | 列显隐持久化、密度切换、刷新、分页、选择、展开 |
+| `DataTable` | 列显隐持久化、密度切换、刷新、分页、选择、展开；窄屏自动切换卡片列表 |
+| `MobileRecordList` | 手机密集数据卡片：复用表格列定义，支持选择、树形展开、操作列与分页 |
 | `FormModal` | antd Form + Modal 的新增/编辑弹窗封装 |
 | `FilePicker` | 文件库选择弹窗，支持类型过滤、搜索、分页、跨页保留、直接上传 |
 | `FileSelect` | 表单字段封装，`value/onChange` 为 URL 或 URL[] |
@@ -819,6 +820,18 @@ TanStack Query 默认配置：`retry: 1`、关闭窗口聚焦重取、`staleTime
   - ink `#0b1c2c`、accent `#ff5f33`、violet `#8b7cf6`、cyan `#2fb8d9`、mint `#2fb98a`
   - 字体 Avenir Next / SF Pro Display / PingFang SC；数字 `tabular-nums`
   - 玻璃：`backdrop-filter: blur(28px) saturate(170%)` + 方向性高光边框 + 鼠标光斑
+
+### 8.7 移动端适配
+
+- `useIsCompactViewport()` 统一识别手机、平板和触屏窄窗口（`≤900px`，或触屏设备 `≤1024px`），命令栏导航抽屉、页面布局与表格卡片共用同一判定。
+- `DataTable` 在紧凑视口下把列定义交给 `MobileRecordList`：首列作为卡片标题，其余列自动转为标签/值，`fixed: 'right'` / `key: 'actions'` 列固定在卡片底部。桌面端仍渲染原生 antd Table。
+- 筛选器在手机上默认收起，通过表格工具栏的滑杆按钮展开，避免首屏被筛选控件占满。
+- 手机端输入框保持 16px（避免 iOS 聚焦自动放大），抽屉/弹窗宽度不超过视口，过高的弹窗在内部滚动。
+- 手机端隐藏滚动条但保留原生滚动，并关闭 `scrollbar-gutter`，避免滚动条或预留槽位占用屏幕宽度。
+- 手机端多页签改为“当前页签 + 页签数量”入口，点击后从底部弹出全部页签面板，避免多个胶囊在窄屏横向挤压。
+- 通知中心在手机上改为底部面板，高度跟随通知数量、最高占视口 82%，避免 320px 弹层被右侧铃铛挤出屏幕。
+- 用户管理的右侧检查器在手机上复用同一份表单，改为右侧抽屉打开；仪表盘“最近操作”也复用 `MobileRecordList`。
+- 断点统一使用 `styles/abstracts/_mixins.scss` 的 `below()`，样式目录见 `frontend/src/styles/README.md`。
 
 ---
 

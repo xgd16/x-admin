@@ -102,3 +102,37 @@ describe('TabBar context menu', () => {
     await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
   })
 })
+
+describe('TabBar mobile switcher', () => {
+  const originalMatchMedia = window.matchMedia
+
+  beforeEach(() => {
+    window.matchMedia = ((query: string) => ({
+      matches: query.includes('max-width: 900px'),
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    })) as typeof window.matchMedia
+  })
+
+  afterEach(() => {
+    window.matchMedia = originalMatchMedia
+  })
+
+  it('shows only the active tab and opens the full tab sheet', async () => {
+    renderTabs()
+
+    expect(document.querySelector('.mobile-tabbar')).toBeTruthy()
+    expect(document.querySelector('.tab-strip')).toBeNull()
+    expect(document.querySelector('.mobile-tab-label')?.textContent).toBe('用户管理')
+    expect(document.querySelector('.mobile-tab-switch')?.textContent).toContain('3')
+
+    fireEvent.click(screen.getByRole('button', { name: /切换页签/ }))
+    await waitFor(() => expect(document.querySelectorAll('.tab-sheet-item').length).toBe(3))
+    expect(screen.getByText('打开的页签 · 3')).toBeTruthy()
+  })
+})

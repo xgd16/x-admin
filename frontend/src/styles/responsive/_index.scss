@@ -1,4 +1,10 @@
 // 响应式规则：按断点分组，顺序与拆分前保持一致。
+//
+// 手机/平板的策略：
+// 1. 900px 以下隐藏左侧图标栏，改用命令栏的导航抽屉，释放整行宽度。
+// 2. 触屏窄窗口（含手机横屏）同样按紧凑布局处理。
+// 3. 输入框在移动端保持 16px，避免 iOS 聚焦时自动放大页面。
+// 4. 表格在 DataTable / MobileRecordList 内切换为卡片，CSS 只负责外围布局。
 
 @use '../abstracts/mixins' as *;
 
@@ -38,6 +44,53 @@
     height: 260px;
   }
 }
+@include below('md') {
+  .rail {
+    display: none;
+  }
+  .icon-btn.mobile-nav-btn {
+    display: grid;
+  }
+  .lg-shell {
+    gap: 8px;
+    padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  }
+  .canvas {
+    gap: 6px;
+  }
+  .command {
+    height: 50px;
+    gap: 8px;
+    padding: 0 8px;
+    border-radius: 18px;
+  }
+  .crumb {
+    flex: 1;
+    min-width: 0;
+  }
+  .canvas-body {
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    -webkit-overflow-scrolling: touch;
+  }
+  .page-head {
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .head-actions {
+    flex-wrap: wrap;
+  }
+  .panel,
+  .data-panel,
+  .inspector {
+    padding: 12px;
+    border-radius: 18px;
+  }
+  .data-panel {
+    padding: 0;
+  }
+}
 @include below('sm') {
   .rail {
     width: 60px;
@@ -51,26 +104,133 @@
   .cmd-user .who {
     display: none;
   }
+  .cmd-user {
+    gap: 4px;
+    padding-left: 6px;
+  }
   .page-head h1 {
     font-size: 27px;
   }
-}
-@include below('xs') {
-  .rail {
+  .page-head .sub {
+    font-size: 8.5px;
+    line-height: 1.6;
+  }
+  .head-actions {
+    width: 100%;
+  }
+  .head-actions .btn,
+  .head-actions .ant-btn,
+  .head-actions .ant-upload-wrapper {
+    flex: 1 1 auto;
+  }
+  .head-actions .stat-chip {
+    flex: none;
+  }
+
+  // iOS 对 font-size < 16px 的输入框会在聚焦时强制放大整个页面。
+  .ant-input,
+  .ant-input-affix-wrapper input,
+  .ant-input-number input,
+  .ant-picker input,
+  .ant-select input,
+  textarea.ant-input {
+    font-size: 16px !important;
+  }
+  .ant-select-content,
+  .ant-select-selection-item {
+    font-size: 13px !important;
+  }
+  .table-toolbar {
+    min-height: 0;
+    padding: 8px;
+    gap: 6px;
+  }
+  .table-toolbar .ant-btn {
+    height: 34px;
+    font-size: 11px;
+    padding: 0 11px;
+  }
+  .table-toolbar .icon-btn {
+    width: 32px;
+    height: 32px;
+  }
+  .filter-bar {
+    padding: 9px;
+    gap: 7px;
+  }
+  .filter-bar .ant-input-affix-wrapper,
+  .filter-bar .ant-select,
+  .filter-bar .ant-picker {
+    height: 38px;
+    font-size: 13px;
+  }
+  .ant-table-wrapper .ant-pagination .ant-pagination-options {
     display: none;
   }
-  .lg-shell {
-    padding: 8px;
+
+  // 抽屉/弹窗永远不超过视口，长内容内部滚动。
+  .ant-drawer .ant-drawer-content-wrapper {
+    max-width: 100vw !important;
   }
+  .ant-drawer .ant-drawer-header {
+    padding: 14px 14px 10px;
+  }
+  .ant-drawer .ant-drawer-body {
+    padding: 14px;
+  }
+  .ant-modal {
+    top: 0 !important;
+    max-width: calc(100vw - 20px);
+    margin: 10px auto;
+    padding-bottom: 10px;
+  }
+  .ant-modal .ant-modal-container {
+    max-height: calc(100dvh - 20px);
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    border-radius: 20px;
+    overflow: hidden;
+  }
+  .ant-modal .ant-modal-header,
+  .ant-modal .ant-modal-footer {
+    flex: none;
+  }
+  .ant-modal .ant-modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .ant-modal .ant-modal-header {
+    margin-bottom: 10px;
+  }
+  .ant-descriptions-item-label {
+    width: 88px;
+  }
+  .detail-grid {
+    gap: 8px;
+  }
+}
+@include below('xs') {
   .kpi-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .page-head {
     align-items: flex-start;
     flex-direction: column;
   }
+  .page-head h1 {
+    font-size: 24px;
+  }
+  .head-actions .btn,
+  .head-actions .ant-btn {
+    flex: 1 1 calc(50% - 4px);
+  }
   .login-stage {
-    padding: 16px;
+    min-height: 100dvh;
+    padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+      max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
   }
   .login-hero {
     padding: 26px;
@@ -82,11 +242,14 @@
   .login-card {
     padding: 24px;
   }
-  .totp-panel {
-    flex-direction: column;
-  }
+  .totp-panel,
   .passkey-panel {
     flex-direction: column;
+    align-items: stretch;
+  }
+  .totp-panel > .ant-btn,
+  .passkey-panel > .ant-btn {
+    width: 100%;
   }
   .totp-qr {
     grid-template-columns: 1fr;
@@ -97,6 +260,35 @@
   }
   .totp-code-grid {
     grid-template-columns: 1fr;
+  }
+  .chart {
+    height: 208px;
+  }
+  .chart-legend {
+    flex-wrap: wrap;
+    gap: 6px 14px;
+  }
+  .chart-legend .spacer {
+    margin-left: 0;
+  }
+  .passkey-item {
+    flex-wrap: wrap;
+  }
+  .passkey-info {
+    flex: 1 1 calc(100% - 44px);
+  }
+  .passkey-info b,
+  .passkey-info span {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .passkey-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .passkey-actions button {
+    padding: 8px 10px;
+    font-size: 10px;
   }
 }
 @include below('md') {
@@ -128,7 +320,143 @@
   .file-picker-footer .ant-pagination {
     margin-left: auto;
   }
+
+  // 筛选器在手机上一律占满整行，避免内联 min-width 造成横向溢出。
+  .filter-bar > * {
+    flex: 1 1 100%;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+  .filter-bar > .ant-btn {
+    flex: 0 0 auto;
+    width: auto !important;
+    height: 38px;
+  }
+  .filter-bar .ant-input-affix-wrapper,
+  .filter-bar .ant-select,
+  .filter-bar .ant-picker {
+    width: 100% !important;
+  }
+  .table-toolbar {
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+  .table-toolbar .left {
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .table-toolbar .left::-webkit-scrollbar {
+    display: none;
+  }
+  .table-toolbar .right {
+    flex: none;
+    flex-wrap: nowrap;
+  }
+  .table-toolbar .ant-btn {
+    white-space: nowrap;
+  }
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+  .users-layout,
+  .split-panels,
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
 }
+@include below('xxs') {
+  .page-head .sub {
+    word-break: break-word;
+  }
+}
+
+// 手机横屏/触屏平板：宽度可能大于 900，但依然使用抽屉导航与卡片列表。
+@media (pointer: coarse) and (max-width: 1024px) {
+  .rail {
+    display: none;
+  }
+  .icon-btn.mobile-nav-btn {
+    display: grid;
+  }
+  .context,
+  .icon-btn.ctx-toggle {
+    display: none;
+  }
+  .lg-shell {
+    gap: 8px;
+    padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  }
+  .command {
+    height: 50px;
+    gap: 8px;
+    border-radius: 18px;
+  }
+  // iPad 横屏等宽度大于 820 的触屏设备同样避免输入框聚焦缩放。
+  .ant-input,
+  .ant-input-affix-wrapper input,
+  .ant-input-number input,
+  .ant-picker input,
+  .ant-select input,
+  textarea.ant-input {
+    font-size: 16px !important;
+  }
+  .ant-drawer .ant-drawer-content-wrapper {
+    max-width: 100vw !important;
+  }
+}
+
+// 极窄屏：命令栏只保留导航、通知、设置和头像。
+@media (max-width: 460px) {
+  .crumb {
+    display: none;
+  }
+  .cmd-actions {
+    margin-left: auto;
+  }
+}
+
+// 触屏设备放大点击目标，避免小按钮难以命中。
+@media (hover: none) {
+  .btn {
+    min-height: 40px;
+  }
+  .icon-btn {
+    width: 38px;
+    height: 38px;
+  }
+  .m-card-actions .ant-btn {
+    min-height: 38px;
+  }
+  .tab-chip {
+    height: 34px;
+  }
+  .ant-btn {
+    min-height: 36px;
+  }
+}
+
+// 手机端隐藏滚动条但保留原生滚动，避免滚动条持续占用可视宽度。
+// 判定与 useIsCompactViewport() 保持一致：窄屏或触屏窄窗口。
+@media (max-width: 900px), (pointer: coarse) and (max-width: 1024px) {
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+  // scrollbar-gutter: stable 会为滚动条预留空白，移动端必须关闭。
+  .canvas-body {
+    scrollbar-gutter: auto;
+  }
+}
+
 @include reduced-motion {
   *,
   *::before,

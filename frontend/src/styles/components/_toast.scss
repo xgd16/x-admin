@@ -1,0 +1,72 @@
+// Toast / Notification：统一玻璃表面、字号与移动端宽度。
+// 组件行为由 ThemeProvider 的 AntdApp 配置和 `useToast()` 控制。
+
+@use '../abstracts/mixins' as *;
+
+:root .ant-message .ant-message-notice {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background-clip: padding-box;
+  backdrop-filter: blur(18px) saturate(160%);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.42);
+}
+:root[data-theme='dark'] .ant-message .ant-message-notice {
+  border-color: rgba(156, 182, 210, 0.16);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+:root .ant-message .ant-message-notice .ant-message-notice-title {
+  font-size: 12.5px;
+  line-height: 20px;
+  letter-spacing: 0.01em;
+}
+:root .ant-message .ant-message-notice .ant-message-notice-icon {
+  font-size: 15px;
+}
+
+// 通知卡片比轻提示承载更多内容，使用更大的圆角与更宽松的行距。
+:root .ant-notification .ant-notification-notice {
+  border: 1px solid var(--line);
+  background-clip: padding-box;
+  backdrop-filter: blur(24px) saturate(160%);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+:root[data-theme='dark'] .ant-notification .ant-notification-notice {
+  border-color: rgba(156, 182, 210, 0.16);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+:root .ant-notification .ant-notification-notice .ant-notification-notice-title {
+  font-size: 13px;
+  line-height: 20px;
+}
+:root .ant-notification .ant-notification-notice .ant-notification-notice-description {
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 19px;
+}
+.toast-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 2px;
+}
+.toast-detail p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.toast-detail p b {
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+@include below('sm') {
+  :root .ant-message .ant-message-notice {
+    max-width: calc(100vw - 32px);
+  }
+  :root .ant-notification .ant-notification-notice {
+    max-width: calc(100vw - 32px);
+    border-radius: 16px;
+  }
+}

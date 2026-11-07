@@ -3,7 +3,7 @@
  */
 import { useEffect, useState, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { App, Checkbox, Input } from 'antd'
+import { Checkbox, Input } from 'antd'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { api, ApiError } from '../api/client'
@@ -15,6 +15,8 @@ import { tokenStore } from '../api/tokens'
 import { Ambient } from '../components/Ambient'
 import { BrandMark } from '../components/BrandMark'
 import { Icon } from '../components/Icon'
+import { LoadingIndicator } from '../components/Loading'
+import { useToast } from '../hooks/useToast'
 import { EASE_OUT } from '../utils/motion'
 import { isPasskeySupported, passkeyErrorMessage } from '../utils/passkey'
 
@@ -60,7 +62,7 @@ function loginCopy() {
 export function Login() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { message } = App.useApp()
+  const toast = useToast()
   const login = useAuth((state) => state.login)
   const verifyMFA = useAuth((state) => state.verifyMFA)
   const passkeyLogin = useAuth((state) => state.passkeyLogin)
@@ -112,6 +114,7 @@ export function Login() {
         setOtp('')
         return
       }
+      toast.success('登录成功')
       goNext()
     } catch (err) {
       setError(err instanceof Error ? err.message : '登录失败')
@@ -133,6 +136,7 @@ export function Login() {
     setError('')
     try {
       await verifyMFA(mfaToken, otp.trim(), remember)
+      toast.success('登录成功')
       goNext()
     } catch (err) {
       setError(err instanceof Error ? err.message : '验证失败')
@@ -168,6 +172,7 @@ export function Login() {
     setError('')
     try {
       await passkeyLogin(remember)
+      toast.success('登录成功')
       goNext()
     } catch (err) {
       setError(passkeyErrorMessage(err))
@@ -300,12 +305,13 @@ export function Login() {
                     placeholder="输入验证码"
                     maxLength={6}
                   />
-                  {/* 点击验证码图片刷新；加载中显示省略号。 */}
+                  {/* 点击验证码图片刷新；刷新期间保留旧图并盖一层轻量指示器。 */}
                   <button
                     type="button"
-                    className="code"
+                    className={`code${captcha.isFetching ? ' is-loading' : ''}`}
                     onClick={() => void captcha.refetch()}
                     title="点击刷新验证码"
+                    aria-busy={captcha.isFetching || undefined}
                     style={{ padding: 0, background: 'transparent' }}
                   >
                     {captcha.data ? (
@@ -319,6 +325,11 @@ export function Login() {
                       />
                     ) : (
                       <span className="mono">{captcha.isFetching ? '···' : '刷新'}</span>
+                    )}
+                    {captcha.isFetching && (
+                      <span className="captcha-loading">
+                        <LoadingIndicator size="sm" />
+                      </span>
                     )}
                   </button>
                 </div>
@@ -336,7 +347,7 @@ export function Login() {
                   href="#reset"
                   onClick={(event) => {
                     event.preventDefault()
-                    message.info('请联系管理员重置密码')
+                    toast.info('请联系管理员重置密码')
                   }}
                 >
                   忘记密码
@@ -360,9 +371,10 @@ export function Login() {
             )}
           </AnimatePresence>
 
-          <button className="submit" type="submit" disabled={pending}>
+          <button className="submit" type="submit" disabled={pending} aria-busy={pending || undefined}>
+            {pending && <LoadingIndicator size="sm" inverse />}
             {pending ? (mfaToken ? '正在验证…' : '正在进入…') : mfaToken ? '验证并进入' : '进入工作台'}
-            <Icon name="arrowRight" size={14} />
+            {!pending && <Icon name="arrowRight" size={14} />}
           </button>
           {!mfaToken && passkeyAvailable && (
             <>
@@ -373,9 +385,10 @@ export function Login() {
                 type="button"
                 className="passkey-login"
                 disabled={pending}
+                aria-busy={passkeyBusy || undefined}
                 onClick={() => void handlePasskeyLogin()}
               >
-                <Icon name="key" size={14} />
+                {passkeyBusy ? <LoadingIndicator size="sm" /> : <Icon name="key" size={14} />}
                 {passkeyBusy ? '等待设备验证…' : '使用通行密钥登录'}
               </button>
             </>

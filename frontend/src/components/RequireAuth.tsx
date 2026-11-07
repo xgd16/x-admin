@@ -6,6 +6,7 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { tokenStore } from '../api/tokens'
 import { permissionForPath } from '../config/nav'
 import { useAuth } from '../stores/auth'
+import { PageLoader } from './Loading'
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const location = useLocation()
@@ -21,9 +22,9 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     void bootstrap()
   }, [bootstrap])
 
-  // 会话恢复期间先显示启动占位；没有令牌或已确认匿名则跳转登录页。
+  // 会话恢复期间先显示启动动画；没有令牌或已确认匿名则跳转登录页。
   if (status === 'idle' || (status === 'loading' && !tokenStore.access)) {
-    return <div className="splash">X-ADMIN / LOADING WORKSPACE…</div>
+    return <PageLoader />
   }
   if (!tokenStore.access || status === 'anon') {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />

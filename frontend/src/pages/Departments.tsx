@@ -12,6 +12,7 @@ import { DataTable } from '../components/DataTable'
 import { FormModal } from '../components/FormModal'
 import { Icon } from '../components/Icon'
 import { StatusTag } from '../components/StatusTag'
+import { useToast } from '../hooks/useToast'
 import { flattenTree } from '../utils/format'
 
 interface DepartmentValues {
@@ -34,7 +35,8 @@ function toTreeSelect(rows: Department[]): Array<{ title: string; value: number;
 }
 
 export function Departments() {
-  const { message, modal } = App.useApp()
+  const { modal } = App.useApp()
+  const toast = useToast()
   const queryClient = useQueryClient()
   const can = useAuth((state) => state.can)
   const [open, setOpen] = useState(false)
@@ -62,22 +64,22 @@ export function Departments() {
     mutationFn: (values: DepartmentValues) =>
       editing ? api.put<Department>(`/departments/${editing.id}`, values) : api.post<Department>('/departments', values),
     onSuccess: () => {
-      message.success(editing ? '部门已更新' : '部门已创建')
+      toast.success(editing ? '部门已更新' : '部门已创建')
       setOpen(false)
       setEditing(undefined)
       form.resetFields()
       invalidate()
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => api.del(`/departments/${id}`),
     onSuccess: () => {
-      message.success('部门已删除')
+      toast.success('部门已删除')
       invalidate()
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   // 新建时默认顶级部门、排序 0、状态正常。

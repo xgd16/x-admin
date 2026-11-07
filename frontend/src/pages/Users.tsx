@@ -3,7 +3,7 @@
  */
 import { useEffect, useRef, useState, type Key } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { App, Button, Form, Input, Modal, Select } from 'antd'
+import { App, Button, Drawer, Form, Input, Modal, Select } from 'antd'
 import { useSearchParams } from 'react-router-dom'
 import { api, saveBlob } from '../api/client'
 import type { Department, ImportResult, PageResult, Role, User } from '../api/types'
@@ -13,6 +13,8 @@ import { DataTable } from '../components/DataTable'
 import { FormModal } from '../components/FormModal'
 import { Icon } from '../components/Icon'
 import { StatusTag } from '../components/StatusTag'
+import { useIsCompactViewport } from '../hooks/useMediaQuery'
+import { useToast } from '../hooks/useToast'
 import { flattenTree, formatDate, initials } from '../utils/format'
 
 /** 新建用户表单字段。 */
@@ -38,9 +40,11 @@ interface InspectorValues {
 }
 
 export function Users() {
-  const { message, modal } = App.useApp()
+  const { modal } = App.useApp()
+  const toast = useToast()
   const queryClient = useQueryClient()
   const can = useAuth((state) => state.can)
+  const isMobile = useIsCompactViewport()
   const [params, setParams] = useSearchParams()
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
@@ -50,6 +54,7 @@ export function Users() {
   const [status, setStatus] = useState<number | undefined>()
   const [selectedKeys, setSelectedKeys] = useState<Key[]>([])
   const [selectedID, setSelectedID] = useState<number>()
+  const [inspectorOpen, setInspectorOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [resetUser, setResetUser] = useState<User>()
   const [roleIDs, setRoleIDs] = useState<number[]>([])
@@ -97,8 +102,9 @@ export function Users() {
   }, [list, selectedID])
 
   // 切换选中用户时，把资料与角色回填到检查器表单。
+  // 手机上检查器放在抽屉里，未打开时不写表单，避免未挂载实例告警。
   useEffect(() => {
-    if (selected) {
+    if (selected && (!isMobile || inspectorOpen)) {
       inspectorForm.setFieldsValue({
         nickname: selected.nickname,
         email: selected.email,
@@ -108,7 +114,7 @@ export function Users() {
       })
       setRoleIDs(selected.roles?.map((role) => role.id) ?? [])
     }
-  }, [selected?.id, inspectorForm, selected])
+  }, [selected?.id, inspectorForm, selected, isMobile, inspectorOpen])
 
   // 支持从仪表盘通过 ?new=1 直接打开“新建用户”弹窗。
   useEffect(() => {
@@ -125,77 +131,106 @@ export function Users() {
   const createMutation = useMutation({
     mutationFn: (values: UserFormValues) => api.post<User>('/users', values),
     onSuccess: () => {
-      message.success('用户已创建')
+      toast.success('用户已创建')
       setCreateOpen(false)
       createForm.resetFields()
       void invalidate()
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   const updateMutation = useMutation({
     mutationFn: (values: InspectorValues & { role_ids: number[] }) =>
       api.put<User>(`/users/${selected?.id}`, values),
     onSuccess: (user) => {
-      message.success('变更已保存')
+      toast.success('变更已保存')
       inspectorForm.setFieldsValue({ ...user, dept_id: user.dept_id ?? undefined })
       void invalidate()
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (ids: number[]) => api.del('/users', { ids }),
     onSuccess: () => {
-      message.success('已删除')
+      toast.success('已删除')
       setSelectedKeys([])
       void invalidate()
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   const resetMutation = useMutation({
     mutationFn: ({ id, password }: { id: number; password: string }) => api.put(`/users/${id}/password`, { password }),
     onSuccess: () => {
-      message.success('密码已重置')
+      toast.success('密码已重置')
       setResetUser(undefined)
       resetForm.resetFields()
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   const importMutation = useMutation({
     mutationFn: (file: File) => api.upload<ImportResult>('/users/import', file),
     onSuccess: (result) => {
-      if (result.success > 0) message.success(`成功导入 ${result.success} 个用户`)
-      if (result.failed.length > 0) message.warning(`${result.failed.length} 行失败：${result.failed[0].message}`)
+      if (result.failed.length > 0) {
+        // 导入失败行较多时用通知卡片展开，避免轻提示只显示第一行。
+        toast.notify({
+          type: 'warning',
+          title: `导入完成：成功 ${result.success} 个，失败 ${result.failed.length} 个`,
+          key: 'user-import-result',
+          description: (
+            <div className="toast-detail">
+              {result.failed.slice(0, 5).map((row) => (
+                <p key={`${row.row}-${row.username}`}>
+                  第 {row.row} 行 · <b>{row.username || '未命名'}</b>：{row.message}
+                </p>
+              ))}
+              {result.failed.length > 5 && <p>另有 {result.failed.length - 5} 行失败，请修正后重新导入。</p>}
+            </div>
+          ),
+          duration: 8,
+        })
+      } else if (result.success > 0) {
+        toast.success(`成功导入 ${result.success} 个用户`)
+      } else {
+        toast.info('没有可导入的数据')
+      }
       void invalidate()
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   // 导出与导入模板都走后端生成，前端负责触发下载。
-  const exportUsers = async () => {
-    try {
-      const blob = await api.download('/users/export', { keyword, dept_id: deptID, status })
-      saveBlob(blob, `users-${Date.now()}.xlsx`)
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : '导出失败')
-    }
+  const exportUsers = () => {
+    void toast
+      .promise(
+        api
+          .download('/users/export', { keyword, dept_id: deptID, status })
+          .then((blob) => saveBlob(blob, `users-${Date.now()}.xlsx`)),
+        {
+          loading: '正在导出用户…',
+          success: '用户数据已导出',
+          error: (error) => (error instanceof Error ? error.message : '导出失败'),
+        },
+      )
+      .catch(() => undefined)
   }
 
-  const downloadTemplate = async () => {
-    try {
-      saveBlob(await api.download('/users/template'), 'user-import-template.xlsx')
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : '下载失败')
-    }
+  const downloadTemplate = () => {
+    void toast
+      .promise(api.download('/users/template').then((blob) => saveBlob(blob, 'user-import-template.xlsx')), {
+        loading: '正在下载模板…',
+        success: '导入模板已下载',
+        error: (error) => (error instanceof Error ? error.message : '下载失败'),
+      })
+      .catch(() => undefined)
   }
 
   // 删除前二次确认；历史操作日志不会被一并删除。
   const confirmDelete = (ids: number[]) => {
     if (ids.length === 0) {
-      message.warning('请先选择用户')
+      toast.warning('请先选择用户')
       return
     }
     modal.confirm({
@@ -211,6 +246,87 @@ export function Users() {
   const toggleRole = (id: number) => {
     setRoleIDs((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]))
   }
+
+  // 桌面显示右侧检查器，手机复用同一份内容放进抽屉。
+  const inspectorContent = selected ? (
+    <>
+      <div className="ins-head">
+        <div className="big-avatar">{initials(selected.nickname || selected.username)}</div>
+        <div>
+          <b>{selected.nickname || selected.username}</b>
+          <span>
+            {selected.email || '未设置邮箱'} · UID {selected.id}
+          </span>
+          <span>最后登录 {formatDate(selected.last_login_at)}</span>
+        </div>
+      </div>
+      <Form form={inspectorForm} layout="vertical" onFinish={(values) => updateMutation.mutate({ ...values, role_ids: roleIDs })}>
+        <div className="ins-body">
+          <div className="field">
+            <label>显示名称</label>
+            <Form.Item name="nickname" noStyle>
+              <Input placeholder="显示名称" />
+            </Form.Item>
+          </div>
+          <div className="field">
+            <label>邮箱</label>
+            <Form.Item name="email" noStyle>
+              <Input placeholder="name@example.com" />
+            </Form.Item>
+          </div>
+          <div className="field">
+            <label>手机号</label>
+            <Form.Item name="phone" noStyle>
+              <Input placeholder="13800000000" />
+            </Form.Item>
+          </div>
+          <div className="field">
+            <label>所属部门</label>
+            <Form.Item name="dept_id" noStyle>
+              <Select allowClear options={depts.map((dept) => ({ label: dept.name, value: dept.id }))} placeholder="选择部门" />
+            </Form.Item>
+          </div>
+          <div className="field">
+            <label>角色</label>
+            <div className="role-chips">
+              {roles.map((role) => (
+                <label className="role-chip" key={role.id}>
+                  <input type="checkbox" checked={roleIDs.includes(role.id)} onChange={() => toggleRole(role.id)} />
+                  <span>{role.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="field">
+            <label>账号状态</label>
+            <Form.Item name="status" noStyle>
+              <Select
+                options={[
+                  { label: '正常', value: 1 },
+                  { label: '停用', value: 0 },
+                ]}
+              />
+            </Form.Item>
+          </div>
+        </div>
+        <div className="ins-foot">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span className="hint">变更写入操作日志</span>
+            {can('system:user:reset') && (
+              <Button size="small" type="text" onClick={() => setResetUser(selected)}>
+                重置密码
+              </Button>
+            )}
+          </div>
+          <Button type="primary" htmlType="submit" loading={updateMutation.isPending}>
+            保存变更
+          </Button>
+        </div>
+      </Form>
+    </>
+  ) : (
+    <div className="empty-hint">选择一行查看用户详情</div>
+  )
 
   return (
     <>
@@ -276,6 +392,25 @@ export function Users() {
               ),
             },
             { title: '状态', key: 'status', width: 80, render: (_, row) => <StatusTag status={row.status} /> },
+            {
+              title: '操作',
+              key: 'actions',
+              width: 80,
+              fixed: 'right',
+              render: (_, row) => (
+                <Button
+                  size="small"
+                  type="text"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    setSelectedID(row.id)
+                    if (isMobile) setInspectorOpen(true)
+                  }}
+                >
+                  编辑
+                </Button>
+              ),
+            },
           ]}
           data={list}
           loading={usersQuery.isFetching}
@@ -287,7 +422,13 @@ export function Users() {
             setPageSize(nextSize)
           }}
           onRefresh={() => void usersQuery.refetch()}
-          onRow={(row) => ({ onClick: () => setSelectedID(row.id), style: { cursor: 'pointer' } })}
+          onRow={(row) => ({
+            onClick: () => {
+              setSelectedID(row.id)
+              if (isMobile) setInspectorOpen(true)
+            },
+            style: { cursor: 'pointer' },
+          })}
           filters={
             <>
               <Input
@@ -382,88 +523,22 @@ export function Users() {
           }}
         />
 
-        <aside className="inspector glass">
-          {selected ? (
-            <>
-              <div className="ins-head">
-                <div className="big-avatar">{initials(selected.nickname || selected.username)}</div>
-                <div>
-                  <b>{selected.nickname || selected.username}</b>
-                  <span>
-                    {selected.email || '未设置邮箱'} · UID {selected.id}
-                  </span>
-                  <span>最后登录 {formatDate(selected.last_login_at)}</span>
-                </div>
-              </div>
-              <Form form={inspectorForm} layout="vertical" onFinish={(values) => updateMutation.mutate({ ...values, role_ids: roleIDs })}>
-                <div className="ins-body">
-                  <div className="field">
-                    <label>显示名称</label>
-                    <Form.Item name="nickname" noStyle>
-                      <Input placeholder="显示名称" />
-                    </Form.Item>
-                  </div>
-                  <div className="field">
-                    <label>邮箱</label>
-                    <Form.Item name="email" noStyle>
-                      <Input placeholder="name@example.com" />
-                    </Form.Item>
-                  </div>
-                  <div className="field">
-                    <label>手机号</label>
-                    <Form.Item name="phone" noStyle>
-                      <Input placeholder="13800000000" />
-                    </Form.Item>
-                  </div>
-                  <div className="field">
-                    <label>所属部门</label>
-                    <Form.Item name="dept_id" noStyle>
-                      <Select allowClear options={depts.map((dept) => ({ label: dept.name, value: dept.id }))} placeholder="选择部门" />
-                    </Form.Item>
-                  </div>
-                  <div className="field">
-                    <label>角色</label>
-                    <div className="role-chips">
-                      {roles.map((role) => (
-                        <label className="role-chip" key={role.id}>
-                          <input type="checkbox" checked={roleIDs.includes(role.id)} onChange={() => toggleRole(role.id)} />
-                          <span>{role.name}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="field">
-                    <label>账号状态</label>
-                    <Form.Item name="status" noStyle>
-                      <Select
-                        options={[
-                          { label: '正常', value: 1 },
-                          { label: '停用', value: 0 },
-                        ]}
-                      />
-                    </Form.Item>
-                  </div>
-                </div>
-                <div className="ins-foot">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span className="hint">变更写入操作日志</span>
-                    {can('system:user:reset') && (
-                      <Button size="small" type="text" onClick={() => setResetUser(selected)}>
-                        重置密码
-                      </Button>
-                    )}
-                  </div>
-                  <Button type="primary" htmlType="submit" loading={updateMutation.isPending}>
-                    保存变更
-                  </Button>
-                </div>
-              </Form>
-            </>
-          ) : (
-            <div className="empty-hint">选择一行查看用户详情</div>
-          )}
-        </aside>
+        {!isMobile && <aside className="inspector glass">{inspectorContent}</aside>}
       </div>
+
+      {/* 手机上检查器改为右侧抽屉，避免编辑区被长列表推到页面底部。 */}
+      {isMobile && inspectorOpen && selected && (
+        <Drawer
+          open
+          placement="right"
+          width="min(420px, 100vw)"
+          title={`用户详情 · ${selected.nickname || selected.username}`}
+          onClose={() => setInspectorOpen(false)}
+          destroyOnHidden
+        >
+          <div className="inspector-drawer">{inspectorContent}</div>
+        </Drawer>
+      )}
 
       {/* 新建用户弹窗 */}
       <FormModal

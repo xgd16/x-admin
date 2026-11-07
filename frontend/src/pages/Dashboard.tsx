@@ -5,13 +5,17 @@ import { lazy, Suspense } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
+import type { TableColumnsType } from 'antd'
 import { api } from '../api/client'
-import type { DashboardSummary } from '../api/types'
+import type { DashboardSummary, OperationLog } from '../api/types'
 import { useAuth } from '../stores/auth'
 import { PageHeader } from '../components/PageHeader'
 import { Icon } from '../components/Icon'
+import { ChartSkeleton, MetricSkeleton, TableSkeleton } from '../components/Loading'
+import { MobileRecordList } from '../components/MobileRecordList'
 import { MethodTag } from '../components/StatusTag'
 import { quickActions } from '../config/nav'
+import { useIsCompactViewport } from '../hooks/useMediaQuery'
 
 // ECharts 只在仪表盘按需加载，避免增大登录页首屏包体积。
 const LoginTrendChart = lazy(() =>
@@ -19,6 +23,43 @@ const LoginTrendChart = lazy(() =>
 )
 
 const numberFormat = new Intl.NumberFormat('zh-CN')
+
+/** 最近操作列定义：桌面渲染表格，手机交给 MobileRecordList 渲染卡片。 */
+const recentOperationColumns: TableColumnsType<OperationLog> = [
+  {
+    title: '操作人',
+    key: 'username',
+    render: (_, row) => (
+      <div className="cell-user">
+        <span className="cell-avatar">{(row.username || '?').slice(0, 1)}</span>
+        <span>
+          <b>{row.username || `UID ${row.user_id}`}</b>
+          <small>UID {row.user_id}</small>
+        </span>
+      </div>
+    ),
+  },
+  {
+    title: '动作',
+    key: 'method',
+    render: (_, row) => <MethodTag method={row.method} />,
+  },
+  {
+    title: '路径',
+    key: 'path',
+    render: (_, row) => <span className="mono">{row.path}</span>,
+  },
+  {
+    title: 'IP',
+    key: 'ip',
+    render: (_, row) => <span className="mono">{row.ip}</span>,
+  },
+  {
+    title: '时间',
+    key: 'created_at',
+    render: (_, row) => <span className="mono">{dayjs(row.created_at).format('MM-DD HH:mm')}</span>,
+  },
+]
 
 /** 大数字压缩展示：超过 1 万时使用 w 单位。 */
 function formatCompact(value: number): string {
@@ -42,7 +83,8 @@ function formatBytes(value: number): string {
 export function Dashboard() {
   const navigate = useNavigate()
   const can = useAuth((state) => state.can)
-  const { data, isLoading, refetch } = useQuery({
+  const compact = useIsCompactViewport()
+  const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['dashboard-summary'],
     queryFn: () => api.get<DashboardSummary>('/dashboard/summary'),
     staleTime: 30_000,
@@ -81,8 +123,8 @@ export function Dashboard() {
         }
         actions={
           <>
-            <button className="btn" type="button" onClick={() => void refetch()}>
-              <Icon name="refresh" size={13} />
+            <button className="btn" type="button" aria-busy={isFetching || undefined} onClick={() => void refetch()}>
+              <Icon name="refresh" size={13} className={isFetching ? 'x-spin-icon' : undefined} />
               刷新
             </button>
             {can('system:user:create') && (
@@ -104,7 +146,7 @@ export function Dashboard() {
               <Icon name="users" size={14} />
             </span>
           </div>
-          <div className="kpi-value">{data ? numberFormat.format(data.users) : '—'}</div>
+          <div className="kpi-value">{isLoading && !data ? <MetricSkeleton /> : data ? numberFormat.format(data.users) : '—'}</div>
           <div className="kpi-foot">
             <span className="delta up">{data ? numberFormat.format(data.active_users) : '—'}</span> 个账号已启用
           </div>
@@ -116,9 +158,9 @@ export function Dashboard() {
               <Icon name="zap" size={14} />
             </span>
           </div>
-          <div className="kpi-value">{data ? formatCompact(data.active_users) : '—'}</div>
+          <div className="kpi-value">{isLoading && !data ? <MetricSkeleton width={62} /> : data ? formatCompact(data.active_users) : '—'}</div>
           <div className="kpi-foot">
-            <span className="delta up">{activeRatio}%</span> 账号启用率
+            <span className="delta up">{data ? `${activeRatio}%` : '—'}</span> 账号启用率
           </div>
         </article>
         <article className="kpi glass peach">
@@ -128,7 +170,7 @@ export function Dashboard() {
               <Icon name="login" size={14} />
             </span>
           </div>
-          <div className="kpi-value">{last ? numberFormat.format(last.count) : '—'}</div>
+          <div className="kpi-value">{isLoading && !data ? <MetricSkeleton width={54} /> : last ? numberFormat.format(last.count) : '—'}</div>
           <div className="kpi-foot">
             {prev && prev.count > 0 ? (
               <>
@@ -149,9 +191,9 @@ export function Dashboard() {
               <Icon name="folder" size={14} />
             </span>
           </div>
-          <div className="kpi-value">{data ? numberFormat.format(data.files) : '—'}</div>
+          <div className="kpi-value">{isLoading && !data ? <MetricSkeleton width={58} /> : data ? numberFormat.format(data.files) : '—'}</div>
           <div className="kpi-foot">
-            <span className="delta up">{formatBytes(data?.file_size ?? 0)}</span> 已占用空间
+            <span className="delta up">{data ? formatBytes(data.file_size) : '—'}</span> 已占用空间
           </div>
         </article>
       </div>
@@ -163,14 +205,14 @@ export function Dashboard() {
             <h2>登录趋势</h2>
             <span>7D / DAILY</span>
           </div>
-          <Suspense fallback={<div className="chart chart-skeleton" aria-hidden="true" />}>
+          <Suspense fallback={<ChartSkeleton />}>
             <LoginTrendChart trend={trend} />
           </Suspense>
           <div className="chart-legend">
             <span>
               <i />登录次数
             </span>
-            <span className="spacer">{isLoading ? '加载中…' : `近 7 天 · 峰值 ${numberFormat.format(peak.count)}`}</span>
+            <span className="spacer">{isLoading ? '正在同步趋势…' : `近 7 天 · 峰值 ${numberFormat.format(peak.count)}`}</span>
           </div>
         </section>
 
@@ -228,65 +270,85 @@ export function Dashboard() {
             </button>
           </div>
           <div style={{ marginTop: 6 }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  {['操作人', '动作', '路径', 'IP', '时间'].map((title) => (
-                    <th
-                      key={title}
-                      style={{
-                        textAlign: 'left',
-                        padding: '8px 9px',
-                        fontFamily: 'var(--mono)',
-                        fontSize: 7.5,
-                        fontWeight: 400,
-                        letterSpacing: '.06em',
-                        textTransform: 'uppercase',
-                        color: 'var(--dim)',
-                        borderBottom: '1px solid var(--line)',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {title}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {(data?.recent_operations ?? []).slice(0, 5).map((row) => (
-                  <tr key={row.id}>
-                    <td style={{ padding: '9px', fontSize: 10.5, borderBottom: '1px solid var(--line-soft)', whiteSpace: 'nowrap' }}>
-                      <div className="cell-user">
-                        <span className="cell-avatar">{row.username.slice(0, 1)}</span>
-                        <span>
-                          <b>{row.username}</b>
-                          <small>UID {row.user_id}</small>
-                        </span>
-                      </div>
-                    </td>
-                    <td style={{ padding: '9px', borderBottom: '1px solid var(--line-soft)' }}>
-                      <MethodTag method={row.method} />
-                    </td>
-                    <td className="mono" style={{ padding: '9px', borderBottom: '1px solid var(--line-soft)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {row.path}
-                    </td>
-                    <td className="mono" style={{ padding: '9px', borderBottom: '1px solid var(--line-soft)' }}>
-                      {row.ip}
-                    </td>
-                    <td className="mono" style={{ padding: '9px', borderBottom: '1px solid var(--line-soft)' }}>
-                      {dayjs(row.created_at).format('MM-DD HH:mm')}
-                    </td>
-                  </tr>
-                ))}
-                {(data?.recent_operations ?? []).length === 0 && (
+            {compact ? (
+              <MobileRecordList<OperationLog>
+                columns={recentOperationColumns}
+                data={(data?.recent_operations ?? []).slice(0, 5)}
+                rowKey="id"
+                loading={isLoading && !data}
+                emptyText="暂无操作记录"
+              />
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
                   <tr>
-                    <td colSpan={5} className="empty-hint">
-                      暂无操作记录
-                    </td>
+                    {['操作人', '动作', '路径', 'IP', '时间'].map((title) => (
+                      <th
+                        key={title}
+                        style={{
+                          textAlign: 'left',
+                          padding: '8px 9px',
+                          fontFamily: 'var(--mono)',
+                          fontSize: 7.5,
+                          fontWeight: 400,
+                          letterSpacing: '.06em',
+                          textTransform: 'uppercase',
+                          color: 'var(--dim)',
+                          borderBottom: '1px solid var(--line)',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {title}
+                      </th>
+                    ))}
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {isLoading && !data ? (
+                    <tr>
+                      <td colSpan={5} style={{ padding: '4px 0' }}>
+                        <TableSkeleton rows={3} columns={[24, 12, 30, 16, 12]} />
+                      </td>
+                    </tr>
+                  ) : (
+                    <>
+                      {(data?.recent_operations ?? []).slice(0, 5).map((row) => (
+                        <tr key={row.id}>
+                          <td style={{ padding: '9px', fontSize: 10.5, borderBottom: '1px solid var(--line-soft)', whiteSpace: 'nowrap' }}>
+                            <div className="cell-user">
+                              <span className="cell-avatar">{row.username.slice(0, 1)}</span>
+                              <span>
+                                <b>{row.username}</b>
+                                <small>UID {row.user_id}</small>
+                              </span>
+                            </div>
+                          </td>
+                          <td style={{ padding: '9px', borderBottom: '1px solid var(--line-soft)' }}>
+                            <MethodTag method={row.method} />
+                          </td>
+                          <td className="mono" style={{ padding: '9px', borderBottom: '1px solid var(--line-soft)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {row.path}
+                          </td>
+                          <td className="mono" style={{ padding: '9px', borderBottom: '1px solid var(--line-soft)' }}>
+                            {row.ip}
+                          </td>
+                          <td className="mono" style={{ padding: '9px', borderBottom: '1px solid var(--line-soft)' }}>
+                            {dayjs(row.created_at).format('MM-DD HH:mm')}
+                          </td>
+                        </tr>
+                      ))}
+                      {(data?.recent_operations ?? []).length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="empty-hint">
+                            暂无操作记录
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  )}
+                </tbody>
+              </table>
+            )}
           </div>
         </section>
 

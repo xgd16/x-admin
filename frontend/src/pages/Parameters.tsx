@@ -11,6 +11,7 @@ import { PageHeader } from '../components/PageHeader'
 import { DataTable } from '../components/DataTable'
 import { FormModal } from '../components/FormModal'
 import { Icon } from '../components/Icon'
+import { useToast } from '../hooks/useToast'
 
 interface ParameterValues {
   key: string
@@ -21,7 +22,8 @@ interface ParameterValues {
 }
 
 export function Parameters() {
-  const { message, modal } = App.useApp()
+  const { modal } = App.useApp()
+  const toast = useToast()
   const queryClient = useQueryClient()
   const can = useAuth((state) => state.can)
   const [page, setPage] = useState(1)
@@ -45,22 +47,22 @@ export function Parameters() {
     mutationFn: (values: ParameterValues) =>
       editing ? api.put<Parameter>(`/parameters/${editing.id}`, values) : api.post<Parameter>('/parameters', values),
     onSuccess: () => {
-      message.success(editing ? '参数已更新' : '参数已创建')
+      toast.success(editing ? '参数已更新' : '参数已创建')
       setOpen(false)
       setEditing(undefined)
       form.resetFields()
       invalidate()
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => api.del(`/parameters/${id}`),
     onSuccess: () => {
-      message.success('参数已删除')
+      toast.success('参数已删除')
       invalidate()
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error) => toast.fail(error),
   })
 
   // 新参数默认不是公共参数，避免敏感配置被未登录页面读取。
