@@ -184,6 +184,7 @@ export function CommandBar() {
         <Input
           autoFocus
           variant="borderless"
+          autoComplete="off"
           prefix={<Icon name="search" size={16} />}
           suffix={
             <button

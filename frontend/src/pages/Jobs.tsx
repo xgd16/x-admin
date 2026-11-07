@@ -226,7 +226,7 @@ export function Jobs() {
       <Drawer
         open={!!runsJob}
         onClose={() => setRunsJob(undefined)}
-        width={760}
+        size={760}
         title={runsJob ? `${runsJob.name} · 执行记录` : '执行记录'}
       >
         <DataTable<JobRun>
@@ -291,13 +291,13 @@ export function Jobs() {
       >
         <div className="detail-grid">
           <Form.Item name="name" label="任务名称" rules={[{ required: true, message: '请输入任务名称' }]}>
-            <Input placeholder="清理过期日志" />
+            <Input autoComplete="off" placeholder="清理过期日志" />
           </Form.Item>
           <Form.Item name="status" label="状态" initialValue={1}>
             <Select options={[{ label: '启用', value: 1 }, { label: '停用', value: 0 }]} />
           </Form.Item>
           <Form.Item name="cron" label="Cron 表达式" rules={[{ required: true, message: '请输入 Cron' }]}>
-            <Input placeholder="0 3 * * *" />
+            <Input autoComplete="off" placeholder="0 3 * * *" />
           </Form.Item>
           <Form.Item name="handler" label="执行器" rules={[{ required: true, message: '请输入执行器' }]}>
             <Select
@@ -309,10 +309,10 @@ export function Jobs() {
             />
           </Form.Item>
           <Form.Item name="params" label="参数 JSON" className="full">
-            <Input.TextArea rows={3} placeholder='{"days":90}' />
+            <Input.TextArea rows={3} autoComplete="off" placeholder='{"days":90}' />
           </Form.Item>
           <Form.Item name="remark" label="备注" className="full">
-            <Input placeholder="可读描述" />
+            <Input autoComplete="off" placeholder="可读描述" />
           </Form.Item>
           <Form.Item shouldUpdate noStyle>
             {() => (

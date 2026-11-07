@@ -443,29 +443,29 @@ export function Menus() {
             />
           </Form.Item>
           <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入菜单名称' }]}>
-            <Input placeholder="例如：用户管理" />
+            <Input autoComplete="off" placeholder="例如：用户管理" />
           </Form.Item>
           <Form.Item name="sort" label="排序" initialValue={0}>
-            <InputNumber min={0} max={9999} style={{ width: '100%' }} />
+            <InputNumber min={0} max={9999} autoComplete="off" style={{ width: '100%' }} />
           </Form.Item>
           {/* 按钮节点没有路由；目录节点没有权限码。 */}
           {(type === undefined || type !== 3) && (
             <>
               <Form.Item name="path" label="路由路径">
-                <Input placeholder="/system/users" />
+                <Input autoComplete="off" placeholder="/system/users" />
               </Form.Item>
               <Form.Item name="component" label="前端组件">
-                <Input placeholder="system/users" />
+                <Input autoComplete="off" placeholder="system/users" />
               </Form.Item>
             </>
           )}
           {type !== 1 && (
             <Form.Item name="permission" label="权限码" className={type === 3 ? 'full' : undefined}>
-              <Input placeholder="system:user:create" />
+              <Input autoComplete="off" placeholder="system:user:create" />
             </Form.Item>
           )}
           <Form.Item name="icon" label="图标">
-            <Input placeholder="users / shield / folder" />
+            <Input autoComplete="off" placeholder="users / shield / folder" />
           </Form.Item>
           <Form.Item name="visible" label="侧栏可见" valuePropName="checked" initialValue>
             <Switch />

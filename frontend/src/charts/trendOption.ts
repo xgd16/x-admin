@@ -46,7 +46,8 @@ export function buildTrendOption(
     animationEasingUpdate: 'cubicOut',
     backgroundColor: 'transparent',
     textStyle: { fontFamily: CHART_FONT },
-    grid: { left: 4, right: 12, top: 24, bottom: 2, containLabel: true },
+    // ECharts 6 弃用 containLabel，等价写法为 outerBoundsMode:'same' + outerBoundsContain:'axisLabel'。
+    grid: { left: 4, right: 12, top: 24, bottom: 2, outerBoundsMode: 'same', outerBoundsContain: 'axisLabel' },
     tooltip: {
       trigger: 'axis',
       confine: true,

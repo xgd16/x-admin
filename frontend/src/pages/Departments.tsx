@@ -199,19 +199,19 @@ export function Departments() {
             <TreeSelect treeData={[{ title: '顶级部门', value: 0, children: toTreeSelect(tree) }]} allowClear placeholder="不选则为顶级" />
           </Form.Item>
           <Form.Item name="name" label="部门名称" rules={[{ required: true, message: '请输入部门名称' }]}>
-            <Input placeholder="例如：技术部" />
+            <Input autoComplete="off" placeholder="例如：技术部" />
           </Form.Item>
           <Form.Item name="leader" label="负责人">
-            <Input placeholder="姓名" />
+            <Input autoComplete="name" placeholder="姓名" />
           </Form.Item>
           <Form.Item name="phone" label="手机号">
-            <Input placeholder="13800000000" />
+            <Input autoComplete="tel" placeholder="13800000000" />
           </Form.Item>
           <Form.Item name="email" label="邮箱">
-            <Input placeholder="name@example.com" />
+            <Input autoComplete="email" placeholder="name@example.com" />
           </Form.Item>
           <Form.Item name="sort" label="排序" initialValue={0}>
-            <InputNumber min={0} max={9999} style={{ width: '100%' }} />
+            <InputNumber min={0} max={9999} autoComplete="off" style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="status" label="状态" initialValue={1}>
             <Select options={[{ label: '正常', value: 1 }, { label: '停用', value: 0 }]} />

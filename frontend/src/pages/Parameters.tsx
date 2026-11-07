@@ -136,6 +136,7 @@ export function Parameters() {
           <>
             <Input
               allowClear
+              autoComplete="off"
               placeholder="搜索参数名称 / 键"
               value={keywordDraft}
               onChange={(event) => setKeywordDraft(event.target.value)}
@@ -166,19 +167,19 @@ export function Parameters() {
       >
         <div className="detail-grid">
           <Form.Item name="name" label="参数名称" rules={[{ required: true, message: '请输入参数名称' }]}>
-            <Input placeholder="例如：站点名称" />
+            <Input autoComplete="off" placeholder="例如：站点名称" />
           </Form.Item>
           <Form.Item name="key" label="参数键" rules={[{ required: true, message: '请输入参数键' }]}>
-            <Input placeholder="site.name" />
+            <Input autoComplete="off" placeholder="site.name" />
           </Form.Item>
           <Form.Item name="value" label="参数值" className="full">
-            <Input.TextArea rows={3} placeholder="参数值" />
+            <Input.TextArea rows={3} autoComplete="off" placeholder="参数值" />
           </Form.Item>
           <Form.Item name="public" label="公共参数" valuePropName="checked">
             <Switch />
           </Form.Item>
           <Form.Item name="remark" label="备注">
-            <Input placeholder="可选" />
+            <Input autoComplete="off" placeholder="可选" />
           </Form.Item>
         </div>
       </FormModal>

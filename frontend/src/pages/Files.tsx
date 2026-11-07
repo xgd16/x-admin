@@ -228,6 +228,7 @@ export function Files() {
             />
             <Input
               allowClear
+              autoComplete="off"
               placeholder="搜索文件名 / MIME"
               value={keywordDraft}
               onChange={(event) => setKeywordDraft(event.target.value)}
@@ -259,7 +260,7 @@ export function Files() {
       <Drawer
         open={!!shareFile}
         onClose={() => { setShareFile(undefined); setLatestShareURL('') }}
-        width={620}
+        size={620}
         title={shareFile ? `${shareFile.name} · 分享链接` : '分享链接'}
       >
         <div style={{ display: 'grid', gap: 14 }}>
@@ -276,7 +277,7 @@ export function Files() {
 
           {latestShareURL && (
             <div style={{ display: 'flex', gap: 8 }}>
-              <Input readOnly value={latestShareURL} onFocus={(event) => event.currentTarget.select()} />
+              <Input readOnly autoComplete="off" value={latestShareURL} onFocus={(event) => event.currentTarget.select()} />
               <Button onClick={() => void copyLatestShare()}>复制</Button>
             </div>
           )}

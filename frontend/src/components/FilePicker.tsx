@@ -243,6 +243,7 @@ export function FilePicker({
           <div className="file-picker-search">
             <Input
               allowClear
+              autoComplete="off"
               placeholder="搜索文件名 / MIME"
               prefix={<Icon name="search" size={12} />}
               value={draft}

@@ -215,6 +215,7 @@ export function Roles() {
           <>
             <Input
               allowClear
+              autoComplete="off"
               placeholder="搜索角色名称 / 编码"
               value={keywordDraft}
               onChange={(event) => setKeywordDraft(event.target.value)}
@@ -256,19 +257,19 @@ export function Roles() {
       >
         <div className="detail-grid">
           <Form.Item name="name" label="角色名称" rules={[{ required: true, message: '请输入角色名称' }]}>
-            <Input placeholder="例如：运营管理员" />
+            <Input autoComplete="off" placeholder="例如：运营管理员" />
           </Form.Item>
           <Form.Item name="code" label="角色编码" rules={[{ required: true, message: '请输入角色编码' }]}>
-            <Input placeholder="例如：operator" disabled={editing?.code === 'super_admin'} />
+            <Input autoComplete="off" placeholder="例如：operator" disabled={editing?.code === 'super_admin'} />
           </Form.Item>
           <Form.Item name="status" label="状态" initialValue={1}>
             <Select options={[{ label: '正常', value: 1 }, { label: '停用', value: 0 }]} />
           </Form.Item>
           <Form.Item name="sort" label="排序" initialValue={0}>
-            <InputNumber min={0} max={9999} style={{ width: '100%' }} />
+            <InputNumber min={0} max={9999} autoComplete="off" style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="remark" label="备注" className="full">
-            <Input placeholder="可选" />
+            <Input autoComplete="off" placeholder="可选" />
           </Form.Item>
         </div>
       </FormModal>

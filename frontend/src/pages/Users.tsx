@@ -433,6 +433,7 @@ export function Users() {
             <>
               <Input
                 allowClear
+                autoComplete="off"
                 placeholder="搜索姓名 / 邮箱 / 手机号"
                 value={keywordDraft}
                 onChange={(event) => setKeywordDraft(event.target.value)}
@@ -531,7 +532,7 @@ export function Users() {
         <Drawer
           open
           placement="right"
-          width="min(420px, 100vw)"
+          size="min(420px, 100vw)"
           title={`用户详情 · ${selected.nickname || selected.username}`}
           onClose={() => setInspectorOpen(false)}
           destroyOnHidden
@@ -551,22 +552,22 @@ export function Users() {
       >
         <div className="detail-grid">
           <Form.Item name="username" label="用户名" rules={[{ required: true, message: '请输入用户名' }]}>
-            <Input placeholder="3-32 位字母、数字或下划线" />
+            <Input autoComplete="username" placeholder="3-32 位字母、数字或下划线" />
           </Form.Item>
           <Form.Item name="password" label="初始密码" rules={[{ required: true, message: '请输入初始密码' }]}>
-            <Input.Password placeholder="至少 8 位，含字母和数字" />
+            <Input.Password autoComplete="new-password" placeholder="至少 8 位，含字母和数字" />
           </Form.Item>
           <Form.Item name="nickname" label="昵称">
-            <Input placeholder="显示名称" />
+            <Input autoComplete="nickname" placeholder="显示名称" />
           </Form.Item>
           <Form.Item name="status" label="状态" initialValue={1}>
             <Select options={[{ label: '正常', value: 1 }, { label: '停用', value: 0 }]} />
           </Form.Item>
           <Form.Item name="email" label="邮箱">
-            <Input placeholder="name@example.com" />
+            <Input autoComplete="email" placeholder="name@example.com" />
           </Form.Item>
           <Form.Item name="phone" label="手机号">
-            <Input placeholder="13800000000" />
+            <Input autoComplete="tel" placeholder="13800000000" />
           </Form.Item>
           <Form.Item name="dept_id" label="部门">
             <Select allowClear options={depts.map((dept) => ({ label: dept.name, value: dept.id }))} />
@@ -575,7 +576,7 @@ export function Users() {
             <Select mode="multiple" options={roles.map((role) => ({ label: role.name, value: role.id }))} />
           </Form.Item>
           <Form.Item name="remark" label="备注" className="full">
-            <Input placeholder="可选" />
+            <Input autoComplete="off" placeholder="可选" />
           </Form.Item>
         </div>
       </FormModal>
@@ -593,7 +594,7 @@ export function Users() {
       >
         <Form form={resetForm} layout="vertical" onFinish={(values) => resetUser && resetMutation.mutate({ id: resetUser.id, password: values.password })}>
           <Form.Item name="password" label="新密码" rules={[{ required: true, message: '请输入新密码' }]}>
-            <Input.Password placeholder="至少 8 位，含字母和数字" />
+            <Input.Password autoComplete="new-password" placeholder="至少 8 位，含字母和数字" />
           </Form.Item>
         </Form>
       </Modal>

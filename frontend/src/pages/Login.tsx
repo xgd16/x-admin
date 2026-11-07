@@ -300,6 +300,7 @@ export function Login() {
                   <Input
                     id="captcha"
                     size="large"
+                    autoComplete="off"
                     value={code}
                     onChange={(event) => setCode(event.target.value)}
                     placeholder="输入验证码"

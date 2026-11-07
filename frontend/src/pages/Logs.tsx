@@ -161,6 +161,7 @@ export function Logs({ mode }: { mode: Mode }) {
           <>
             <Input
               allowClear
+              autoComplete="off"
               placeholder={operations ? '搜索账号 / 路径' : '搜索账号 / IP'}
               value={keywordDraft}
               onChange={(event) => setKeywordDraft(event.target.value)}
@@ -214,7 +215,7 @@ export function Logs({ mode }: { mode: Mode }) {
       <Drawer
         open={!!detail}
         onClose={() => setDetail(null)}
-        width={520}
+        size={520}
         title={operations ? '操作日志详情' : '登录日志详情'}
       >
         {detail && (

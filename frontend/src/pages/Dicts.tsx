@@ -190,6 +190,7 @@ export function Dicts() {
             <>
               <Input
                 allowClear
+                autoComplete="off"
                 placeholder="搜索字典名称 / 编码"
                 value={keywordDraft}
                 onChange={(event) => setKeywordDraft(event.target.value)}
@@ -262,16 +263,16 @@ export function Dicts() {
       >
         <div className="detail-grid">
           <Form.Item name="name" label="字典名称" rules={[{ required: true, message: '请输入字典名称' }]}>
-            <Input placeholder="例如：用户状态" />
+            <Input autoComplete="off" placeholder="例如：用户状态" />
           </Form.Item>
           <Form.Item name="code" label="字典编码" rules={[{ required: true, message: '请输入字典编码' }]}>
-            <Input placeholder="user_status" />
+            <Input autoComplete="off" placeholder="user_status" />
           </Form.Item>
           <Form.Item name="status" label="状态" initialValue={1}>
             <Select options={[{ label: '正常', value: 1 }, { label: '停用', value: 0 }]} />
           </Form.Item>
           <Form.Item name="remark" label="备注">
-            <Input placeholder="可选" />
+            <Input autoComplete="off" placeholder="可选" />
           </Form.Item>
         </div>
       </FormModal>
@@ -286,13 +287,13 @@ export function Dicts() {
       >
         <div className="detail-grid">
           <Form.Item name="label" label="标签" rules={[{ required: true, message: '请输入标签' }]}>
-            <Input placeholder="正常" />
+            <Input autoComplete="off" placeholder="正常" />
           </Form.Item>
           <Form.Item name="value" label="值" rules={[{ required: true, message: '请输入值' }]}>
-            <Input placeholder="1" />
+            <Input autoComplete="off" placeholder="1" />
           </Form.Item>
           <Form.Item name="sort" label="排序" initialValue={0}>
-            <InputNumber min={0} max={9999} style={{ width: '100%' }} />
+            <InputNumber min={0} max={9999} autoComplete="off" style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="tag_color" label="标签颜色">
             <Select

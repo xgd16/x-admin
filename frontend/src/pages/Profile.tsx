@@ -351,19 +351,19 @@ export function Profile() {
             >
               <div className="detail-grid">
                 <Form.Item name="nickname" label="昵称">
-                  <Input placeholder="显示名称" />
+                  <Input autoComplete="nickname" placeholder="显示名称" />
                 </Form.Item>
                 <Form.Item name="email" label="邮箱">
-                  <Input placeholder="name@example.com" />
+                  <Input autoComplete="email" placeholder="name@example.com" />
                 </Form.Item>
                 <Form.Item name="phone" label="手机号">
-                  <Input placeholder="13800000000" />
+                  <Input autoComplete="tel" placeholder="13800000000" />
                 </Form.Item>
                 <Form.Item name="avatar" label="头像">
                   {canUseFileLibrary ? (
                     <FileSelect types="image" placeholder="选择头像" title="选择头像" />
                   ) : (
-                    <Input placeholder="https://…" />
+                    <Input autoComplete="url" placeholder="https://…" />
                   )}
                 </Form.Item>
               </div>
@@ -604,13 +604,13 @@ export function Profile() {
             >
               <div className="detail-grid">
                 <Form.Item name="old_password" label="原密码" rules={[{ required: true, message: '请输入原密码' }]}>
-                  <Input.Password placeholder="当前密码" />
+                  <Input.Password autoComplete="current-password" placeholder="当前密码" />
                 </Form.Item>
                 <Form.Item name="new_password" label="新密码" rules={[{ required: true, message: '请输入新密码' }]}>
-                  <Input.Password placeholder="至少 8 位，含字母和数字" />
+                  <Input.Password autoComplete="new-password" placeholder="至少 8 位，含字母和数字" />
                 </Form.Item>
                 <Form.Item name="confirm" label="确认新密码" rules={[{ required: true, message: '请再次输入新密码' }]}>
-                  <Input.Password placeholder="再次输入" />
+                  <Input.Password autoComplete="new-password" placeholder="再次输入" />
                 </Form.Item>
               </div>
               <Button type="primary" htmlType="submit" loading={passwordMutation.isPending}>
@@ -789,7 +789,7 @@ export function Profile() {
           }}
         >
           <Form.Item name="name" label="设备名称" rules={[{ required: true, message: '请输入设备名称' }]}>
-            <Input maxLength={64} placeholder="例如：iPhone" />
+            <Input maxLength={64} autoComplete="off" placeholder="例如：iPhone" />
           </Form.Item>
           <div className="totp-modal-actions">
             <Button
