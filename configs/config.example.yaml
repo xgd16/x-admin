@@ -1,3 +1,8 @@
+# 配置模板：复制为 configs/config.yaml 后按需修改。
+# config.yaml 已被 .gitignore 排除，本地改动（数据库密码等）不会进入仓库。
+# 未写出的配置项自动使用内置默认值（见 internal/config/config.go 的 Default），
+# 也可以用 X_ADMIN_* 环境变量覆盖（优先级：默认值 < config.yaml < 环境变量）。
+
 app:
   name: x-admin
   version: 1.0.0
@@ -19,7 +24,7 @@ server:
     - 192.168.0.0/16
 
 database:
-  dsn: xadmin:xadmin@tcp(127.0.0.1:3306)/xadmin?charset=utf8mb4&parseTime=True&loc=Local
+  dsn: root:change-me@tcp(127.0.0.1:3306)/xadmin?charset=utf8mb4&parseTime=True&loc=Local
   max_open_conns: 50
   max_idle_conns: 10
   conn_max_lifetime: 1h

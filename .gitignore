@@ -16,6 +16,7 @@ tmp/
 .env
 .env.*
 !.env.example
+configs/config.yaml
 configs/local.yaml
 
 # editor / OS

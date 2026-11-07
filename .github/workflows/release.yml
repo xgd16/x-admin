@@ -82,7 +82,7 @@ jobs:
 
           mkdir -p stage/configs
           cp "build/x-admin${ext}" "stage/x-admin${ext}"
-          cp configs/config.yaml stage/configs/
+          cp configs/config.example.yaml stage/configs/
           cp .env.example LICENSE README.md stage/
 
           if [ "$GOOS" = "windows" ]; then

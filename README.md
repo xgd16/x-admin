@@ -380,6 +380,9 @@ docker compose -f deploy/docker-compose.yml down
 ### 5.3 本地开发
 
 ```bash
+# 0. 首次生成配置（config.yaml 不入库，改动不会被提交）
+cp configs/config.example.yaml configs/config.yaml
+
 # 1. 启动 MySQL + Redis（映射 3306 / 6379）
 make dev-infra
 
@@ -477,7 +480,7 @@ x-admin/
 ├── deploy/                         # Dockerfile / Nginx / Compose
 ├── docs/screenshots/               # README 截图
 ├── design-preview/                 # 三套视觉样张（02-workbench 已选定）
-├── configs/config.yaml             # 后端默认配置
+├── configs/config.example.yaml     # 配置模板（复制为 config.yaml，后者不入库）
 ├── .env.example                    # Compose 与本地开发环境变量示例
 ├── Makefile
 ├── SPEC.md                         # 实现规格
