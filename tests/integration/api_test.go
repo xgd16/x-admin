@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -39,6 +40,23 @@ func decodeID(t *testing.T, rr *httptest.ResponseRecorder) uint64 {
 	require.NoError(t, json.Unmarshal(decodeData(t, rr), &row))
 	require.NotZero(t, row.ID)
 	return row.ID
+}
+
+// waitExportTaskDone 轮询导出记录，等待任务离开 pending/running 状态。
+func waitExportTaskDone(t *testing.T, app *testsupport.App, id uint64) *model.ExportTask {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		task, err := app.Repos.Exports.Get(context.Background(), id)
+		require.NoError(t, err)
+		if task.Status != model.ExportPending && task.Status != model.ExportRunning {
+			require.Equal(t, model.ExportSuccess, task.Status, task.Error)
+			return task
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatal("export task not finished in time")
+	return nil
 }
 
 func TestAPIEndToEnd(t *testing.T) {
@@ -132,9 +150,22 @@ func TestAPIEndToEnd(t *testing.T) {
 	rr = app.Do(http.MethodPut, fmt.Sprintf("/admin/v1/users/%d/roles", userID), map[string]any{"role_ids": []uint64{roleID}}, token)
 	require.Equal(t, 0, testsupport.Decode(t, rr).Code)
 
-	rr = app.Do(http.MethodGet, "/admin/v1/users/export?keyword=alice", nil, token)
+	// 异步导出：提交任务 → 轮询记录 → 完成后下载校验。
+	rr = app.Do(http.MethodPost, "/admin/v1/export-tasks", map[string]any{
+		"module": "users", "params": map[string]any{"keyword": "alice"},
+	}, token)
+	env := testsupport.Decode(t, rr)
+	require.Equal(t, 0, env.Code, rr.Body.String())
+	var created struct {
+		ID uint64 `json:"id"`
+	}
+	require.NoError(t, json.Unmarshal(env.Data, &created))
+	task := waitExportTaskDone(t, app, created.ID)
+	assert.Regexp(t, `^users_\d{14}\.xlsx$`, task.FileName)
+
+	rr = app.Do(http.MethodGet, fmt.Sprintf("/admin/v1/export-tasks/%d/download", created.ID), nil, token)
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Header().Get("Content-Disposition"), "users.xlsx")
+	assert.Regexp(t, `filename=\"users_\d{14}\.xlsx\"`, rr.Header().Get("Content-Disposition"))
 	assert.NotEmpty(t, rr.Body.Bytes())
 
 	rr = app.Do(http.MethodGet, "/admin/v1/users/template", nil, token)

@@ -39,6 +39,7 @@ func newFailingRouter(app *testsupport.App) *gin.Engine {
 	logs := handler.NewLogHandler(app.Services.Logs)
 	profile := handler.NewProfileHandler(app.Services.Profile, app.Services.Passkeys, app.Services.Auth)
 	notifications := handler.NewNotificationHandler(app.Services.Notifications)
+	exports := handler.NewExportHandler(app.Services.Exports)
 	dashboard := handler.NewDashboardHandler(app.Services.Dashboard)
 	auth := handler.NewAuthHandler(app.Services.Auth, app.Captcha, app.Services.Passkeys, app.Tokens, false, time.Hour)
 
@@ -59,7 +60,6 @@ func newFailingRouter(app *testsupport.App) *gin.Engine {
 	r.PUT("/users/:id/status", users.SetStatus)
 	r.PUT("/users/:id/password", users.ResetPassword)
 	r.PUT("/users/:id/roles", users.AssignRoles)
-	r.GET("/users/export", users.Export)
 
 	r.GET("/roles", roles.List)
 	r.GET("/roles/all", roles.All)
@@ -108,12 +108,18 @@ func newFailingRouter(app *testsupport.App) *gin.Engine {
 	r.DELETE("/jobs/:id", jobs.Delete)
 
 	r.GET("/logs/operations", logs.Operations)
-	r.GET("/logs/operations/export", logs.ExportOperations)
 	r.DELETE("/logs/operations", logs.DeleteOperations)
 	r.DELETE("/logs/operations/clear", logs.ClearOperations)
 	r.GET("/logs/logins", logs.Logins)
-	r.GET("/logs/logins/export", logs.ExportLogins)
 	r.DELETE("/logs/logins/clear", logs.ClearLogins)
+
+	r.GET("/export-tasks", exports.List)
+	r.POST("/export-tasks", exports.Submit)
+	r.GET("/export-tasks/filename-template", exports.FilenameTemplate)
+	r.PUT("/export-tasks/filename-template", exports.UpdateFilenameTemplate)
+	r.POST("/export-tasks/:id/cancel", exports.Cancel)
+	r.DELETE("/export-tasks/:id", exports.Delete)
+	r.GET("/export-tasks/:id/download", exports.Download)
 
 	r.GET("/profile", profile.Get)
 	r.PUT("/profile", profile.Update)
@@ -158,7 +164,10 @@ func TestHandlersReturnInternalErrorWhenDatabaseFails(t *testing.T) {
 		{http.MethodPut, "/users/1/status", map[string]any{"status": 1}},
 		{http.MethodPut, "/users/1/password", map[string]any{"password": "Passw0rd123"}},
 		{http.MethodPut, "/users/1/roles", map[string]any{"role_ids": []uint64{1}}},
-		{http.MethodGet, "/users/export", nil},
+		{http.MethodGet, "/export-tasks", nil},
+		{http.MethodPost, "/export-tasks", map[string]any{"module": "users"}},
+		{http.MethodGet, "/export-tasks/filename-template", nil},
+		{http.MethodPut, "/export-tasks/filename-template", map[string]any{"segments": []any{map[string]any{"type": "module"}}}},
 		{http.MethodGet, "/roles", nil},
 		{http.MethodGet, "/roles/all", nil},
 		{http.MethodPost, "/roles", map[string]any{"name": "x", "code": "x_role", "status": 1}},
@@ -200,12 +209,13 @@ func TestHandlersReturnInternalErrorWhenDatabaseFails(t *testing.T) {
 		{http.MethodGet, "/jobs/1/runs", nil},
 		{http.MethodDelete, "/jobs/1", nil},
 		{http.MethodGet, "/logs/operations", nil},
-		{http.MethodGet, "/logs/operations/export", nil},
 		{http.MethodDelete, "/logs/operations", map[string]any{"ids": []uint64{1}}},
 		{http.MethodDelete, "/logs/operations/clear", nil},
 		{http.MethodGet, "/logs/logins", nil},
-		{http.MethodGet, "/logs/logins/export", nil},
 		{http.MethodDelete, "/logs/logins/clear", nil},
+		{http.MethodPost, "/export-tasks/1/cancel", nil},
+		{http.MethodDelete, "/export-tasks/1", nil},
+		{http.MethodGet, "/export-tasks/1/download", nil},
 		{http.MethodGet, "/profile", nil},
 		{http.MethodPut, "/profile", map[string]any{"nickname": "x"}},
 		{http.MethodPut, "/profile/password", map[string]any{"old_password": "x", "new_password": "Passw0rd123"}},

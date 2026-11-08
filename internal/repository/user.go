@@ -99,7 +99,46 @@ func (r *UserRepo) ExistsUsername(ctx context.Context, username string, excludeI
 // List 按用户名/昵称/邮箱/手机号模糊搜索，并支持部门、状态、角色过滤。
 // 关联角色时用 JOIN 会导致同一用户出现多行，因此计数使用 DISTINCT 用户 ID。
 func (r *UserRepo) List(ctx context.Context, f model.UserFilter) ([]model.User, int64, error) {
-	q := r.db.WithContext(ctx).Model(&model.User{})
+	q := applyUserFilter(r.db.WithContext(ctx).Model(&model.User{}), f)
+	var total int64
+	countQuery := q.Session(&gorm.Session{})
+	if err := countQuery.Distinct("sys_users.id").Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	q = q.Select("sys_users.*").Preload("Dept").Preload("Roles").Order("sys_users.id DESC")
+	q = paginate(q, f.Page, f.PageSize)
+	var users []model.User
+	if err := q.Find(&users).Error; err != nil {
+		return nil, 0, err
+	}
+	return users, total, nil
+}
+
+// Count 按筛选条件统计用户总数，供异步导出预估总量；与 List 使用相同的过滤规则。
+func (r *UserRepo) Count(ctx context.Context, f model.UserFilter) (int64, error) {
+	q := applyUserFilter(r.db.WithContext(ctx).Model(&model.User{}), f)
+	var total int64
+	if err := q.Session(&gorm.Session{}).Distinct("sys_users.id").Count(&total).Error; err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
+// ExportPage 按筛选条件以主键游标升序分批返回用户（异步导出用），
+// afterID 为上一批最后一个用户 ID，传 0 表示从头开始。
+func (r *UserRepo) ExportPage(ctx context.Context, f model.UserFilter, afterID uint64, limit int) ([]model.User, error) {
+	q := applyUserFilter(r.db.WithContext(ctx).Model(&model.User{}), f)
+	if afterID > 0 {
+		q = q.Where("sys_users.id > ?", afterID)
+	}
+	var users []model.User
+	err := q.Select("sys_users.*").Preload("Dept").Preload("Roles").
+		Order("sys_users.id ASC").Limit(limit).Find(&users).Error
+	return users, err
+}
+
+// applyUserFilter 应用用户列表的过滤条件（关键字、部门、状态、角色）。
+func applyUserFilter(q *gorm.DB, f model.UserFilter) *gorm.DB {
 	if f.Keyword != "" {
 		kw := like(f.Keyword)
 		q = q.Where("username LIKE ? OR nickname LIKE ? OR email LIKE ? OR phone LIKE ?", kw, kw, kw, kw)
@@ -114,18 +153,7 @@ func (r *UserRepo) List(ctx context.Context, f model.UserFilter) ([]model.User, 
 		q = q.Joins("JOIN sys_user_roles ur ON ur.user_id = sys_users.id").
 			Where("ur.role_id = ?", *f.RoleID)
 	}
-	var total int64
-	countQuery := q.Session(&gorm.Session{})
-	if err := countQuery.Distinct("sys_users.id").Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-	q = q.Select("sys_users.*").Preload("Dept").Preload("Roles").Order("sys_users.id DESC")
-	q = paginate(q, f.Page, f.PageSize)
-	var users []model.User
-	if err := q.Find(&users).Error; err != nil {
-		return nil, 0, err
-	}
-	return users, total, nil
+	return q
 }
 
 // SetRoles 在事务中整体替换用户的角色关联。
@@ -180,8 +208,11 @@ func (r *UserRepo) Delete(ctx context.Context, ids ...uint64) error {
 
 // CountByStatus 统计指定状态的用户数；status 为 nil 时统计全部。
 func (r *UserRepo) CountByStatus(ctx context.Context, status *int8) (int64, error) {
-	if status == nil {
-		return r.Count(ctx, "")
+	q := r.db.WithContext(ctx).Model(&model.User{})
+	if status != nil {
+		q = q.Where("status = ?", *status)
 	}
-	return r.Count(ctx, "status = ?", *status)
+	var total int64
+	err := q.Count(&total).Error
+	return total, err
 }

@@ -2,12 +2,12 @@ package service
 
 import (
 	"context"
-	"strconv"
+	"encoding/json"
 	"sync"
 	"time"
 
 	"x-admin/internal/model"
-	"x-admin/internal/pkg/excel"
+	"x-admin/internal/pkg/apperr"
 )
 
 // LogService 通过有界队列异步写入审计日志，
@@ -97,61 +97,92 @@ func (s *LogService) Logins(ctx context.Context, f model.LoginLogFilter) ([]mode
 	return s.repo.ListLogins(ctx, f)
 }
 
-// ExportOperations 按筛选条件导出全部操作日志（忽略分页）。
-func (s *LogService) ExportOperations(ctx context.Context, f model.OperationLogFilter) ([]byte, error) {
-	f.Page = 1
-	f.PageSize = 0
-	rows, _, err := s.repo.ListOperations(ctx, f)
-	if err != nil {
-		return nil, err
+// ExportBuilders 返回审计日志模块的异步导出构建器；module 与前端提交的 module 一致。
+// params 携带与列表接口相同的筛选条件（keyword/username/status/start/end）。
+func (s *LogService) ExportBuilders() map[string]ExportBuilder {
+	return map[string]ExportBuilder{
+		"operation_logs": s.operationLogExportBuilder(),
+		"login_logs":     s.loginLogExportBuilder(),
 	}
-	data := make([][]string, 0, len(rows))
-	for _, row := range rows {
-		data = append(data, []string{
-			strconv.FormatUint(row.ID, 10),
-			strconv.FormatUint(row.UserID, 10),
-			row.Username,
-			row.Method,
-			row.Path,
-			row.IP,
-			strconv.Itoa(row.Status),
-			strconv.FormatInt(row.LatencyMS, 10),
-			row.RequestID,
-			row.Body,
-			row.Error,
-			row.CreatedAt.Format("2006-01-02 15:04:05"),
-		})
-	}
-	return excel.Write("操作日志", []string{
-		"ID", "用户ID", "操作人", "方法", "路径", "IP", "状态",
-		"耗时(ms)", "RequestID", "请求体", "错误", "时间",
-	}, data)
 }
 
-// ExportLogins 按筛选条件导出全部登录日志（忽略分页）。
-func (s *LogService) ExportLogins(ctx context.Context, f model.LoginLogFilter) ([]byte, error) {
-	f.Page = 1
-	f.PageSize = 0
-	rows, _, err := s.repo.ListLogins(ctx, f)
-	if err != nil {
-		return nil, err
+// operationLogExportBuilder 构建操作日志的导出任务。
+func (s *LogService) operationLogExportBuilder() ExportBuilder {
+	return func(ctx context.Context, userID uint64, params json.RawMessage) (ExportJob, error) {
+		var f model.OperationLogFilter
+		if len(params) > 0 {
+			if err := json.Unmarshal(params, &f); err != nil {
+				return ExportJob{}, apperr.New(apperr.CodeInvalidArgument, "导出参数不合法")
+			}
+		}
+		f.Page, f.PageSize = 1, 0
+		return ExportJob{
+			Module:   "operation_logs",
+			Title:    "操作日志",
+			Headers:  []string{"ID", "用户ID", "操作人", "方法", "路径", "IP", "状态", "耗时(ms)", "RequestID", "请求体", "错误", "时间"},
+			Total: func(ctx context.Context) (int64, error) {
+				return s.repo.CountOperations(ctx, f)
+			},
+			Fetch: func(ctx context.Context, afterID uint64, limit int) ([][]any, uint64, error) {
+				logs, err := s.repo.ExportOperationsPage(ctx, f, afterID, limit)
+				if err != nil {
+					return nil, 0, err
+				}
+				rows := make([][]any, 0, len(logs))
+				for _, row := range logs {
+					rows = append(rows, []any{
+						row.ID, row.UserID, row.Username, row.Method, row.Path, row.IP,
+						row.Status, row.LatencyMS, row.RequestID, row.Body, row.Error,
+						row.CreatedAt.Format("2006-01-02 15:04:05"),
+					})
+				}
+				var next uint64
+				if len(logs) > 0 {
+					next = logs[len(logs)-1].ID
+				}
+				return rows, next, nil
+			},
+		}, nil
 	}
-	data := make([][]string, 0, len(rows))
-	for _, row := range rows {
-		data = append(data, []string{
-			strconv.FormatUint(row.ID, 10),
-			strconv.FormatUint(row.UserID, 10),
-			row.Username,
-			row.IP,
-			row.UserAgent,
-			strconv.Itoa(row.Status),
-			row.Message,
-			row.CreatedAt.Format("2006-01-02 15:04:05"),
-		})
+}
+
+// loginLogExportBuilder 构建登录日志的导出任务。
+func (s *LogService) loginLogExportBuilder() ExportBuilder {
+	return func(ctx context.Context, userID uint64, params json.RawMessage) (ExportJob, error) {
+		var f model.LoginLogFilter
+		if len(params) > 0 {
+			if err := json.Unmarshal(params, &f); err != nil {
+				return ExportJob{}, apperr.New(apperr.CodeInvalidArgument, "导出参数不合法")
+			}
+		}
+		f.Page, f.PageSize = 1, 0
+		return ExportJob{
+			Module:   "login_logs",
+			Title:    "登录日志",
+			Headers:  []string{"ID", "用户ID", "账号", "IP", "User-Agent", "状态", "说明", "时间"},
+			Total: func(ctx context.Context) (int64, error) {
+				return s.repo.CountLogins(ctx, f)
+			},
+			Fetch: func(ctx context.Context, afterID uint64, limit int) ([][]any, uint64, error) {
+				logs, err := s.repo.ExportLoginsPage(ctx, f, afterID, limit)
+				if err != nil {
+					return nil, 0, err
+				}
+				rows := make([][]any, 0, len(logs))
+				for _, row := range logs {
+					rows = append(rows, []any{
+						row.ID, row.UserID, row.Username, row.IP, row.UserAgent,
+						row.Status, row.Message, row.CreatedAt.Format("2006-01-02 15:04:05"),
+					})
+				}
+				var next uint64
+				if len(logs) > 0 {
+					next = logs[len(logs)-1].ID
+				}
+				return rows, next, nil
+			},
+		}, nil
 	}
-	return excel.Write("登录日志", []string{
-		"ID", "用户ID", "账号", "IP", "User-Agent", "状态", "说明", "时间",
-	}, data)
 }
 
 // ClearLogins 清空登录日志。

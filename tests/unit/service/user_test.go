@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -213,10 +214,17 @@ func TestUserListExportTemplate(t *testing.T) {
 	assert.Equal(t, int64(1), total)
 	assert.Equal(t, "alice", list[0].Username)
 
-	data, err := app.Services.Users.Export(ctx, model.UserFilter{})
+	// 异步导出：提交任务并等待 worker 完成，校验产物内容。
+	task, err := app.Services.Exports.Submit(ctx, 1, "users", nil)
 	require.NoError(t, err)
-	rows, err := excel.Read(bytes.NewReader(data))
+	fresh := waitExportTask(t, app, task.ID)
+	require.Equal(t, model.ExportSuccess, fresh.Status, fresh.Error)
+	assert.Equal(t, int64(2), fresh.Processed)
+	rc, err := app.Storage.Open(ctx, fresh.FileKey)
 	require.NoError(t, err)
+	rows, err := excel.Read(rc)
+	require.NoError(t, err)
+	_ = rc.Close()
 	assert.Equal(t, "用户名", rows[0][0])
 	assert.Len(t, rows, 3)
 
@@ -273,4 +281,20 @@ func paginationQuery() pagination.Query {
 	q := pagination.Query{Page: 1, PageSize: 20}
 	q.Normalize()
 	return q
+}
+
+// waitExportTask 轮询等待导出任务离开 pending/running 状态。
+func waitExportTask(t *testing.T, app *testsupport.App, id uint64) *model.ExportTask {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		task, err := app.Repos.Exports.Get(context.Background(), id)
+		require.NoError(t, err)
+		if task.Status != model.ExportPending && task.Status != model.ExportRunning {
+			return task
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("export task not finished in time")
+	return nil
 }

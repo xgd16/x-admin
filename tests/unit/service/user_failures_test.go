@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"x-admin/internal/model"
 	"x-admin/internal/pkg/apperr"
@@ -58,6 +59,14 @@ type userListFail struct{ service.UserRepository }
 
 func (f userListFail) List(context.Context, model.UserFilter) ([]model.User, int64, error) {
 	return nil, 0, errRepo
+}
+
+type userExportFail struct{ service.UserRepository }
+
+func (f userExportFail) Count(context.Context, model.UserFilter) (int64, error) { return 0, errRepo }
+
+func (f userExportFail) ExportPage(context.Context, model.UserFilter, uint64, int) ([]model.User, error) {
+	return nil, errRepo
 }
 
 type roleGetFail struct{ service.RoleRepository }
@@ -152,8 +161,10 @@ func TestUserServiceRepositoryFailures(t *testing.T) {
 		AssignRoles(ctx, target.ID, []uint64{role.ID})
 	assert.ErrorIs(t, err, errRepo)
 
-	_, err = newUserSvc(app, userListFail{app.Repos.Users}, app.Repos.Roles, app.Repos.Menus, app.Repos.Depts, app.Hasher).
-		Export(ctx, model.UserFilter{})
+	job, buildErr := newUserSvc(app, userExportFail{app.Repos.Users}, app.Repos.Roles, app.Repos.Menus, app.Repos.Depts, app.Hasher).
+		ExportBuilders()["users"](ctx, 1, nil)
+	require.NoError(t, buildErr)
+	_, _, err = job.Fetch(ctx, 0, 10)
 	assert.ErrorIs(t, err, errRepo)
 
 	// 非超级管理员分配角色时菜单查询失败。

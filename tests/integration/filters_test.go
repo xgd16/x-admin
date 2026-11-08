@@ -102,12 +102,37 @@ func TestLogListFiltersBindQuery(t *testing.T) {
 	require.Len(t, ops.List, 1)
 	assert.Equal(t, "/x", ops.List[0].Path)
 
-	rr = app.Do(http.MethodGet, "/admin/v1/logs/operations/export?status=500", nil, pair.AccessToken)
-	require.Equal(t, http.StatusOK, rr.Code)
-	assert.Equal(t, "PK", rr.Body.String()[:2])
-	rr = app.Do(http.MethodGet, "/admin/v1/logs/logins/export?status=401", nil, pair.AccessToken)
-	require.Equal(t, http.StatusOK, rr.Code)
-	assert.Equal(t, "PK", rr.Body.String()[:2])
+	// 异步导出：提交任务，等待完成后通过下载接口校验 xlsx 内容。
+	ctx2 := context.Background()
+	admin, err := app.Repos.Users.FindByUsername(ctx2, "admin")
+	require.NoError(t, err)
+	submitExport := func(module, params string) *model.ExportTask {
+		t.Helper()
+		task, err := app.Services.Exports.Submit(ctx2, admin.ID, module, json.RawMessage(params))
+		require.NoError(t, err)
+		deadline := time.Now().Add(5 * time.Second)
+		for {
+			fresh, err := app.Repos.Exports.Get(ctx2, task.ID)
+			require.NoError(t, err)
+			if fresh.Status != model.ExportPending && fresh.Status != model.ExportRunning {
+				require.Equal(t, model.ExportSuccess, fresh.Status, fresh.Error)
+				return fresh
+			}
+			if time.Now().After(deadline) {
+				t.Fatal("export task not finished in time")
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+	for _, tc := range []struct {
+		module, params, path string
+	}{{"operation_logs", `{"status":500}`, "/admin/v1/export-tasks/%d/download"},
+		{"login_logs", `{"status":401}`, "/admin/v1/export-tasks/%d/download"}} {
+		task := submitExport(tc.module, tc.params)
+		rr = app.Do(http.MethodGet, fmt.Sprintf(tc.path, task.ID), nil, pair.AccessToken)
+		require.Equal(t, http.StatusOK, rr.Code)
+		assert.Equal(t, "PK", rr.Body.String()[:2])
+	}
 }
 
 func TestRoleListStatusFilterBindQuery(t *testing.T) {

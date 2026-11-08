@@ -25,23 +25,7 @@ func (r *LogRepo) CreateOperation(ctx context.Context, log *model.OperationLog) 
 
 // ListOperations 分页查询操作日志，支持关键字、用户名、状态和创建时间范围过滤。
 func (r *LogRepo) ListOperations(ctx context.Context, f model.OperationLogFilter) ([]model.OperationLog, int64, error) {
-	q := r.db.WithContext(ctx).Model(&model.OperationLog{})
-	if f.Keyword != "" {
-		kw := like(f.Keyword)
-		q = q.Where("username LIKE ? OR path LIKE ? OR body LIKE ?", kw, kw, kw)
-	}
-	if f.Username != "" {
-		q = q.Where("username = ?", f.Username)
-	}
-	if f.Status != nil {
-		q = q.Where("status = ?", *f.Status)
-	}
-	if f.Start != nil {
-		q = q.Where("created_at >= ?", *f.Start)
-	}
-	if f.End != nil {
-		q = q.Where("created_at <= ?", *f.End)
-	}
+	q := applyOperationLogFilter(r.db.WithContext(ctx).Model(&model.OperationLog{}), f)
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -52,6 +36,25 @@ func (r *LogRepo) ListOperations(ctx context.Context, f model.OperationLogFilter
 		return nil, 0, err
 	}
 	return rows, total, nil
+}
+
+// CountOperations 按筛选条件统计操作日志总数，供异步导出预估总量。
+func (r *LogRepo) CountOperations(ctx context.Context, f model.OperationLogFilter) (int64, error) {
+	var total int64
+	err := applyOperationLogFilter(r.db.WithContext(ctx).Model(&model.OperationLog{}), f).Count(&total).Error
+	return total, err
+}
+
+// ExportOperationsPage 按筛选条件以主键游标升序分批返回操作日志（异步导出用），
+// afterID 为上一批最后一条日志 ID，传 0 表示从头开始。
+func (r *LogRepo) ExportOperationsPage(ctx context.Context, f model.OperationLogFilter, afterID uint64, limit int) ([]model.OperationLog, error) {
+	q := applyOperationLogFilter(r.db.WithContext(ctx).Model(&model.OperationLog{}), f)
+	if afterID > 0 {
+		q = q.Where("id > ?", afterID)
+	}
+	var rows []model.OperationLog
+	err := q.Order("id ASC").Limit(limit).Find(&rows).Error
+	return rows, err
 }
 
 // DeleteOperations 按 ID 批量删除操作日志（软删除）。
@@ -81,7 +84,61 @@ func (r *LogRepo) CreateLogin(ctx context.Context, log *model.LoginLog) error {
 
 // ListLogins 分页查询登录日志，支持关键字、用户名、状态和时间范围过滤。
 func (r *LogRepo) ListLogins(ctx context.Context, f model.LoginLogFilter) ([]model.LoginLog, int64, error) {
-	q := r.db.WithContext(ctx).Model(&model.LoginLog{})
+	q := applyLoginLogFilter(r.db.WithContext(ctx).Model(&model.LoginLog{}), f)
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	q = paginate(q.Order("id DESC"), f.Page, f.PageSize)
+	var rows []model.LoginLog
+	if err := q.Find(&rows).Error; err != nil {
+		return nil, 0, err
+	}
+	return rows, total, nil
+}
+
+// CountLogins 按筛选条件统计登录日志总数，供异步导出预估总量。
+func (r *LogRepo) CountLogins(ctx context.Context, f model.LoginLogFilter) (int64, error) {
+	var total int64
+	err := applyLoginLogFilter(r.db.WithContext(ctx).Model(&model.LoginLog{}), f).Count(&total).Error
+	return total, err
+}
+
+// ExportLoginsPage 按筛选条件以主键游标升序分批返回登录日志（异步导出用），
+// afterID 为上一批最后一条日志 ID，传 0 表示从头开始。
+func (r *LogRepo) ExportLoginsPage(ctx context.Context, f model.LoginLogFilter, afterID uint64, limit int) ([]model.LoginLog, error) {
+	q := applyLoginLogFilter(r.db.WithContext(ctx).Model(&model.LoginLog{}), f)
+	if afterID > 0 {
+		q = q.Where("id > ?", afterID)
+	}
+	var rows []model.LoginLog
+	err := q.Order("id ASC").Limit(limit).Find(&rows).Error
+	return rows, err
+}
+
+// applyOperationLogFilter 应用操作日志的过滤条件（关键字、用户名、状态、时间范围）。
+func applyOperationLogFilter(q *gorm.DB, f model.OperationLogFilter) *gorm.DB {
+	if f.Keyword != "" {
+		kw := like(f.Keyword)
+		q = q.Where("username LIKE ? OR path LIKE ? OR body LIKE ?", kw, kw, kw)
+	}
+	if f.Username != "" {
+		q = q.Where("username = ?", f.Username)
+	}
+	if f.Status != nil {
+		q = q.Where("status = ?", *f.Status)
+	}
+	if f.Start != nil {
+		q = q.Where("created_at >= ?", *f.Start)
+	}
+	if f.End != nil {
+		q = q.Where("created_at <= ?", *f.End)
+	}
+	return q
+}
+
+// applyLoginLogFilter 应用登录日志的过滤条件（关键字、用户名、状态、时间范围）。
+func applyLoginLogFilter(q *gorm.DB, f model.LoginLogFilter) *gorm.DB {
 	if f.Keyword != "" {
 		kw := like(f.Keyword)
 		q = q.Where("username LIKE ? OR ip LIKE ?", kw, kw)
@@ -98,16 +155,7 @@ func (r *LogRepo) ListLogins(ctx context.Context, f model.LoginLogFilter) ([]mod
 	if f.End != nil {
 		q = q.Where("created_at <= ?", *f.End)
 	}
-	var total int64
-	if err := q.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-	q = paginate(q.Order("id DESC"), f.Page, f.PageSize)
-	var rows []model.LoginLog
-	if err := q.Find(&rows).Error; err != nil {
-		return nil, 0, err
-	}
-	return rows, total, nil
+	return q
 }
 
 // ClearLogins 物理清空登录日志。

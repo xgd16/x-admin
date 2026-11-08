@@ -37,30 +37,34 @@ func newApp(cfg config.Config, db *gorm.DB) (*App, func(), error) {
 	logService, cleanup2 := provideLogService(logRepo)
 	jobRepo := repository.NewJobRepo(db)
 	notificationRepo := repository.NewNotificationRepo(db)
-	v := provideJobExecutor(logRepo, notificationRepo)
+	exportTaskRepo := repository.NewExportTaskRepo(db)
+	notificationService := service.NewNotificationService(notificationRepo)
+	parameterRepo := repository.NewParameterRepo(db)
+	userRepo := repository.NewUserRepo(db)
+	roleRepo := repository.NewRoleRepo(db)
+	menuRepo := repository.NewMenuRepo(db)
+	departmentRepo := repository.NewDepartmentRepo(db)
+	bcryptHasher := provideHasher(cfg)
+	userService := provideUserService(userRepo, roleRepo, menuRepo, departmentRepo, bcryptHasher, notificationService, cfg)
+	exportService, cleanup3 := provideExportService(exportTaskRepo, storageStore, notificationService, parameterRepo, userService, logService, cfg)
+	v := provideJobExecutor(logRepo, notificationRepo, exportService, cfg)
 	jobService, err := provideJobService(jobRepo, cron, v, store)
 	if err != nil {
+		cleanup3()
 		cleanup2()
 		cleanup()
 		return nil, nil, err
 	}
-	userRepo := repository.NewUserRepo(db)
-	menuRepo := repository.NewMenuRepo(db)
-	bcryptHasher := provideHasher(cfg)
 	generator := provideCaptcha(store, cfg)
-	notificationService := service.NewNotificationService(notificationRepo)
 	authOptions := provideAuthOptions(cfg)
 	authService := service.NewAuthService(userRepo, menuRepo, logRepo, store, tokenManager, bcryptHasher, generator, notificationService, authOptions)
 	passkeyRepo := repository.NewPasskeyRepo(db)
 	webAuthn := provideWebAuthn(cfg)
 	passkeyService := providePasskeyService(userRepo, passkeyRepo, bcryptHasher, store, webAuthn, notificationService)
 	authHandler := provideAuthHandler(authService, generator, passkeyService, tokenManager, cfg)
-	roleRepo := repository.NewRoleRepo(db)
 	fileRepo := repository.NewFileRepo(db)
 	dashboardService := service.NewDashboardService(userRepo, roleRepo, menuRepo, fileRepo, jobRepo, logRepo)
 	dashboardHandler := handler.NewDashboardHandler(dashboardService)
-	departmentRepo := repository.NewDepartmentRepo(db)
-	userService := provideUserService(userRepo, roleRepo, menuRepo, departmentRepo, bcryptHasher, notificationService, cfg)
 	userHandler := handler.NewUserHandler(userService)
 	roleService := service.NewRoleService(roleRepo, menuRepo)
 	roleHandler := handler.NewRoleHandler(roleService)
@@ -71,7 +75,6 @@ func newApp(cfg config.Config, db *gorm.DB) (*App, func(), error) {
 	dictRepo := repository.NewDictRepo(db)
 	dictService := service.NewDictService(dictRepo)
 	dictHandler := handler.NewDictHandler(dictService)
-	parameterRepo := repository.NewParameterRepo(db)
 	parameterService := service.NewParameterService(parameterRepo)
 	parameterHandler := handler.NewParameterHandler(parameterService)
 	fileService := provideFileService(fileRepo, storageStore, cfg)
@@ -81,6 +84,7 @@ func newApp(cfg config.Config, db *gorm.DB) (*App, func(), error) {
 	profileService := provideProfileService(userRepo, bcryptHasher, notificationService, cfg)
 	profileHandler := handler.NewProfileHandler(profileService, passkeyService, authService)
 	notificationHandler := handler.NewNotificationHandler(notificationService)
+	exportHandler := handler.NewExportHandler(exportService)
 	handlers := router.Handlers{
 		Auth:         authHandler,
 		Dashboard:    dashboardHandler,
@@ -95,10 +99,12 @@ func newApp(cfg config.Config, db *gorm.DB) (*App, func(), error) {
 		Log:          logHandler,
 		Profile:      profileHandler,
 		Notification: notificationHandler,
+		Export:       exportHandler,
 	}
 	engine := provideRouter(cfg, db, tokenManager, authService, generator, store, logService, handlers)
 	app := assembleApp(cfg, db, store, storageStore, tokenManager, cron, logService, jobService, engine)
 	return app, func() {
+		cleanup3()
 		cleanup2()
 		cleanup()
 	}, nil

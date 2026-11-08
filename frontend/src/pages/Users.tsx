@@ -201,21 +201,19 @@ export function Users() {
     onError: (error: Error) => toast.fail(error),
   })
 
-  // 导出与导入模板都走后端生成，前端负责触发下载。
-  const exportUsers = () => {
-    void toast
-      .promise(
-        api
-          .download('/users/export', { keyword, dept_id: deptID, status })
-          .then((blob) => saveBlob(blob, `users-${Date.now()}.xlsx`)),
-        {
-          loading: '正在导出用户…',
-          success: '用户数据已导出',
-          error: (error) => (error instanceof Error ? error.message : '导出失败'),
-        },
-      )
-      .catch(() => undefined)
-  }
+  // 导出改为提交异步任务：后台分页生成 xlsx，完成后在导出记录页下载。
+  const exportMutation = useMutation({
+    mutationFn: () =>
+      api.post('/export-tasks', {
+        module: 'users',
+        params: { keyword, dept_id: deptID, status },
+      }),
+    onSuccess: () => {
+      toast.success('已加入导出队列，完成后可在「导出记录」页下载')
+      void queryClient.invalidateQueries({ queryKey: ['export-tasks'] })
+    },
+    onError: (error: Error) => toast.fail(error),
+  })
 
   const downloadTemplate = () => {
     void toast
@@ -493,7 +491,7 @@ export function Users() {
                 </Button>
               )}
               {can('system:user:export') && (
-                <Button onClick={() => void exportUsers()}>
+                <Button loading={exportMutation.isPending} onClick={() => exportMutation.mutate()}>
                   <Icon name="download" size={12} /> 导出
                 </Button>
               )}

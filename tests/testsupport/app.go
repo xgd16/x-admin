@@ -43,6 +43,7 @@ type Repos struct {
 	Logs          *repository.LogRepo
 	Notifications *repository.NotificationRepo
 	Passkeys      *repository.PasskeyRepo
+	Exports       *repository.ExportTaskRepo
 }
 
 type Services struct {
@@ -60,6 +61,7 @@ type Services struct {
 	Profile       *service.ProfileService
 	Notifications *service.NotificationService
 	Passkeys      *service.PasskeyService
+	Exports       *service.ExportService
 }
 
 type App struct {
@@ -118,6 +120,7 @@ func New(t *testing.T) *App {
 		Dicts: repository.NewDictRepo(db), Params: repository.NewParameterRepo(db),
 		Files: repository.NewFileRepo(db), Jobs: repository.NewJobRepo(db), Logs: repository.NewLogRepo(db),
 		Notifications: repository.NewNotificationRepo(db), Passkeys: repository.NewPasskeyRepo(db),
+		Exports: repository.NewExportTaskRepo(db),
 	}
 	logs := service.NewLogService(repos.Logs, 64)
 	t.Cleanup(logs.Close)
@@ -155,6 +158,19 @@ func New(t *testing.T) *App {
 	services.Jobs = service.NewJobService(repos.Jobs, scheduler, func(context.Context, *model.Job) error { return nil }, store)
 	services.Logs = logs
 
+	exportSvc := service.NewExportService(repos.Exports, local, notifications, repos.Params, service.ExportOptions{
+		Workers: 1, QueueSize: 4, BatchSize: 10, MaxRows: 100,
+	})
+	for module, b := range services.Users.ExportBuilders() {
+		exportSvc.Register(module, b)
+	}
+	for module, b := range services.Logs.ExportBuilders() {
+		exportSvc.Register(module, b)
+	}
+	exportSvc.Boot()
+	t.Cleanup(exportSvc.Close)
+	services.Exports = exportSvc
+
 	handlers := router.Handlers{
 		Auth: handler.NewAuthHandler(authSvc, captchaGen, passkeySvc, tokens, false, cfg.JWT.RefreshTTL), Dashboard: handler.NewDashboardHandler(services.Dashboard),
 		User: handler.NewUserHandler(services.Users), Role: handler.NewRoleHandler(services.Roles),
@@ -163,6 +179,7 @@ func New(t *testing.T) *App {
 		File: handler.NewFileHandler(services.Files), Job: handler.NewJobHandler(services.Jobs),
 		Log: handler.NewLogHandler(logs), Profile: handler.NewProfileHandler(services.Profile, passkeySvc, authSvc),
 		Notification: handler.NewNotificationHandler(notifications),
+		Export:       handler.NewExportHandler(exportSvc),
 	}
 	engine := router.New(router.Deps{
 		Config: cfg, Tokens: tokens, Auth: authSvc, Captcha: captchaGen, Cache: store,

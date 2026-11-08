@@ -338,3 +338,36 @@ export interface ImportResult {
   success: number
   failed: Array<{ row: number; username: string; message: string }>
 }
+
+/** 异步导出任务记录；状态与后端 model.ExportTask 的常量一致。 */
+export interface ExportTask {
+  id: number
+  user_id: number
+  module: string
+  title: string
+  status: 0 | 1 | 2 | 3 | 4 // 0 排队中 / 1 生成中 / 2 已完成 / 3 失败 / 4 已取消
+  total: number
+  processed: number
+  file_name: string
+  file_size: number
+  error?: string
+  finished_at: string | null
+  created_at: string
+}
+
+/** 导出文件名模板片段类型。 */
+export type FilenameSegmentType = 'title' | 'module' | 'time' | 'text'
+
+/** 导出文件名模板中的一个片段：按顺序拼接成下载文件名。 */
+export interface FilenameSegment {
+  type: FilenameSegmentType
+  /** time 片段的时间格式（Go layout，与后端白名单一致）。 */
+  format?: string
+  /** text 片段的固定文本。 */
+  value?: string
+}
+
+/** 全局导出文件名模板。 */
+export interface FilenameTemplate {
+  segments: FilenameSegment[]
+}

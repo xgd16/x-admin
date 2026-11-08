@@ -19,4 +19,5 @@ var ProviderSet = wire.NewSet(
 	NewLogHandler,
 	NewProfileHandler,
 	NewNotificationHandler,
+	NewExportHandler,
 )

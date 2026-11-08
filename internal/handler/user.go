@@ -193,21 +193,6 @@ func (h *UserHandler) Import(c *gin.Context) {
 	response.OK(c, result)
 }
 
-// Export 按当前筛选条件导出全部用户为 Excel。
-func (h *UserHandler) Export(c *gin.Context) {
-	var f model.UserFilter
-	if err := c.ShouldBindQuery(&f); err != nil {
-		response.Error(c, apperr.Wrap(err, apperr.CodeInvalidArgument, "查询参数不合法"))
-		return
-	}
-	data, err := h.users.Export(c.Request.Context(), f)
-	if err != nil {
-		response.Error(c, err)
-		return
-	}
-	Attachment(c, "users.xlsx", data)
-}
-
 // Template 下载用户导入模板。
 func (h *UserHandler) Template(c *gin.Context) {
 	data, err := h.users.Template()

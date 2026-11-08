@@ -24,6 +24,8 @@ type UserRepository interface {
 	Get(ctx context.Context, id uint64) (*model.User, error)
 	FindByUsername(ctx context.Context, username string) (*model.User, error)
 	List(ctx context.Context, filter model.UserFilter) ([]model.User, int64, error)
+	Count(ctx context.Context, filter model.UserFilter) (int64, error)
+	ExportPage(ctx context.Context, filter model.UserFilter, afterID uint64, limit int) ([]model.User, error)
 	UpdateFields(ctx context.Context, id uint64, fields map[string]any) error
 	SetPassword(ctx context.Context, id uint64, hash string, bumpSessionVersion bool) error
 	BumpSessionVersion(ctx context.Context, id uint64) error
@@ -164,11 +166,28 @@ type PasskeyRepository interface {
 type LogRepository interface {
 	CreateOperation(ctx context.Context, log *model.OperationLog) error
 	ListOperations(ctx context.Context, filter model.OperationLogFilter) ([]model.OperationLog, int64, error)
+	CountOperations(ctx context.Context, filter model.OperationLogFilter) (int64, error)
+	ExportOperationsPage(ctx context.Context, filter model.OperationLogFilter, afterID uint64, limit int) ([]model.OperationLog, error)
 	DeleteOperations(ctx context.Context, ids ...uint64) error
 	ClearOperations(ctx context.Context) error
 	RecentOperations(ctx context.Context, limit int) ([]model.OperationLog, error)
 	CreateLogin(ctx context.Context, log *model.LoginLog) error
 	ListLogins(ctx context.Context, filter model.LoginLogFilter) ([]model.LoginLog, int64, error)
+	CountLogins(ctx context.Context, filter model.LoginLogFilter) (int64, error)
+	ExportLoginsPage(ctx context.Context, filter model.LoginLogFilter, afterID uint64, limit int) ([]model.LoginLog, error)
 	ClearLogins(ctx context.Context) error
 	LoginTrend(ctx context.Context, days int) ([]model.TrendPoint, error)
+}
+
+// ExportTaskRepository 定义异步导出任务记录的读写能力。
+type ExportTaskRepository interface {
+	Create(ctx context.Context, task *model.ExportTask) error
+	UpdateFields(ctx context.Context, id uint64, fields map[string]any) error
+	Get(ctx context.Context, id uint64) (*model.ExportTask, error)
+	List(ctx context.Context, userID uint64, status *int8, page, pageSize int) ([]model.ExportTask, int64, error)
+	Delete(ctx context.Context, ids ...uint64) error
+	HardDelete(ctx context.Context, ids []uint64) error
+	CountUnfinished(ctx context.Context, userID uint64) (int64, error)
+	ListUnfinished(ctx context.Context, limit int) ([]model.ExportTask, error)
+	ListExpired(ctx context.Context, before time.Time, limit int) ([]model.ExportTask, error)
 }

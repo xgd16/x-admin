@@ -57,6 +57,14 @@ storage:
   url_prefix: /uploads
   max_upload_mb: 20
 
+# 异步导出：任务在后台分页生成 xlsx，前端在“导出记录”页查看进度与下载。
+export:
+  workers: 2          # 并发执行的导出任务数
+  queue_size: 16      # 等待队列长度，超出后提交返回“导出任务过多”
+  batch_size: 2000    # 游标分页每批取数行数
+  max_rows: 200000    # 单个任务允许导出的最大行数
+  keep_days: 7        # 导出任务与文件的保留天数（定时任务 clean_export_tasks）
+
 webauthn:
   rp_display_name: x-admin
   rp_id: localhost

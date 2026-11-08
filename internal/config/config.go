@@ -24,8 +24,18 @@ type Config struct {
 	JWT      JWTConfig      `yaml:"jwt"`      // 访问令牌配置
 	Security SecurityConfig `yaml:"security"` // 密码、锁定、验证码等安全策略
 	Storage  StorageConfig  `yaml:"storage"`  // 文件上传存储
+	Export   ExportConfig   `yaml:"export"`   // 异步导出
 	WebAuthn WebAuthnConfig `yaml:"webauthn"` // Passkey（WebAuthn）配置
 	CORS     CORSConfig     `yaml:"cors"`     // 跨域白名单
+}
+
+// ExportConfig 描述异步导出任务的并发与限额参数。
+type ExportConfig struct {
+	Workers   int   `yaml:"workers"`    // 并发执行的导出任务数
+	QueueSize int   `yaml:"queue_size"` // 等待队列长度，超出后拒绝提交
+	BatchSize int   `yaml:"batch_size"` // 游标分页每批取数行数
+	MaxRows   int64 `yaml:"max_rows"`   // 单个任务允许导出的最大行数
+	KeepDays  int   `yaml:"keep_days"`  // 导出任务与文件的保留天数
 }
 
 // AppConfig 描述应用名称、版本和运行环境。
@@ -131,6 +141,7 @@ func Default() Config {
 			CaptchaTTL: 5 * time.Minute, PasswordMinLen: 8, PermissionCache: 5 * time.Minute,
 		},
 		Storage: StorageConfig{Root: "data/uploads", URLPrefix: "/uploads", MaxUploadMB: 20},
+		Export:  ExportConfig{Workers: 2, QueueSize: 16, BatchSize: 2000, MaxRows: 200000, KeepDays: 7},
 		WebAuthn: WebAuthnConfig{
 			RPDisplayName: "x-admin",
 			RPID:          "localhost",

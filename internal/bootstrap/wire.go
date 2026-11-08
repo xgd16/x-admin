@@ -41,6 +41,7 @@ func newApp(cfg config.Config, db *gorm.DB) (*App, func(), error) {
 		providePasskeyService,
 		provideJobService,
 		provideJobExecutor,
+		provideExportService,
 		provideAuthHandler,
 		provideRouter,
 		assembleApp,

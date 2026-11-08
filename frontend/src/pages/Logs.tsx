@@ -5,7 +5,7 @@ import { useState, type Key } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Button, DatePicker, Descriptions, Drawer, Input, Select, Tag } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
-import { api, saveBlob } from '../api/client'
+import { api } from '../api/client'
 import type { LoginLog, OperationLog, PageResult } from '../api/types'
 import { useAuth } from '../stores/auth'
 import { PageHeader } from '../components/PageHeader'
@@ -77,20 +77,19 @@ export function Logs({ mode }: { mode: Mode }) {
     onError: (error: Error) => toast.fail(error),
   })
 
-  const exportLogs = () => {
-    void toast
-      .promise(
-        api
-          .download(`${path}/export`, filterParams)
-          .then((blob) => saveBlob(blob, `${operations ? 'operation' : 'login'}-logs-${Date.now()}.xlsx`)),
-        {
-          loading: '正在导出日志…',
-          success: '日志已导出',
-          error: (error) => (error instanceof Error ? error.message : '导出失败'),
-        },
-      )
-      .catch(() => undefined)
-  }
+  // 导出改为提交异步任务：后台分页生成 xlsx，完成后在导出记录页下载。
+  const exportMutation = useMutation({
+    mutationFn: () =>
+      api.post('/export-tasks', {
+        module: operations ? 'operation_logs' : 'login_logs',
+        params: filterParams,
+      }),
+    onSuccess: () => {
+      toast.success('已加入导出队列，完成后可在「导出记录」页下载')
+      void queryClient.invalidateQueries({ queryKey: ['export-tasks'] })
+    },
+    onError: (error: Error) => toast.fail(error),
+  })
 
   const rows = query.data?.list ?? []
 
@@ -120,7 +119,12 @@ export function Logs({ mode }: { mode: Mode }) {
         actions={
           can(operations ? 'system:log:operation' : 'system:log:login') ? (
             <>
-              <button className="btn" type="button" onClick={() => void exportLogs()}>
+              <button
+                className="btn"
+                type="button"
+                disabled={exportMutation.isPending}
+                onClick={() => exportMutation.mutate()}
+              >
                 <Icon name="download" size={13} /> 导出
               </button>
               <button

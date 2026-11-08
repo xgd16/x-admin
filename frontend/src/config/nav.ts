@@ -31,6 +31,7 @@ export const navItems: NavItem[] = [
   { key: 'jobs', label: '定时任务', path: '/system/jobs', icon: 'clock', permission: 'system:job:list', group: '系统' },
   { key: 'operations', label: '操作日志', path: '/system/logs/operations', icon: 'file', permission: 'system:log:operation', group: '审计' },
   { key: 'logins', label: '登录日志', path: '/system/logs/logins', icon: 'login', permission: 'system:log:login', group: '审计' },
+  { key: 'exports', label: '导出记录', path: '/system/exports', icon: 'download', permission: 'system:export:list', group: '审计' },
 ]
 
 export interface RailGroup {

@@ -49,3 +49,19 @@ func TestReadTrimsTrailingEmptyRows(t *testing.T) {
 	require.Len(t, rows, 2) // 末尾全空行被裁剪
 	assert.Equal(t, []string{"1", "2"}, rows[1])
 }
+
+func TestStreamBookWriteAndRead(t *testing.T) {
+	book, err := excel.NewStreamBook("用户列表:beta", []string{"A", "B"})
+	require.NoError(t, err)
+	defer book.Close()
+	require.NoError(t, book.WriteRow([]any{1, "x"}))
+	require.NoError(t, book.WriteRow([]any{2, "y"}))
+	assert.Equal(t, int64(2), book.Rows())
+
+	var buf bytes.Buffer
+	require.NoError(t, book.SaveTo(&buf))
+	rows, err := excel.Read(&buf)
+	require.NoError(t, err)
+	// 非法字符的工作表名被清洗，且默认的空 Sheet1 已移除。
+	assert.Equal(t, [][]string{{"A", "B"}, {"1", "x"}, {"2", "y"}}, rows)
+}

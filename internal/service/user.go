@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"strconv"
 	"strings"
 
@@ -567,39 +568,67 @@ func (s *UserService) Import(ctx context.Context, rows []UserImportRow) (*Import
 	return result, nil
 }
 
-// Export 按筛选条件导出全部用户（忽略分页）。
-func (s *UserService) Export(ctx context.Context, f model.UserFilter) ([]byte, error) {
-	// PageSize=0 表示不分页，导出当前筛选下的所有数据。
-	f.Page = 1
-	f.PageSize = 0
-	users, _, err := s.users.List(ctx, f)
-	if err != nil {
-		return nil, err
+// ExportBuilders 返回用户模块的异步导出构建器；module 与前端提交的 module 一致。
+// params 携带与列表接口相同的筛选条件（keyword/dept_id/status/role_id）。
+func (s *UserService) ExportBuilders() map[string]ExportBuilder {
+	return map[string]ExportBuilder{
+		"users": func(ctx context.Context, userID uint64, params json.RawMessage) (ExportJob, error) {
+			var f model.UserFilter
+			if len(params) > 0 {
+				if err := json.Unmarshal(params, &f); err != nil {
+					return ExportJob{}, apperr.New(apperr.CodeInvalidArgument, "导出参数不合法")
+				}
+			}
+			f.Page, f.PageSize = 1, 0
+			return ExportJob{
+				Module:   "users",
+				Title:    "用户列表",
+				Headers:  userExportHeaders(),
+				Total: func(ctx context.Context) (int64, error) {
+					return s.users.Count(ctx, f)
+				},
+				Fetch: func(ctx context.Context, afterID uint64, limit int) ([][]any, uint64, error) {
+					users, err := s.users.ExportPage(ctx, f, afterID, limit)
+					if err != nil {
+						return nil, 0, err
+					}
+					rows := make([][]any, 0, len(users))
+					for _, u := range users {
+						rows = append(rows, userExportRow(u))
+					}
+					var next uint64
+					if len(users) > 0 {
+						next = users[len(users)-1].ID
+					}
+					return rows, next, nil
+				},
+			}, nil
+		},
 	}
-	rows := make([][]string, 0, len(users))
-	for _, u := range users {
-		dept := ""
-		if u.Dept != nil {
-			dept = u.Dept.Name
-		}
-		roles := make([]string, 0, len(u.Roles))
-		for _, r := range u.Roles {
-			roles = append(roles, r.Name)
-		}
-		lastLogin := ""
-		if u.LastLoginAt != nil {
-			lastLogin = u.LastLoginAt.Format("2006-01-02 15:04:05")
-		}
-		status := "停用"
-		if u.Status == model.StatusEnabled {
-			status = "正常"
-		}
-		rows = append(rows, []string{
-			u.Username, u.Nickname, u.Email, u.Phone, dept, strings.Join(roles, "/"),
-			status, lastLogin, u.CreatedAt.Format("2006-01-02 15:04:05"),
-		})
+}
+
+// userExportRow 把用户记录转成导出表格的一行。
+func userExportRow(u model.User) []any {
+	dept := ""
+	if u.Dept != nil {
+		dept = u.Dept.Name
 	}
-	return excel.Write("用户", userExportHeaders(), rows)
+	roles := make([]string, 0, len(u.Roles))
+	for _, r := range u.Roles {
+		roles = append(roles, r.Name)
+	}
+	lastLogin := ""
+	if u.LastLoginAt != nil {
+		lastLogin = u.LastLoginAt.Format("2006-01-02 15:04:05")
+	}
+	status := "停用"
+	if u.Status == model.StatusEnabled {
+		status = "正常"
+	}
+	return []any{
+		u.Username, u.Nickname, u.Email, u.Phone, dept, strings.Join(roles, "/"),
+		status, lastLogin, u.CreatedAt.Format("2006-01-02 15:04:05"),
+	}
 }
 
 // Template 生成用户导入模板（含一行示例数据）。

@@ -137,15 +137,50 @@ func provideJobService(
 	return svc, nil
 }
 
+// provideExportService 构造导出服务：注册各业务模块的导出构建器并启动 worker。
+// 清理函数关闭队列并等待在途任务收尾。
+func provideExportService(
+	tasks service.ExportTaskRepository,
+	store storage.Store,
+	notifier service.Notifier,
+	params service.ParameterRepository,
+	users *service.UserService,
+	logs *service.LogService,
+	cfg config.Config,
+) (*service.ExportService, func()) {
+	svc := service.NewExportService(tasks, store, notifier, params, service.ExportOptions{
+		Workers:   cfg.Export.Workers,
+		QueueSize: cfg.Export.QueueSize,
+		BatchSize: cfg.Export.BatchSize,
+		MaxRows:   cfg.Export.MaxRows,
+	})
+	for module, b := range users.ExportBuilders() {
+		svc.Register(module, b)
+	}
+	for module, b := range logs.ExportBuilders() {
+		svc.Register(module, b)
+	}
+	svc.Boot()
+	return svc, svc.Close
+}
+
 // provideJobExecutor 把数据库中的 handler 名称映射到具体执行逻辑。
 // 参数统一为 JSON，例如 {"days": 90}；解析失败时使用默认保留天数。
-func provideJobExecutor(logs *repository.LogRepo, notifications *repository.NotificationRepo) func(ctx context.Context, job *model.Job) error {
+func provideJobExecutor(
+	logs *repository.LogRepo,
+	notifications *repository.NotificationRepo,
+	exports *service.ExportService,
+	cfg config.Config,
+) func(ctx context.Context, job *model.Job) error {
 	return func(ctx context.Context, job *model.Job) error {
 		switch job.Handler {
 		case "clean_logs":
 			return logs.CleanBefore(ctx, daysFrom(job.Params))
 		case "clean_notifications":
 			return notifications.CleanBefore(ctx, daysFrom(job.Params))
+		case "clean_export_tasks":
+			before := time.Now().AddDate(0, 0, -keepDaysFrom(job.Params, cfg.Export.KeepDays))
+			return exports.CleanBefore(ctx, before)
 		case "noop":
 			// 空任务，用于验证调度链路。
 			return nil
@@ -164,6 +199,20 @@ func daysFrom(params string) int {
 		return p.Days
 	}
 	return 90
+}
+
+// keepDaysFrom 解析任务参数中的保留天数；缺省回退到导出配置值。
+func keepDaysFrom(params string, fallback int) int {
+	var p struct {
+		Days int `json:"days"`
+	}
+	if params != "" && json.Unmarshal([]byte(params), &p) == nil && p.Days > 0 {
+		return p.Days
+	}
+	if fallback <= 0 {
+		return 7
+	}
+	return fallback
 }
 
 // ---- 处理器与路由 ----

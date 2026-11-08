@@ -36,6 +36,7 @@ type Handlers struct {
 	Log          *handler.LogHandler
 	Profile      *handler.ProfileHandler
 	Notification *handler.NotificationHandler
+	Export       *handler.ExportHandler
 }
 
 // Deps 是构建路由所需的依赖集合。
@@ -132,7 +133,6 @@ func New(d Deps) *gin.Engine {
 		secured.PUT("/users/:id/password", middleware.Require("system:user:reset"), d.Handlers.User.ResetPassword)
 		secured.PUT("/users/:id/roles", middleware.Require("system:user:update"), d.Handlers.User.AssignRoles)
 		secured.POST("/users/import", middleware.Require("system:user:import"), d.Handlers.User.Import)
-		secured.GET("/users/export", middleware.Require("system:user:export"), d.Handlers.User.Export)
 		secured.GET("/users/template", middleware.Require("system:user:import"), d.Handlers.User.Template)
 
 		// 角色管理：CRUD 与菜单授权。
@@ -190,14 +190,22 @@ func New(d Deps) *gin.Engine {
 		secured.POST("/jobs/:id/run", middleware.Require("system:job:run"), d.Handlers.Job.Run)
 		secured.GET("/jobs/:id/runs", middleware.Require("system:job:list"), d.Handlers.Job.Runs)
 
-		// 审计日志：操作日志与登录日志。
+		// 审计日志：操作日志与登录日志（导出走 /export-tasks 异步任务）。
 		secured.GET("/logs/operations", middleware.Require("system:log:operation"), d.Handlers.Log.Operations)
-		secured.GET("/logs/operations/export", middleware.Require("system:log:operation"), d.Handlers.Log.ExportOperations)
 		secured.DELETE("/logs/operations", middleware.Require("system:log:operation"), d.Handlers.Log.DeleteOperations)
 		secured.DELETE("/logs/operations/clear", middleware.Require("system:log:operation"), d.Handlers.Log.ClearOperations)
 		secured.GET("/logs/logins", middleware.Require("system:log:login"), d.Handlers.Log.Logins)
-		secured.GET("/logs/logins/export", middleware.Require("system:log:login"), d.Handlers.Log.ExportLogins)
 		secured.DELETE("/logs/logins/clear", middleware.Require("system:log:login"), d.Handlers.Log.ClearLogins)
+
+		// 异步导出：提交任务、查看记录与进度、取消、删除与下载产物。
+		secured.GET("/export-tasks", middleware.Require("system:export:list"), d.Handlers.Export.List)
+		secured.POST("/export-tasks", middleware.Require("system:export:submit"), d.Handlers.Export.Submit)
+		// 文件名模板路由是静态段，gin 会优先于 :id 参数路由匹配。
+		secured.GET("/export-tasks/filename-template", middleware.Require("system:export:list"), d.Handlers.Export.FilenameTemplate)
+		secured.PUT("/export-tasks/filename-template", middleware.Require("system:export:config"), d.Handlers.Export.UpdateFilenameTemplate)
+		secured.POST("/export-tasks/:id/cancel", middleware.Require("system:export:cancel"), d.Handlers.Export.Cancel)
+		secured.DELETE("/export-tasks/:id", middleware.Require("system:export:delete"), d.Handlers.Export.Delete)
+		secured.GET("/export-tasks/:id/download", middleware.Require("system:export:download"), d.Handlers.Export.Download)
 
 		// 个人中心：登录即可访问，不需要额外权限码。
 		secured.GET("/profile", d.Handlers.Profile.Get)

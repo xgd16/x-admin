@@ -83,6 +83,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&model.UserRole{}, &model.RoleMenu{},
 		&model.DictType{}, &model.DictItem{}, &model.Parameter{}, &model.File{}, &model.FileShare{},
 		&model.Job{}, &model.JobRun{}, &model.OperationLog{}, &model.LoginLog{}, &model.Notification{}, &model.Passkey{},
+		&model.ExportTask{},
 	)
 }
 
