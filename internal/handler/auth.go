@@ -203,3 +203,44 @@ func (h *AuthHandler) Me(c *gin.Context) {
 	h.writeFileCookie(c, me.User.ID, me.User.SessionVersion, CurrentSessionID(c))
 	response.OK(c, me)
 }
+
+// Unlock 校验锁屏解锁密码。
+func (h *AuthHandler) Unlock(c *gin.Context) {
+	var in struct {
+		Password string `json:"password" binding:"required"`
+	}
+	if !Bind(c, &in) {
+		return
+	}
+	if err := h.auth.Unlock(c.Request.Context(), CurrentUserID(c), in.Password); err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.OK(c, nil)
+}
+
+// UnlockPasskeyBegin 生成绑定当前用户的锁屏解锁参数。
+func (h *AuthHandler) UnlockPasskeyBegin(c *gin.Context) {
+	options, err := h.passkeys.BeginUnlock(c.Request.Context(), CurrentUserID(c))
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.OK(c, options)
+}
+
+// UnlockPasskeyFinish 校验锁屏解锁断言。
+func (h *AuthHandler) UnlockPasskeyFinish(c *gin.Context) {
+	var in struct {
+		SessionID  string          `json:"session_id" binding:"required"`
+		Credential json.RawMessage `json:"credential" binding:"required"`
+	}
+	if !Bind(c, &in) {
+		return
+	}
+	if err := h.passkeys.FinishUnlock(c.Request.Context(), CurrentUserID(c), in.SessionID, in.Credential); err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.OK(c, nil)
+}

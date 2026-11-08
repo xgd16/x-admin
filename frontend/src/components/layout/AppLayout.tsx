@@ -5,34 +5,46 @@ import { useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useSiteConfig } from '../../api/public'
 import { useNav } from '../../config/nav'
+import { useScrollAutoHide } from '../../hooks/useScrollAutoHide'
+import { useIdleLock } from '../../hooks/useIdleLock'
 import { useTabs } from '../../stores/tabs'
+import { bindLockAcrossTabs } from '../../stores/lock'
 import { Ambient } from '../Ambient'
 import { useGlassLight } from '../useGlassLight'
 import { CommandBar } from './CommandBar'
 import { KeepAliveOutlet } from './KeepAliveOutlet'
 import { ContextBar } from './ContextBar'
+import { LockScreen } from './LockScreen'
 import { Rail } from './Rail'
 import { TabBar } from './TabBar'
 
 export function AppLayout() {
   useGlassLight()
   useSiteConfig()
+  useIdleLock()
   const location = useLocation()
   const { byPath } = useNav()
   const open = useTabs((state) => state.open)
   const refreshKey = useTabs((state) => state.refreshKey)
   const canvasBodyRef = useRef<HTMLDivElement>(null)
 
+  // 其他标签页锁定/解锁时联动本标签页。
+  useEffect(() => bindLockAcrossTabs(), [])
+  // 下滑阅读内容时收起页签栏，回滚或回到顶部时展开。
+  const [tabsHidden, markProgrammaticScroll] = useScrollAutoHide(canvasBodyRef)
+
   // 页签保活后按页面恢复滚动位置；首次进入的页面从顶部开始。
   const scrollPositions = useRef<Record<string, number>>({})
   useEffect(() => {
     const el = canvasBodyRef.current
     if (!el) return
+    // 恢复阅读位置是程序化滚动，页签栏保持展开，不计入收起判断。
+    markProgrammaticScroll()
     el.scrollTo({ top: scrollPositions.current[location.pathname] ?? 0 })
     return () => {
       scrollPositions.current[location.pathname] = el.scrollTop
     }
-  }, [location.pathname])
+  }, [location.pathname, markProgrammaticScroll])
 
   // 每次进入页面时确保对应页签已打开；登录页不参与页签体系。
   useEffect(() => {
@@ -54,10 +66,11 @@ export function AppLayout() {
         <ContextBar />
         <div className="canvas">
           <div className="canvas-body" ref={canvasBodyRef}>
-            {/* 命令栏与页签栏组成吸顶悬浮组，内容滚动时从玻璃卡片后方穿过。 */}
+            {/* 命令栏与页签栏组成吸顶悬浮组，内容滚动时从玻璃卡片后方穿过；
+                页签栏在下滑阅读时自动收起，回滚再滑出。 */}
             <div className="canvas-head">
               <CommandBar />
-              <TabBar />
+              <TabBar autoHidden={tabsHidden} />
             </div>
             <div className="canvas-pad">
               {/* 已访问页面保持挂载；页签“刷新”只重新挂载当前页。 */}
@@ -66,6 +79,8 @@ export function AppLayout() {
           </div>
         </div>
       </div>
+      {/* 锁屏覆盖层挂在 body 上，盖住侧栏、命令栏与所有页面。 */}
+      <LockScreen />
     </div>
   )
 }

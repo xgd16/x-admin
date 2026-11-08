@@ -395,9 +395,39 @@ func (s *AuthService) Logout(ctx context.Context, userID uint64, refreshToken, c
 	return nil
 }
 
+// Unlock 校验锁屏解锁密码。
+//
+// 失败计数独立于登录（键 unlock:fail:<uid>），避免锁屏尝试与账号登录锁定互相干扰；
+// 上限与锁定时长复用 AuthOptions，连续失败达到上限后在窗口内直接拒绝校验。
+func (s *AuthService) Unlock(ctx context.Context, userID uint64, password string) error {
+	if strings.TrimSpace(password) == "" {
+		return apperr.New(apperr.CodeInvalidArgument, "请输入密码")
+	}
+	// 锁定状态先于密码校验判断，避免继续消耗尝试次数。
+	if s.unlockFailures(ctx, userID) >= int64(s.opts.MaxLoginFails) {
+		return apperr.Newf(apperr.CodeLocked, "解锁失败次数过多，请 %d 分钟后再试", int(s.opts.LockDuration.Minutes()))
+	}
+	user, err := s.users.Get(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if user.Status != model.StatusEnabled {
+		return apperr.New(apperr.CodeForbidden, "账号已停用")
+	}
+	if !s.hasher.Verify(user.Password, password) {
+		n, _ := s.store.Incr(ctx, unlockFailKey(userID), s.opts.LockDuration)
+		if n >= int64(s.opts.MaxLoginFails) {
+			return apperr.Newf(apperr.CodeLocked, "密码错误次数过多，请 %d 分钟后再试", int(s.opts.LockDuration.Minutes()))
+		}
+		return apperr.New(apperr.CodeUnauthorized, "密码错误")
+	}
+	// 密码正确即清零失败计数。
+	_ = s.store.Del(ctx, unlockFailKey(userID))
+	return nil
+}
+
 // Authenticate 为每个已认证请求加载身份与权限，供中间件调用。
-func (s *AuthService) Authenticate(ctx context.Context, userID uint64) (*authn.Principal, error) {
-	user, _, super, perms, err := s.load(ctx, userID)
+func (s *AuthService) Authenticate(ctx context.Context, userID uint64) (*authn.Principal, error) {	user, _, super, perms, err := s.load(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -562,6 +592,19 @@ func (s *AuthService) recordLogin(ctx context.Context, userID uint64, username s
 
 // loginFailKey 返回账号失败计数的缓存键；用户名统一转小写避免绕过。
 func loginFailKey(username string) string { return "login:fail:" + strings.ToLower(username) }
+
+// unlockFailKey 返回锁屏解锁失败计数的缓存键（按用户隔离）。
+func unlockFailKey(userID uint64) string { return "unlock:fail:" + strconv.FormatUint(userID, 10) }
+
+// unlockFailures 读取解锁失败计数，键不存在按 0 处理。
+func (s *AuthService) unlockFailures(ctx context.Context, userID uint64) int64 {
+	raw, err := s.store.Get(ctx, unlockFailKey(userID))
+	if err != nil {
+		return 0
+	}
+	n, _ := strconv.ParseInt(raw, 10, 64)
+	return n
+}
 
 // refreshKey 返回 refresh token 的缓存键。
 func refreshKey(token string) string { return "refresh:" + token }

@@ -28,10 +28,11 @@ const (
 	passkeyNameLimit   = 64 // 设备名称最大字符数
 )
 
-// 注册与登录挑战在缓存中的键前缀。
+// 注册、登录与锁屏解锁挑战在缓存中的键前缀。
 const (
 	passkeyRegisterPrefix = "passkey:register:"
 	passkeyLoginPrefix    = "passkey:login:"
+	passkeyUnlockPrefix   = "passkey:unlock:"
 )
 
 // PasskeyRegistrationOptions 是用户开始添加设备时返回的注册参数。
@@ -42,6 +43,12 @@ type PasskeyRegistrationOptions struct {
 
 // PasskeyLoginOptions 是登录页发起无用户名（discoverable）Passkey 流程时返回的参数。
 type PasskeyLoginOptions struct {
+	SessionID string                        `json:"session_id"`
+	Options   *protocol.CredentialAssertion `json:"options"`
+}
+
+// PasskeyUnlockOptions 是锁屏发起用户绑定 Passkey 解锁时返回的参数。
+type PasskeyUnlockOptions struct {
 	SessionID string                        `json:"session_id"`
 	Options   *protocol.CredentialAssertion `json:"options"`
 }
@@ -259,9 +266,76 @@ func (s *PasskeyService) FinishLogin(ctx context.Context, sessionID string, cred
 	return s.users.Get(ctx, owner.userID)
 }
 
+// BeginUnlock 生成绑定当前用户的锁屏解锁参数（user-bound assertion）。
+// 与登录页的 discoverable 流程不同：锁屏只接受当前会话用户自己的凭据。
+func (s *PasskeyService) BeginUnlock(ctx context.Context, userID uint64) (*PasskeyUnlockOptions, error) {
+	if s.wa == nil {
+		return nil, apperr.New(apperr.CodeForbidden, "通行密钥未启用，请联系管理员")
+	}
+	_, waUser, err := s.loadWAUser(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if len(waUser.credentials) == 0 {
+		return nil, apperr.New(apperr.CodeNotFound, "还没有绑定通行密钥")
+	}
+	assertion, session, err := s.wa.BeginLogin(waUser,
+		webauthn.WithUserVerification(protocol.VerificationRequired),
+	)
+	if err != nil {
+		return nil, passkeyFailure("生成解锁参数失败", err, apperr.CodeInvalidArgument)
+	}
+	sessionID, err := s.saveCeremony(ctx, passkeyUnlockPrefix, userID, session)
+	if err != nil {
+		return nil, err
+	}
+	return &PasskeyUnlockOptions{SessionID: sessionID, Options: assertion}, nil
+}
+
+// FinishUnlock 校验用户绑定的 assertion 并完成锁屏解锁。
+// 会话一次性使用且必须属于当前用户；签名计数器会持久化以检测克隆认证器。
+func (s *PasskeyService) FinishUnlock(ctx context.Context, userID uint64, sessionID string, credentialJSON json.RawMessage) error {
+	if s.wa == nil {
+		return apperr.New(apperr.CodeForbidden, "通行密钥未启用，请联系管理员")
+	}
+	ceremony, err := s.takeCeremony(ctx, passkeyUnlockPrefix, sessionID)
+	if err != nil {
+		return err
+	}
+	// 解锁会话在开始时已绑定当前用户，拿他人会话解锁一律拒绝。
+	if ceremony.UserID != userID {
+		return apperr.New(apperr.CodeUnauthorized, "通行密钥验证失败，请重试")
+	}
+	_, waUser, err := s.loadWAUser(ctx, userID)
+	if err != nil {
+		return err
+	}
+	parsed, err := protocol.ParseCredentialRequestResponse(credentialRequest(credentialJSON))
+	if err != nil {
+		return passkeyFailure("通行密钥验证失败，请重试", err, apperr.CodeUnauthorized)
+	}
+	credential, err := s.wa.ValidateLogin(waUser, ceremony.Session, parsed)
+	if err != nil {
+		return passkeyFailure("通行密钥验证失败，请重试", err, apperr.CodeUnauthorized)
+	}
+	row, err := s.passkeys.GetByCredentialID(ctx, base64.RawURLEncoding.EncodeToString(credential.ID))
+	if err != nil {
+		return apperr.New(apperr.CodeUnauthorized, "通行密钥验证失败，请重试")
+	}
+	raw, err := json.Marshal(credential)
+	if err != nil {
+		return apperr.Wrap(err, apperr.CodeInternal, "保存通行密钥失败")
+	}
+	if err := s.passkeys.UpdateCredential(ctx, row.ID, string(raw), time.Now()); err != nil {
+		return err
+	}
+	// 解锁成功即清零密码解锁的失败计数。
+	_ = s.store.Del(ctx, unlockFailKey(userID))
+	return nil
+}
+
 // Rename 修改设备名称。
-func (s *PasskeyService) Rename(ctx context.Context, userID, id uint64, name string) error {
-	if strings.TrimSpace(name) == "" {
+func (s *PasskeyService) Rename(ctx context.Context, userID, id uint64, name string) error {	if strings.TrimSpace(name) == "" {
 		return apperr.New(apperr.CodeInvalidArgument, "请输入设备名称")
 	}
 	name = normalizePasskeyName(name)

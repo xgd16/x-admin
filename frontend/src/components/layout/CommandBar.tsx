@@ -7,6 +7,7 @@ import type { MenuProps } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { useNav } from '../../config/nav'
 import { useAuth } from '../../stores/auth'
+import { useLock } from '../../stores/lock'
 import { useTabs } from '../../stores/tabs'
 import { useUi } from '../../stores/ui'
 import { Icon } from '../Icon'
@@ -28,6 +29,9 @@ export function CommandBar() {
   const setDensity = useUi((state) => state.setDensity)
   const watermark = useUi((state) => state.watermark)
   const toggleWatermark = useUi((state) => state.toggleWatermark)
+  const lockIdleMinutes = useUi((state) => state.lockIdleMinutes)
+  const setLockIdleMinutes = useUi((state) => state.setLockIdleMinutes)
+  const lockScreen = useLock((state) => state.lock)
   const toast = useToast()
 
   const [paletteOpen, setPaletteOpen] = useState(false)
@@ -59,6 +63,7 @@ export function CommandBar() {
   const userMenu: MenuProps['items'] = [
     { key: 'profile', icon: <Icon name="user" size={14} />, label: '个人中心' },
     { key: 'settings', icon: <Icon name="settings" size={14} />, label: '偏好设置' },
+    { key: 'lock', icon: <Icon name="lock" size={14} />, label: '锁定屏幕' },
     { type: 'divider' },
     { key: 'logout', icon: <Icon name="logout" size={14} />, label: '退出登录', danger: true },
   ]
@@ -99,6 +104,20 @@ export function CommandBar() {
         <Switch size="small" checked={watermark} onChange={toggleWatermark} />
       </div>
       <div className="settings-row">
+        <span className="label">自动锁屏</span>
+        <Segmented
+          size="small"
+          value={lockIdleMinutes}
+          options={[
+            { label: '关闭', value: 0 },
+            { label: '5分', value: 5 },
+            { label: '10分', value: 10 },
+            { label: '30分', value: 30 },
+          ]}
+          onChange={(value) => setLockIdleMinutes(value as number)}
+        />
+      </div>
+      <div className="settings-row">
         <span className="label">快捷键</span>
         <span className="value">⌘K 导航</span>
       </div>
@@ -131,6 +150,9 @@ export function CommandBar() {
           <kbd>⌘K</kbd>
         </button>
         <div className="cmd-actions">
+          <button type="button" className="icon-btn" title="锁定屏幕" aria-label="锁定屏幕" onClick={lockScreen}>
+            <Icon name="lock" size={16} />
+          </button>
           <NotificationCenter />
           <Popover
             trigger="click"
@@ -152,6 +174,7 @@ export function CommandBar() {
             onClick: ({ key }) => {
               if (key === 'profile') navigate('/profile')
               if (key === 'settings') setSettingsOpen(true)
+              if (key === 'lock') lockScreen()
               if (key === 'logout') {
                 void logout().then(() => {
                   resetTabs()

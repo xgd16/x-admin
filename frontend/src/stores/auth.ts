@@ -6,6 +6,7 @@ import { persist } from 'zustand/middleware'
 import { api } from '../api/client'
 import { tokenStore } from '../api/tokens'
 import type { Captcha, LoginResult, MeResult, Menu, PasskeyLoginOptions, User } from '../api/types'
+import { useLock } from './lock'
 import { getPasskeyAssertion } from '../utils/passkey'
 
 // idle=尚未检查，loading=正在恢复会话，ready=已登录，anon=未登录。
@@ -42,6 +43,8 @@ export const useAuth = create<AuthState>()(
         tokenStore.set(result.access_token, result.refresh_token)
         const me = await api.get<MeResult>('/auth/me')
         set({ user: me.user, permissions: me.permissions, menus: me.menus ?? [], status: 'ready' })
+        // 换人登录必须清掉上一任的锁屏状态。
+        useLock.getState().reset()
       }
 
       return {
@@ -108,10 +111,12 @@ export const useAuth = create<AuthState>()(
           }
           tokenStore.clear()
           set({ user: null, permissions: [], menus: [], status: 'anon', demo: false })
+          useLock.getState().reset()
         },
         reset() {
           tokenStore.clear()
           set({ user: null, permissions: [], menus: [], status: 'anon', demo: false })
+          useLock.getState().reset()
         },
         // 页面与按钮的权限判断入口；空权限码视为公开内容。
         can(permission) {

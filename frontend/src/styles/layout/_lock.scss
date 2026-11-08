@@ -1,0 +1,161 @@
+// 锁屏覆盖层：全屏磨砂遮罩 + 居中解锁卡片。
+
+.lock-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(238, 244, 251, 0.6);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+}
+:root[data-theme='dark'] .lock-screen {
+  background: rgba(5, 9, 17, 0.64);
+}
+
+.lock-card {
+  width: min(340px, 100%);
+  padding: 26px 26px 18px;
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 13px;
+  text-align: center;
+}
+
+.lock-clock {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 2px;
+}
+.lock-time {
+  font-family: var(--mono);
+  font-size: 40px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.lock-date {
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.lock-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 17px;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(145deg, var(--accent-2), var(--accent));
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 32%, transparent);
+}
+/* 中文单字在拉丁优先字体栈里偏高，与 ui 头像同款修正。 */
+.lock-avatar {
+  font-family: var(--ui, inherit);
+}
+
+.lock-who {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.lock-who b {
+  font-size: 14px;
+  color: var(--ink);
+}
+.lock-who span {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.lock-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lock-submit {
+  width: 100%;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: linear-gradient(145deg, var(--accent-2), var(--accent));
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--accent) 32%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  transition: transform 0.2s, filter 0.2s;
+  cursor: pointer;
+}
+.lock-submit:hover:enabled {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+}
+.lock-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.lock-passkey {
+  width: 100%;
+  height: 38px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--glass-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  transition: background 0.2s, border-color 0.2s;
+  cursor: pointer;
+}
+.lock-passkey:hover:enabled {
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.lock-passkey:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+/* 错误提示复用登录页的 .form-error 形态；这里负外边距由卡片 gap 承担。 */
+.lock-card .form-error {
+  margin: -4px 0 0;
+}
+
+.lock-logout {
+  margin-top: 2px;
+  border: 0;
+  background: transparent;
+  color: var(--dim);
+  font-size: 10px;
+  cursor: pointer;
+  transition: color 0.18s;
+}
+.lock-logout:hover {
+  color: var(--danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lock-screen,
+  .lock-card {
+    transition: none;
+  }
+}

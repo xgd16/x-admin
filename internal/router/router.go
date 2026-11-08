@@ -120,6 +120,10 @@ func New(d Deps) *gin.Engine {
 	{
 		secured.POST("/auth/logout", d.Handlers.Auth.Logout)
 		secured.GET("/auth/me", d.Handlers.Auth.Me)
+		// 锁屏解锁：重新验证密码或当前用户的 Passkey，不签发新令牌。
+		secured.POST("/auth/unlock", middleware.RateLimit(d.Cache, "rl:unlock", 10, time.Minute), d.Handlers.Auth.Unlock)
+		secured.POST("/auth/unlock/passkey/begin", middleware.RateLimit(d.Cache, "rl:passkey", 20, time.Minute), d.Handlers.Auth.UnlockPasskeyBegin)
+		secured.POST("/auth/unlock/passkey/finish", middleware.RateLimit(d.Cache, "rl:passkey", 20, time.Minute), d.Handlers.Auth.UnlockPasskeyFinish)
 
 		secured.GET("/dashboard/summary", middleware.Require("dashboard:view"), d.Handlers.Dashboard.Summary)
 
