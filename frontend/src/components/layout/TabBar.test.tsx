@@ -12,15 +12,17 @@ const dashboard: Tab = { key: '/dashboard', label: '总览', path: '/dashboard' 
 const users: Tab = { key: '/system/users', label: '用户管理', path: '/system/users' }
 const roles: Tab = { key: '/system/roles', label: '角色管理', path: '/system/roles' }
 
-function renderTabs() {
+function renderTabs(props: { autoHidden?: boolean } = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(
+  const ui = (autoHidden: boolean) => (
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[users.path]}>
-        <TabBar />
+        <TabBar autoHidden={autoHidden} />
       </MemoryRouter>
-    </QueryClientProvider>,
+    </QueryClientProvider>
   )
+  const view = render(ui(props.autoHidden ?? false))
+  return { ...view, rerenderWith: (autoHidden: boolean) => view.rerender(ui(autoHidden)) }
 }
 
 function chip(label: string) {
@@ -100,6 +102,22 @@ describe('TabBar context menu', () => {
     openMenu('用户管理')
     fireEvent.pointerDown(document.body)
     await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
+  })
+})
+
+describe('TabBar auto hide', () => {
+  it('collapses when auto hidden and keeps chips mounted for a smooth restore', () => {
+    const { rerenderWith } = renderTabs()
+    const wrap = document.querySelector('.tab-strip-wrap') as HTMLElement
+    expect(wrap.style.pointerEvents).toBe('auto')
+
+    rerenderWith(true)
+    expect(wrap.style.pointerEvents).toBe('none')
+    // chip 保持挂载，回滚展开时不重放入场动画。
+    expect(document.querySelectorAll('.tab-chip').length).toBe(3)
+
+    rerenderWith(false)
+    expect(wrap.style.pointerEvents).toBe('auto')
   })
 })
 

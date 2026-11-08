@@ -21,7 +21,12 @@ interface TabMenuState {
   y: number
 }
 
-export function TabBar() {
+interface TabBarProps {
+  /** 内容区下滑阅读时由 AppLayout 置真：页签栏收起让位，回滚时展开。 */
+  autoHidden?: boolean
+}
+
+export function TabBar({ autoHidden = false }: TabBarProps) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const tabs = useTabs((state) => state.tabs)
@@ -42,6 +47,10 @@ export function TabBar() {
   const [tabSheetOpen, setTabSheetOpen] = useState(false)
   const [menu, setMenu] = useState<TabMenuState | null>(null)
   const visible = tabs.length > 1
+  // 滚动收起只平移+淡出、保留占位高度：若收缩高度，吸顶组变矮会让内容高度
+  // 变化，在“内容略高于视口”的区间 scrollTop 被钳回顶部，页签条随即展开，
+  // 形成不停收起/展开的振荡环；单页签收起不走滚动判断，可安全收缩高度。
+  const shown = visible && !autoHidden
   const activeTab = tabs.find((tab) => tab.key === active)
 
   // 记录页签条是否还能向左/向右滚动，用渐隐遮罩提示还有内容。
@@ -203,9 +212,10 @@ export function TabBar() {
         animate={{
           height: visible ? (compact ? 34 : 30) : 0,
           marginTop: visible ? 0 : -10,
-          opacity: visible ? 1 : 0,
+          y: shown ? 0 : -8,
+          opacity: shown ? 1 : 0,
         }}
-        style={{ pointerEvents: visible ? 'auto' : 'none' }}
+        style={{ pointerEvents: shown ? 'auto' : 'none' }}
         transition={reduceMotion ? { duration: 0 } : { duration: 0.24, ease: EASE_OUT }}
       >
         {compact ? (
