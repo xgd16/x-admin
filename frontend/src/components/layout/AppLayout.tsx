@@ -53,11 +53,16 @@ export function AppLayout() {
         <Rail />
         <ContextBar />
         <div className="canvas">
-          <CommandBar />
-          <TabBar />
           <div className="canvas-body" ref={canvasBodyRef}>
-            {/* 已访问页面保持挂载；页签“刷新”只重新挂载当前页。 */}
-            <KeepAliveOutlet refreshKey={refreshKey} />
+            {/* 命令栏与页签栏组成吸顶悬浮组，内容滚动时从玻璃卡片后方穿过。 */}
+            <div className="canvas-head">
+              <CommandBar />
+              <TabBar />
+            </div>
+            <div className="canvas-pad">
+              {/* 已访问页面保持挂载；页签“刷新”只重新挂载当前页。 */}
+              <KeepAliveOutlet refreshKey={refreshKey} />
+            </div>
           </div>
         </div>
       </div>

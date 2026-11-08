@@ -7,6 +7,8 @@
   align-items: center;
   gap: 9px;
   min-width: 0;
+  // 右侧类型标签用 margin-left: auto 顶到最右，需为 antd 绝对定位的关闭按钮留出空间，避免重叠。
+  padding-inline-end: 36px;
 }
 .file-picker-kicker {
   font-family: var(--mono);
@@ -70,8 +72,8 @@
 }
 .file-picker-tabs button.active {
   color: #fff;
-  background: linear-gradient(145deg, #ff8a5c, #ff5f33);
-  box-shadow: 0 6px 14px rgba(255, 95, 51, 0.24);
+  background: linear-gradient(145deg, var(--accent-2), var(--accent));
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--accent) 24%, transparent);
 }
 .file-picker-scope-chip {
   display: inline-flex;
@@ -131,9 +133,9 @@
   gap: 5px;
   max-width: 190px;
   padding: 2px 4px 2px 8px;
-  border: 1px solid rgba(255, 95, 51, 0.18);
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
   border-radius: 999px;
-  background: rgba(255, 95, 51, 0.08);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
   color: var(--ink-soft);
   font-size: 8.5px;
 }
@@ -212,12 +214,12 @@
   box-shadow: 0 8px 18px -10px rgba(23, 43, 63, 0.28);
 }
 .file-card.selected {
-  border-color: rgba(255, 95, 51, 0.55);
-  background: rgba(255, 95, 51, 0.07);
-  box-shadow: 0 0 0 2px rgba(255, 95, 51, 0.12);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 12%, transparent);
 }
 .file-card:focus-visible {
-  outline: 2px solid rgba(255, 95, 51, 0.55);
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
   outline-offset: 2px;
 }
 .file-card-thumb {
@@ -274,9 +276,9 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: linear-gradient(145deg, #ff8a5c, #ff5f33);
+  background: linear-gradient(145deg, var(--accent-2), var(--accent));
   color: #fff;
-  box-shadow: 0 6px 14px rgba(255, 95, 51, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--accent) 36%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 .file-card-meta {
   display: block;
@@ -330,6 +332,6 @@
     rgba(47, 184, 217, 0.06);
 }
 :root[data-theme='dark'] .file-picker-chip {
-  border-color: rgba(255, 138, 92, 0.24);
-  background: rgba(255, 95, 51, 0.14);
+  border-color: color-mix(in srgb, var(--accent-2) 24%, transparent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
 }

@@ -47,5 +47,5 @@
   line-height: 1;
   display: grid;
   place-items: center;
-  box-shadow: 0 0 10px rgba(255, 95, 51, 0.55);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 55%, transparent);
 }

@@ -12,6 +12,7 @@ import { useUi } from '../../stores/ui'
 import { Icon } from '../Icon'
 import { useToast } from '../../hooks/useToast'
 import { NotificationCenter } from './NotificationCenter'
+import { ThemePalettePicker } from './ThemePalettePicker'
 import { useContextNav } from './useContextNav'
 
 export function CommandBar() {
@@ -62,7 +63,7 @@ export function CommandBar() {
     { key: 'logout', icon: <Icon name="logout" size={14} />, label: '退出登录', danger: true },
   ]
 
-  // 偏好设置弹层：主题、表格密度、水印与快捷键提示。
+  // 偏好设置弹层：主题、主题色、表格密度、水印与快捷键提示。
   const settings = (
     <div className="settings-menu">
       <div className="settings-row">
@@ -79,6 +80,7 @@ export function CommandBar() {
           }}
         />
       </div>
+      <ThemePalettePicker />
       <div className="settings-row">
         <span className="label">表格密度</span>
         <Segmented
@@ -152,9 +154,10 @@ export function CommandBar() {
               if (key === 'settings') setSettingsOpen(true)
               if (key === 'logout') {
                 void logout().then(() => {
-                  toast.success('已安全退出')
                   resetTabs()
                   navigate('/login')
+                  // 先落到位再提示，toast 直接以登录页的位置出现，不跳动。
+                  toast.success('已安全退出')
                 })
               }
             },

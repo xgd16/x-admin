@@ -6,7 +6,8 @@ import type { ComposeOption } from 'echarts/core'
 import type { LineSeriesOption } from 'echarts/charts'
 import type { GridComponentOption, TooltipComponentOption } from 'echarts/components'
 import type { TrendPoint } from '../api/types'
-import { ACCENT, CHART_FONT, type ChartPalette } from './theme'
+import { tint } from '../config/themes'
+import { CHART_FONT, type ChartPalette } from './theme'
 
 export type TrendChartOption = ComposeOption<
   LineSeriesOption | GridComponentOption | TooltipComponentOption
@@ -70,7 +71,7 @@ export function buildTrendOption(
       axisPointer: {
         type: 'line',
         snap: true,
-        lineStyle: { color: 'rgba(255, 95, 51, 0.3)', width: 1, type: 'dashed' },
+        lineStyle: { color: tint(palette.accentMid, 0.3), width: 1, type: 'dashed' },
       },
       // ECharts 可能传入单个对象或数组，这里统一取第一条数据。
       formatter: (params: unknown) => {
@@ -132,18 +133,18 @@ export function buildTrendOption(
             x2: 1,
             y2: 0,
             colorStops: [
-              { offset: 0, color: ACCENT.from },
-              { offset: 0.55, color: ACCENT.mid },
-              { offset: 1, color: ACCENT.to },
+              { offset: 0, color: palette.accentFrom },
+              { offset: 0.55, color: palette.accentMid },
+              { offset: 1, color: palette.accentTo },
             ],
           },
           shadowBlur: 12,
-          shadowColor: 'rgba(255, 95, 51, 0.35)',
+          shadowColor: tint(palette.accentMid, 0.35),
           shadowOffsetY: 2,
         },
         itemStyle: {
           color: palette.dot,
-          borderColor: ACCENT.mid,
+          borderColor: palette.accentMid,
           borderWidth: 1.6,
         },
         areaStyle: {
@@ -154,19 +155,19 @@ export function buildTrendOption(
             x2: 0,
             y2: 1,
             colorStops: [
-              { offset: 0, color: 'rgba(255, 106, 61, 0.22)' },
-              { offset: 1, color: 'rgba(255, 106, 61, 0)' },
+              { offset: 0, color: tint(palette.accentArea, 0.22) },
+              { offset: 1, color: tint(palette.accentArea, 0) },
             ],
           },
         },
         emphasis: {
           scale: 1.9,
           itemStyle: {
-            color: ACCENT.mid,
+            color: palette.accentMid,
             borderColor: '#ffffff',
             borderWidth: 1.4,
             shadowBlur: 12,
-            shadowColor: 'rgba(255, 95, 51, 0.45)',
+            shadowColor: tint(palette.accentMid, 0.45),
           },
         },
         animationDelay: (index: number) => index * 45,

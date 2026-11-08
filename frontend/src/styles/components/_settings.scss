@@ -36,6 +36,71 @@
 .settings-row.button:hover {
   background: var(--glass-soft);
 }
+/* 主题色板选择：色块圆点 + 当前色板名称。 */
+.settings-themes {
+  display: grid;
+  gap: 8px;
+  padding: 8px 9px;
+  border-radius: 9px;
+  transition: background 0.18s;
+}
+.settings-themes:hover {
+  background: var(--glass-soft);
+}
+.settings-themes-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+}
+.settings-themes-head .label {
+  color: var(--muted);
+}
+.settings-themes-head .value {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--dim);
+}
+.settings-swatches {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.settings-swatch {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(23, 43, 63, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transition: transform 0.16s, box-shadow 0.16s;
+}
+.settings-swatch:hover {
+  transform: translateY(-1px) scale(1.08);
+}
+.settings-swatch:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 2px;
+}
+.settings-swatch.active {
+  box-shadow:
+    0 0 0 2px var(--bg),
+    0 0 0 4px color-mix(in srgb, var(--accent) 55%, transparent),
+    0 2px 5px rgba(23, 43, 63, 0.18);
+}
+.settings-swatch svg {
+  display: block;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+}
+:root[data-theme='dark'] .settings-swatch {
+  border-color: rgba(255, 255, 255, 0.18);
+}
 .palette {
   display: grid;
   gap: 4px;

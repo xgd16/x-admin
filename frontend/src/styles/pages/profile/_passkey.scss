@@ -42,7 +42,7 @@
   display: grid;
   place-items: center;
   border-radius: 10px;
-  background: rgba(255, 95, 51, 0.12);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent);
 }
 .passkey-info {

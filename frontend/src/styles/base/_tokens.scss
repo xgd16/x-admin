@@ -8,6 +8,8 @@
   --accent: #ff5f33;
   --accent-2: #ff8a5c;
   --accent-3: #ff4d8d;
+  --accent-soft: #ffb38f;
+  --accent-ink: #8f2a0d;
   --cyan: #2fb8d9;
   --violet: #8b7cf6;
   --mint: #2fb98a;
@@ -26,7 +28,47 @@
   --radius: 22px;
   --radius-sm: 14px;
   --ui: "Avenir Next", "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  /* 头像首字等"单字居中"场景用：中文字体放栈首，行盒 strut 才与中文回退字形一致，否则字形会偏高。 */
+  --ui-cjk: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", var(--ui);
   --mono: "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, monospace;
+}
+
+/* ---------------- 主题色板 ---------------- */
+/* 与 src/config/themes.ts 的 PALETTES 保持同步；默认珊瑚橙写在 :root，其余按 data-palette 覆盖。 */
+:root[data-palette='ocean'] {
+  --accent: #2f7fe0;
+  --accent-2: #5aa7f0;
+  --accent-3: #25c2d6;
+  --accent-soft: #8ec4f7;
+  --accent-ink: #0d3a6b;
+}
+:root[data-palette='forest'] {
+  --accent: #1f9d6b;
+  --accent-2: #43c08d;
+  --accent-3: #9bc53d;
+  --accent-soft: #7fd7ab;
+  --accent-ink: #0d4d34;
+}
+:root[data-palette='violet'] {
+  --accent: #7c5ce6;
+  --accent-2: #a08bf5;
+  --accent-3: #e879c9;
+  --accent-soft: #c4b5fb;
+  --accent-ink: #3b2a7a;
+}
+:root[data-palette='rose'] {
+  --accent: #e0508f;
+  --accent-2: #f27ba9;
+  --accent-3: #b26ae0;
+  --accent-soft: #f8abc7;
+  --accent-ink: #7a1f4d;
+}
+:root[data-palette='graphite'] {
+  --accent: #4a6076;
+  --accent-2: #71869c;
+  --accent-3: #8fa6bb;
+  --accent-soft: #aabdcb;
+  --accent-ink: #22303d;
 }
 
 :root[data-theme='dark'] {

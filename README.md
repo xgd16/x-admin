@@ -747,7 +747,7 @@ npm run test:watch
 | --- | --- | --- |
 | `useAuth` | `localStorage`（`x-admin.auth`） | 当前用户、权限码、登录状态、登录/登出/MFA/Passkey 动作 |
 | `useTabs` | `sessionStorage`（`x-admin.tabs`） | 打开的标签页、当前标签、刷新计数器 |
-| `useUi` | `localStorage`（`x-admin.ui`） | 主题、表格密度、水印、列设置、上下文栏展开偏好 |
+| `useUi` | `localStorage`（`x-admin.ui`） | 明暗主题、主题色板、表格密度、水印、列设置、上下文栏展开偏好 |
 
 Token 单独存放在 `localStorage`：
 
@@ -817,14 +817,19 @@ TanStack Query 默认配置：`retry: 1`、关闭窗口聚焦重取、`staleTime
 ### 8.6 主题与视觉
 
 - 主题由 `ThemeProvider` 统一注入 antd `ConfigProvider`：浅色/深色算法、圆角、字体、玻璃背景、组件级 token。
-- 暗色模式写入 `<html data-theme="dark">`，CSS 变量与 antd token 同步切换。
+- 明暗模式写入 `<html data-theme="dark">`，主题色板写入 `<html data-palette="…">`，CSS 变量与 antd token 同步切换。
+- 主题色板（配色主题）在“偏好设置”弹层切换，与浅色/深色相互独立；默认珊瑚橙，可选海洋蓝、森野绿、暮光紫、玫瑰粉、曜石灰：
+  - 色板定义：`frontend/src/config/themes.ts`（antd token、图表取色）
+  - CSS 变量：`frontend/src/styles/base/_tokens.scss` 的 `:root[data-palette='…']` 块
+  - 新增色板需同时改这两处；品牌色一律使用 `var(--accent)` / `var(--accent-2)` / `var(--accent-3)` 或 `color-mix(in srgb, var(--accent) N%, transparent)`，不要写死十六进制
 - 水印使用 antd `Watermark`，内容为“x-admin · 昵称 + 日期”。
 - 动效统一由 `motion` 驱动；系统开启“减少动态效果”时关闭位移动画。
 - 视觉基线为 `design-preview/02-workbench.html`，实现以 `frontend/src/styles/index.scss` 及同目录下按功能拆分的 partial 为准：
   - 背景 `#edf3f9`，深色 `#07131f`
-  - ink `#0b1c2c`、accent `#ff5f33`、violet `#8b7cf6`、cyan `#2fb8d9`、mint `#2fb98a`
+  - ink `#0b1c2c`、默认 accent `#ff5f33`（随主题色板变化）、violet `#8b7cf6`、cyan `#2fb8d9`、mint `#2fb98a`
   - 字体 Avenir Next / SF Pro Display / PingFang SC；数字 `tabular-nums`
   - 玻璃：`backdrop-filter: blur(28px) saturate(170%)` + 方向性高光边框 + 鼠标光斑
+  - 品牌标记与 favicon 固定珊瑚渐变，不随主题色板变化
 
 ### 8.7 移动端适配
 

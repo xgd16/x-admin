@@ -74,8 +74,9 @@ styles/
 5. **单行截断统一用 `@include truncate`**，不要重复写 `overflow / text-overflow / white-space` 三件套。
 6. **暗色主题**继续使用 `:root[data-theme='dark'] .selector` 选择器，并与对应组件放在同一个 partial 中，便于一起维护。
 7. **设计变量优先用 CSS 变量**（`var(--ink)`、`var(--line)` 等），它们会随主题切换；SCSS 变量只用于编译期计算与断点。
-8. **加载态**统一复用 `src/components/Loading.tsx`（antd Spin / Skeleton），样式集中在 `_loading.scss`；React 挂载前的启动占位写在 `index.html` 内联样式中，调整品牌色时与 `_loading.scss` 同步。
-9. **操作反馈**统一使用 `useToast()`（`src/hooks/useToast.ts`），内部直接调用 antd `message` / `notification`：
+8. **品牌色必须走主题色板**：使用 `var(--accent)` / `var(--accent-2)` / `var(--accent-3)`，半透明色用 `color-mix(in srgb, var(--accent) N%, transparent)`，不要写死 `#ff5f33` 或 `rgba(255, 95, 51, …)`。色板定义在 `src/config/themes.ts` 与 `base/_tokens.scss` 的 `:root[data-palette='…']` 块中，新增色板两处同时同步；文件类型图标、KPI 分类光晕等语义/装饰色不受色板影响。
+9. **加载态**统一复用 `src/components/Loading.tsx`（antd Spin / Skeleton），样式集中在 `_loading.scss`；React 挂载前的启动占位写在 `index.html` 内联样式中，调整品牌色时与 `_loading.scss` 同步。
+10. **操作反馈**统一使用 `useToast()`（`src/hooks/useToast.ts`），内部直接调用 antd `message` / `notification`：
    - 普通成功、失败、警告用 `toast.success / warning / error`，异常用 `toast.fail(error, fallback)`；
    - 下载、导入等长请求用 `toast.promise(task, { loading, success, error })`；
    - 多行结果或需要展开说明的信息用 `toast.notify()`，不要再自建 toast 容器；

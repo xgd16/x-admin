@@ -48,13 +48,13 @@
   transform: scale(0.995);
 }
 .m-card.selected {
-  border-color: rgba(255, 95, 51, 0.42);
-  background: linear-gradient(90deg, rgba(255, 138, 92, 0.14), var(--glass-soft));
+  border-color: color-mix(in srgb, var(--accent) 42%, transparent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent-2) 14%, transparent), var(--glass-soft));
   box-shadow: inset 3px 0 0 var(--accent);
 }
 :root[data-theme='dark'] .m-card.selected {
-  border-color: rgba(255, 138, 92, 0.34);
-  background: linear-gradient(90deg, rgba(255, 138, 92, 0.12), rgba(255, 255, 255, 0.04));
+  border-color: color-mix(in srgb, var(--accent-2) 34%, transparent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent-2) 12%, transparent), rgba(255, 255, 255, 0.04));
 }
 .m-card-head {
   display: flex;

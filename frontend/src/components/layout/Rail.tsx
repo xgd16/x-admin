@@ -100,9 +100,10 @@ export function Rail() {
             if (key === 'profile') navigate('/profile')
             if (key === 'logout') {
               void logout().then(() => {
-                toast.success('已安全退出')
                 resetTabs()
                 navigate('/login')
+                // 先落到位再提示，toast 直接以登录页的位置出现，不跳动。
+                toast.success('已安全退出')
               })
             }
           },

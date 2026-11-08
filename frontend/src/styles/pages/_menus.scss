@@ -107,14 +107,14 @@
   flex: none;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(255, 95, 51, 0.14);
+  border: 1px solid color-mix(in srgb, var(--accent) 14%, transparent);
   border-radius: 8px;
-  background: rgba(255, 95, 51, 0.1);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
   color: var(--accent);
 }
 :root[data-theme='dark'] .menu-tree-icon {
-  border-color: rgba(255, 138, 92, 0.18);
-  background: rgba(255, 95, 51, 0.14);
+  border-color: color-mix(in srgb, var(--accent-2) 18%, transparent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 .menu-tree-main {
   display: flex;

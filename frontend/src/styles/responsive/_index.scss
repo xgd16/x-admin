@@ -56,8 +56,9 @@
     padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
       max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
   }
-  .canvas {
+  .canvas-head {
     gap: 6px;
+    margin-bottom: 6px;
   }
   .command {
     height: 50px;
@@ -69,8 +70,10 @@
     flex: 1;
     min-width: 0;
   }
-  .canvas-body {
+  .canvas-pad {
     padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  }
+  .canvas-body {
     -webkit-overflow-scrolling: touch;
   }
   .page-head {

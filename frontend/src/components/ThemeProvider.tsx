@@ -1,12 +1,12 @@
 /**
- * antd 主题、中文语言包、水印与暗色模式注入。
+ * antd 主题、中文语言包、水印与主题色板注入。
  */
 import { useEffect, type ReactNode } from 'react'
-import { App as AntdApp, ConfigProvider, Watermark, theme as antdTheme } from 'antd'
+import { ConfigProvider, Watermark, theme as antdTheme } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import dayjs from 'dayjs'
 import { useReducedMotion } from 'motion/react'
-import { useIsCompactViewport } from '../hooks/useMediaQuery'
+import { paletteOf, tint } from '../config/themes'
 import { useAuth } from '../stores/auth'
 import { useUi } from '../stores/ui'
 
@@ -15,45 +15,24 @@ const fontFamily = '"Avenir Next", "SF Pro Display", "PingFang SC", "Hiragino Sa
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const themeMode = useUi((state) => state.theme)
+  const palette = useUi((state) => state.palette)
   const watermark = useUi((state) => state.watermark)
   const user = useAuth((state) => state.user)
   const dark = themeMode === 'dark'
   const reduceMotion = useReducedMotion()
-  const compact = useIsCompactViewport()
-  // Toast 固定在命令栏与页签栏下方，避免遮挡导航和页签。
-  const toastTop = compact ? 104 : 110
+  const accent = paletteOf(palette).accent
 
-  // 把主题写到 html[data-theme]，CSS 变量与暗色选择器都依赖这个属性。
+  // 把主题与色板写到 html 属性上，CSS 变量、暗色选择器与 data-palette 都依赖它们。
   useEffect(() => {
     document.documentElement.dataset.theme = themeMode
+    document.documentElement.dataset.palette = palette
     document
       .querySelector('meta[name="theme-color"]')
       ?.setAttribute('content', themeMode === 'dark' ? '#070c15' : '#edf3f9')
-  }, [themeMode])
+  }, [themeMode, palette])
 
-  const body = (
-    <AntdApp
-      message={{
-        top: toastTop,
-        duration: 2.4,
-        maxCount: 4,
-        stack: { threshold: 3 },
-        pauseOnHover: true,
-      }}
-      notification={{
-        placement: compact ? 'top' : 'topRight',
-        top: toastTop,
-        bottom: 24,
-        maxCount: 3,
-        duration: 4.5,
-        showProgress: true,
-        pauseOnHover: true,
-        stack: { threshold: 3 },
-      }}
-    >
-      <div className="app-watermark-layer">{children}</div>
-    </AntdApp>
-  )
+  // Toast 的位置由 Router 内的 ToastScope 决定：后台避让吸顶导航，登录页没有框架导航。
+  const body = <div className="app-watermark-layer">{children}</div>
 
   return (
     <ConfigProvider
@@ -62,7 +41,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         // 通过 antd 算法 + token 覆盖，让组件默认样式与玻璃拟态主题一致。
         algorithm: dark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
         token: {
-          colorPrimary: '#ff5f33',
+          colorPrimary: accent,
           colorInfo: '#2fb8d9',
           colorSuccess: '#2fb98a',
           colorWarning: '#f3a93c',
@@ -86,7 +65,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           Button: {
             borderRadius: 999,
             borderRadiusSM: 999,
-            primaryShadow: '0 10px 24px rgba(255, 95, 51, .3)',
+            primaryShadow: `0 10px 24px ${tint(accent, 0.3)}`,
             defaultBg: dark ? 'rgba(255,255,255,.07)' : 'rgba(255,255,255,.42)',
             defaultBorderColor: dark ? 'rgba(156, 182, 210, .16)' : 'rgba(255,255,255,.72)',
             defaultColor: dark ? '#f3f7fc' : '#0b1c2c',
@@ -102,25 +81,25 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           },
           Input: {
             colorBgContainer: dark ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.38)',
-            activeBorderColor: '#ff5f33',
-            hoverBorderColor: 'rgba(255,95,51,.45)',
-            activeShadow: '0 0 0 3px rgba(255,95,51,.12)',
+            activeBorderColor: accent,
+            hoverBorderColor: tint(accent, 0.45),
+            activeShadow: `0 0 0 3px ${tint(accent, 0.12)}`,
           },
           InputNumber: {
             colorBgContainer: dark ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.38)',
-            activeBorderColor: '#ff5f33',
-            hoverBorderColor: 'rgba(255,95,51,.45)',
-            activeShadow: '0 0 0 3px rgba(255,95,51,.12)',
+            activeBorderColor: accent,
+            hoverBorderColor: tint(accent, 0.45),
+            activeShadow: `0 0 0 3px ${tint(accent, 0.12)}`,
           },
           Select: {
             colorBgContainer: dark ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.38)',
-            optionSelectedBg: 'rgba(255,95,51,.12)',
+            optionSelectedBg: tint(accent, 0.12),
             optionActiveBg: dark ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.5)',
           },
           DatePicker: {
             colorBgContainer: dark ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.38)',
-            activeBorderColor: '#ff5f33',
-            hoverBorderColor: 'rgba(255,95,51,.45)',
+            activeBorderColor: accent,
+            hoverBorderColor: tint(accent, 0.45),
           },
           Modal: {
             contentBg: dark ? 'rgba(18,26,39,.97)' : 'rgba(250,253,255,.97)',
@@ -134,18 +113,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
             colorBgElevated: dark ? 'rgba(18,26,39,.97)' : 'rgba(250,253,255,.94)',
           },
           Tree: {
-            nodeSelectedBg: 'rgba(255,95,51,.12)',
+            nodeSelectedBg: tint(accent, 0.12),
             nodeHoverBg: dark ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.4)',
             colorBgContainer: 'transparent',
           },
           Pagination: {
             itemBg: 'transparent',
-            itemActiveBg: 'rgba(255,95,51,.14)',
+            itemActiveBg: tint(accent, 0.14),
           },
           Tabs: {
-            inkBarColor: '#ff5f33',
+            inkBarColor: accent,
           },
-          Switch: { colorPrimary: '#ff5f33' },
+          Switch: { colorPrimary: accent },
           Tag: {
             defaultBg: dark ? 'rgba(255,255,255,.07)' : 'rgba(255,255,255,.42)',
             defaultColor: dark ? '#c3d1df' : '#5b7186',

@@ -158,7 +158,7 @@ export function Dicts() {
             onClick: () => setSelectedType(row.id),
             style: {
               cursor: 'pointer',
-              background: selectedType === row.id ? 'rgba(255, 138, 92, .09)' : undefined,
+              background: selectedType === row.id ? 'color-mix(in srgb, var(--accent-2) 9%, transparent)' : undefined,
             },
           })}
           scroll={{ x: 'max-content' }}

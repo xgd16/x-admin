@@ -113,7 +113,7 @@
   background: var(--glass-soft);
 }
 .notif-item.unread {
-  background: rgba(255, 95, 51, 0.055);
+  background: color-mix(in srgb, var(--accent) 5.5%, transparent);
 }
 .notif-icon {
   width: 24px;
@@ -182,7 +182,7 @@
   margin-top: 5px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 8px rgba(255, 95, 51, 0.6);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 60%, transparent);
 }
 .notif-empty,
 .notif-hint {

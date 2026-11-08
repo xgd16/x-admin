@@ -35,8 +35,8 @@
 }
 .table-toolbar .icon-btn.on {
   color: var(--accent);
-  border-color: rgba(255, 95, 51, 0.26);
-  background: rgba(255, 95, 51, 0.1);
+  border-color: color-mix(in srgb, var(--accent) 26%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 .table-panel {
   border-radius: 22px;
@@ -130,7 +130,7 @@
   border-bottom: 0 !important;
 }
 .ant-table-wrapper .ant-table-tbody > tr.ant-table-row-selected > td {
-  background: linear-gradient(90deg, rgba(255, 138, 92, 0.16), rgba(255, 255, 255, 0.14)) !important;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent-2) 16%, transparent), rgba(255, 255, 255, 0.14)) !important;
 }
 .ant-table-wrapper .ant-table-tbody > tr.ant-table-row-selected > td:first-child {
   box-shadow: inset 3px 0 0 var(--accent);
@@ -162,7 +162,7 @@
 }
 .ant-table-wrapper .ant-table-tbody > tr.ant-table-row-selected > td.ant-table-cell-fix-end-shadow::before {
   background:
-    linear-gradient(90deg, rgba(255, 138, 92, 0.2), rgba(255, 138, 92, 0.04)),
+    linear-gradient(90deg, color-mix(in srgb, var(--accent-2) 20%, transparent), color-mix(in srgb, var(--accent-2) 4%, transparent)),
     linear-gradient(90deg, rgba(250, 253, 255, 0.32), rgba(250, 253, 255, 0.6) 22%, rgba(250, 253, 255, 0.85) 52%);
 }
 /* antd 的 30px 阴影条：改成「渐糊 + 渐白」的过渡带，
@@ -183,7 +183,7 @@
 }
 :root[data-theme='dark'] .ant-table-wrapper .ant-table-tbody > tr.ant-table-row-selected > td.ant-table-cell-fix-end-shadow::before {
   background:
-    linear-gradient(90deg, rgba(255, 138, 92, 0.22), rgba(255, 138, 92, 0.05)),
+    linear-gradient(90deg, color-mix(in srgb, var(--accent-2) 22%, transparent), color-mix(in srgb, var(--accent-2) 5%, transparent)),
     linear-gradient(90deg, rgba(15, 23, 36, 0.35), rgba(15, 23, 36, 0.62) 22%, rgba(15, 23, 36, 0.86) 52%);
 }
 :root[data-theme='dark'] .ant-table-wrapper .ant-table-cell-fix-end-shadow::after {

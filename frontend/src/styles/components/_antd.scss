@@ -1,9 +1,9 @@
 // Ant Design 主题微调与浮层表面。
 
 .ant-btn-primary {
-  background: linear-gradient(145deg, #ff8a5c, #ff5f33) !important;
+  background: linear-gradient(145deg, var(--accent-2), var(--accent)) !important;
   border-color: rgba(255, 255, 255, 0.35) !important;
-  box-shadow: 0 10px 24px rgba(255, 95, 51, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.45) !important;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 28%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.45) !important;
 }
 .ant-btn-primary:hover {
   filter: brightness(1.04);
@@ -44,6 +44,26 @@
   border-radius: 16px;
   box-shadow: var(--shadow-lg), inset 0 0 0 1px var(--line);
 }
+/* 右下弹出的弹层挂在 32px 圆形按钮上，但面板圆角 16px：箭头若直接对准按钮中心
+   （距面板右缘 16px），右半会悬在圆角弧面上，看起来像翘起来。把面板整体右移
+   14px 后，箭头（right:8，中心距面板右缘 30px）既正对按钮中心，又完全落在
+   圆角以外的直边上。 */
+:root .ant-popover-placement-bottomRight .ant-popover-container {
+  position: relative;
+  left: 14px;
+}
+:root .ant-popover-placement-bottomRight > .ant-popover-arrow {
+  right: 8px;
+}
+/* 窄屏下 antd 会把弹层整体收进视口，面板再右移会顶出屏幕，退回默认内缩。 */
+@media (max-width: 900px) {
+  :root .ant-popover-placement-bottomRight .ant-popover-container {
+    left: 0;
+  }
+  :root .ant-popover-placement-bottomRight > .ant-popover-arrow {
+    right: 22px;
+  }
+}
 :root .ant-dropdown .ant-dropdown-menu {
   padding: 5px;
   border-radius: 16px;
@@ -61,12 +81,12 @@
   background: var(--line);
 }
 :root .ant-dropdown .ant-dropdown-menu .ant-dropdown-menu-item-selected {
-  background: rgba(255, 95, 51, 0.14);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
   color: var(--ink);
   font-weight: 600;
 }
 :root .ant-dropdown .ant-dropdown-menu .ant-dropdown-menu-item-selected:hover {
-  background: rgba(255, 95, 51, 0.2);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
 }
 :root .ant-segmented {
   padding: 2px;
@@ -119,7 +139,7 @@
   background: var(--glass-soft);
 }
 :root .ant-select-tree .ant-select-tree-node-content-wrapper.ant-select-tree-node-selected {
-  background: rgba(255, 95, 51, 0.14);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
   color: var(--ink);
 }
 :root .ant-picker-dropdown .ant-picker-panel-container {
@@ -144,7 +164,7 @@
   color: var(--ink-soft);
 }
 :root .ant-select-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
-  background: rgba(255, 95, 51, 0.14);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
   color: var(--ink);
 }
 :root
@@ -152,14 +172,14 @@
   .ant-select-item-option-selected.ant-select-item-option-active:not(
     .ant-select-item-option-disabled
   ) {
-  background: rgba(255, 95, 51, 0.2);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
 }
 :root .ant-select-outlined:not(.ant-select-disabled):hover {
-  border-color: rgba(255, 95, 51, 0.45);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
 }
 :root .ant-select-outlined:not(.ant-select-disabled):focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(255, 95, 51, 0.12);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
 }
 .ant-form-item-label > label {
   font-size: 11px !important;

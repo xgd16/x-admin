@@ -78,6 +78,24 @@ describe('buildTrendOption', () => {
     expect(option.tooltip).toMatchObject({ backgroundColor: 'rgba(19, 27, 41, 0.94)' })
   })
 
+  it('repaints with the active palette accents', () => {
+    const option = buildTrendOption(trend, { palette: chartPalette('light', 'ocean'), animate: false })
+    const series = seriesOf(option)
+    const stroke = gradientOf(series.lineStyle?.color)
+    const area = gradientOf(series.areaStyle?.color)
+
+    expect(stroke.colorStops.map((stop) => stop.color)).toEqual([
+      '#5aa7f0',
+      '#2f7fe0',
+      '#25c2d6',
+    ])
+    expect(area.colorStops).toEqual([
+      { offset: 0, color: 'rgba(47, 127, 224, 0.22)' },
+      { offset: 1, color: 'rgba(47, 127, 224, 0)' },
+    ])
+    expect(series.itemStyle?.borderColor).toBe('#2f7fe0')
+  })
+
   it('respects the reduced-motion flag', () => {
     expect(buildTrendOption(trend, { palette: chartPalette('light'), animate: false }).animation).toBe(
       false,

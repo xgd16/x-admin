@@ -16,6 +16,7 @@ interface LoginTrendChartProps {
 
 export function LoginTrendChart({ trend }: LoginTrendChartProps) {
   const theme = useUi((state) => state.theme)
+  const palette = useUi((state) => state.palette)
   const reduceMotion = useReducedMotion()
   const hostRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<EChartsType | null>(null)
@@ -42,12 +43,12 @@ export function LoginTrendChart({ trend }: LoginTrendChartProps) {
     }
   }, [])
 
-  // 数据、主题或“减少动态效果”变化时重新设置 option。
+  // 数据、明暗、色板或“减少动态效果”变化时重新设置 option。
   useEffect(() => {
     chartRef.current?.setOption(
-      buildTrendOption(trend, { palette: chartPalette(theme), animate: !reduceMotion }),
+      buildTrendOption(trend, { palette: chartPalette(theme, palette), animate: !reduceMotion }),
     )
-  }, [trend, theme, reduceMotion])
+  }, [trend, theme, palette, reduceMotion])
 
   const peak = trendPeakIndex(trend)
   const label = trend.length

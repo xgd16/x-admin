@@ -28,3 +28,5 @@ configs/local.yaml
 
 # TypeScript incremental build
 *.tsbuildinfo
+
+.zcode

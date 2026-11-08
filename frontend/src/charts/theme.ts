@@ -1,6 +1,8 @@
 /**
- * 图表明暗主题色板与品牌强调色。
+ * 图表明暗画布色板与主题色板强调色。
  */
+import { paletteOf, type ThemePalette } from '../config/themes'
+
 export type ChartMode = 'light' | 'dark'
 
 /**
@@ -16,10 +18,20 @@ export interface ChartPalette {
   tooltipBorder: string
   tooltipShadow: string
   tooltipInset: string
+  /** 折线渐变起点。 */
+  accentFrom: string
+  /** 主色：折线中段、数据点描边。 */
+  accentMid: string
+  /** 折线渐变末端。 */
+  accentTo: string
+  /** 面积填充。 */
+  accentArea: string
 }
 
-/** 浅色/深色画布色板，与 CSS 变量保持同步。 */
-const PALETTES: Record<ChartMode, ChartPalette> = {
+type CanvasPalette = Omit<ChartPalette, 'accentFrom' | 'accentMid' | 'accentTo' | 'accentArea'>
+
+/** 浅色/深色画布中性色，与 CSS 变量保持同步。 */
+const CANVAS_PALETTES: Record<ChartMode, CanvasPalette> = {
   light: {
     ink: '#0b1c2c',
     grid: 'rgba(12, 32, 51, 0.07)',
@@ -42,15 +54,16 @@ const PALETTES: Record<ChartMode, ChartPalette> = {
   },
 }
 
-export function chartPalette(mode: ChartMode): ChartPalette {
-  return PALETTES[mode]
+/** 明亮/深浅两种画布 + 当前主题色板的品牌色。 */
+export function chartPalette(mode: ChartMode, palette: ThemePalette = 'coral'): ChartPalette {
+  const preset = paletteOf(palette)
+  return {
+    ...CANVAS_PALETTES[mode],
+    accentFrom: preset.chartFrom ?? preset.accent2,
+    accentMid: preset.accent,
+    accentTo: preset.accent3,
+    accentArea: preset.chartArea ?? preset.accent,
+  }
 }
-
-export const ACCENT = {
-  from: '#ff9a6c',
-  mid: '#ff5f33',
-  to: '#ff4d8d',
-  area: '#ff6a3d',
-} as const
 
 export const CHART_FONT = '"SFMono-Regular", "JetBrains Mono", Menlo, Consolas, monospace'
