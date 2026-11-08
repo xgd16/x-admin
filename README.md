@@ -305,7 +305,7 @@ erDiagram
 | --- | --- | --- |
 | 认证 | 验证码、密码登录、TOTP 二次验证、Passkey 登录、刷新、退出、当前用户 | 登录接口公开 |
 | 看板 | 用户/角色/菜单/文件/任务统计、7 日登录趋势、最近操作 | `dashboard:view` |
-| 用户 | 分页筛选、增删改、状态、重置密码、角色分配、Excel 导入导出 | `system:user:*` |
+| 用户 | 分页筛选、增删改、状态、重置密码、角色分配、Excel 导入、列表异步导出 | `system:user:*` |
 | 角色 | CRUD、菜单权限树、内置角色保护 | `system:role:*` |
 | 菜单 | 目录/菜单/按钮三级、权限码、树形防环 | `system:menu:*` |
 | 部门 | 树形组织、子部门/成员删除检查 | `system:dept:*` |
@@ -315,6 +315,7 @@ erDiagram
 | 定时任务 | CRUD、启停、立即执行、最近结果、执行历史 | `system:job:*` |
 | 操作日志 | 分页、筛选、删除、清空 | `system:log:operation` |
 | 登录日志 | 分页、筛选、清空 | `system:log:login` |
+| 异步导出 | 提交导出任务、进度轮询、取消、下载、文件名模板、导出记录页（[设计说明](./docs/export.md)） | `system:export:*` |
 | 个人中心 | 资料、密码、TOTP、恢复码、Passkey 设备管理 | 登录即可 |
 | 站内通知 | 未读数、列表、单条/全部已读、业务提醒 | 登录即可 |
 
@@ -335,6 +336,8 @@ system:file:list   system:file:upload   system:file:download system:file:delete
 system:job:list    system:job:create    system:job:update    system:job:delete   system:job:run
 system:log:operation
 system:log:login
+system:export:list system:export:submit system:export:cancel system:export:delete
+system:export:download system:export:config
 ```
 
 ---
@@ -479,8 +482,7 @@ x-admin/
 │   └── package.json
 ├── .github/workflows/              # CI 测试与 Release 多平台产物自动化
 ├── deploy/                         # Dockerfile / Nginx / Compose
-├── docs/screenshots/               # README 截图
-├── design-preview/                 # 三套视觉样张（02-workbench 已选定）
+├── docs/                           # 截图、wire 教程与异步导出说明（export.md）
 ├── configs/config.example.yaml     # 配置模板（复制为 config.yaml，后者不入库）
 ├── .env.example                    # Compose 与本地开发环境变量示例
 ├── Makefile
@@ -528,7 +530,7 @@ x-admin/
 | 模块 | 路径 |
 | --- | --- |
 | 看板 | `GET /dashboard/summary` |
-| 用户 | `/users`、`/users/:id`、`/users/:id/roles`、`/users/:id/password`、`/users/:id/status`、`/users/import`、`/users/export`、`/users/template` |
+| 用户 | `/users`、`/users/:id`、`/users/:id/roles`、`/users/:id/password`、`/users/:id/status`、`/users/import`、`/users/template` |
 | 角色 | `/roles`、`/roles/all`、`/roles/:id`、`/roles/:id/menus` |
 | 菜单 | `/menus/tree`、`/menus`、`/menus/:id` |
 | 部门 | `/departments/tree`、`/departments`、`/departments/:id` |
@@ -536,8 +538,9 @@ x-admin/
 | 参数 | `/parameters`、`/parameters/:id` |
 | 文件 | `POST /files`、`GET /files`、`GET /files/:id/download`、`GET/POST /files/:id/shares`、`DELETE /files/:id/shares/:shareID`、`DELETE /files/:id` |
 | 任务 | `GET/POST /jobs`、`PUT/DELETE /jobs/:id`、`PUT /jobs/:id/status`、`POST /jobs/:id/run`、`GET /jobs/:id/runs` |
-| 操作日志 | `GET/DELETE /logs/operations`、`GET /logs/operations/export`、`DELETE /logs/operations/clear` |
-| 登录日志 | `GET /logs/logins`、`GET /logs/logins/export`、`DELETE /logs/logins/clear` |
+| 操作日志 | `GET/DELETE /logs/operations`、`DELETE /logs/operations/clear`（导出走异步任务） |
+| 登录日志 | `GET /logs/logins`、`DELETE /logs/logins/clear`（导出走异步任务） |
+| 异步导出 | `POST/GET /export-tasks`、`POST /export-tasks/:id/cancel`、`DELETE /export-tasks/:id`、`GET /export-tasks/:id/download`、`GET/PUT /export-tasks/filename-template`；设计与扩展见 [`docs/export.md`](./docs/export.md) |
 
 其他端点：
 
@@ -598,6 +601,7 @@ x-admin/
 | `sys_files` | 上传文件元数据 |
 | `sys_jobs` | 定时任务定义与最近执行结果 |
 | `sys_job_runs` | 任务执行历史（手动/定时、结果、耗时），默认保留 30 天 |
+| `sys_export_tasks` | 异步导出任务：状态、进度、产物文件信息，默认保留 7 天（见 [`docs/export.md`](./docs/export.md)） |
 | `sys_operation_logs` | 操作审计 |
 | `sys_login_logs` | 登录审计 |
 | `sys_notifications` | 站内通知，按 `user_id` 归属 |
@@ -736,6 +740,7 @@ npm run test:watch
 | `/system/jobs` | `Jobs` | `system:job:list` |
 | `/system/logs/operations` | `Logs(operations)` | `system:log:operation` |
 | `/system/logs/logins` | `Logs(logins)` | `system:log:login` |
+| `/system/exports` | `Exports` | `system:export:list` |
 | `/profile` | `Profile` | 登录即可 |
 | `*` | `NotFound` | — |
 
@@ -1028,16 +1033,11 @@ Cron 在进程内运行，每个副本都会注册任务。改为单副本、主
 
 ## 13. 截图与设计
 
-![登录](docs/screenshots/login.jpg)
-![看板](docs/screenshots/dashboard.jpg)
-![用户管理](docs/screenshots/users.jpg)
-![深色模式](docs/screenshots/profile-dark.jpg)
-
-视觉样张位于 `design-preview/`：
-
-- `01-ledger.html`：账本式
-- `02-workbench.html`：Workbench Liquid Glass（当前实现）
-- `03-night-shift.html`：夜班模式
+<div align="center">
+<img src="docs/screenshots/login.jpg" alt="登录" width="49%"><img src="docs/screenshots/dashboard.jpg" alt="看板" width="49%">
+<img src="docs/screenshots/users.jpg" alt="用户管理" width="49%"><img src="docs/screenshots/preferences.jpg" alt="偏好设置与主题色板" width="49%">
+<img src="docs/screenshots/profile-dark.jpg" alt="深色模式" width="49%">
+</div>
 
 实现细节以 `frontend/src/styles/index.scss`（样式拆分说明见 `frontend/src/styles/README.md`）与 `frontend/src/components/ThemeProvider.tsx` 为准。
 
