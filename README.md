@@ -260,6 +260,8 @@ sequenceDiagram
 
 Passkey 登录使用同样的令牌签发逻辑，但校验方式不同：`/auth/passkey/login/begin` 生成 discoverable credential 参数，`/finish` 校验签名与计数器后直接签发令牌。
 
+> 若要为前台（C 端）用户增加一套独立身份体系（独立账号表、令牌与后台互不通用），完整实现演示见 [`docs/front-auth.md`](./docs/front-auth.md)。
+
 ### 3.5 部署拓扑
 
 ```mermaid
@@ -482,7 +484,7 @@ x-admin/
 │   └── package.json
 ├── .github/workflows/              # CI 测试与 Release 多平台产物自动化
 ├── deploy/                         # Dockerfile / Nginx / Compose
-├── docs/                           # 截图、wire 教程与异步导出说明（export.md）
+├── docs/                           # 截图、wire 教程、异步导出说明（export.md）与前台认证演示（front-auth.md）
 ├── configs/config.example.yaml     # 配置模板（复制为 config.yaml，后者不入库）
 ├── .env.example                    # Compose 与本地开发环境变量示例
 ├── Makefile
@@ -669,6 +671,7 @@ Compose 额外变量（`.env`）：
 - `super_admin` 跳过权限判断；其余角色按菜单权限码授权。
 - 授权范围：非超级管理员只能授予自己已经拥有的菜单权限，也不能把权限高于自己的角色分配给用户，避免横向提权。
 - 内置保护：`admin` 账号不可停用/删除，`super_admin` 角色编码不可修改且不可删除；同时禁止停用或删除当前登录账号。
+- 多端隔离扩展：为前台（C 端）用户增加独立认证（独立用户表 + 第二 issuer 令牌管理器 + `front:` 缓存前缀）的完整演示见 [`docs/front-auth.md`](./docs/front-auth.md)。
 
 ### 7.6 文件存储
 
