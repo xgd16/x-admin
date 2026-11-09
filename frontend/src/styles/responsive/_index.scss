@@ -52,9 +52,11 @@
     display: grid;
   }
   .lg-shell {
+    --shell-pad-top: max(8px, env(safe-area-inset-top));
+    --shell-pad-right: max(8px, env(safe-area-inset-right));
+    --shell-pad-bottom: max(8px, env(safe-area-inset-bottom));
+    --shell-pad-left: max(8px, env(safe-area-inset-left));
     gap: 8px;
-    padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
-      max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
   }
   .canvas-head {
     gap: 6px;
@@ -389,9 +391,11 @@
     display: none;
   }
   .lg-shell {
+    --shell-pad-top: max(8px, env(safe-area-inset-top));
+    --shell-pad-right: max(8px, env(safe-area-inset-right));
+    --shell-pad-bottom: max(8px, env(safe-area-inset-bottom));
+    --shell-pad-left: max(8px, env(safe-area-inset-left));
     gap: 8px;
-    padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
-      max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
   }
   .command {
     height: 50px;

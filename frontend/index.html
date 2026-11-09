@@ -23,6 +23,10 @@
         if (state && palettes[state.palette]) {
           document.documentElement.dataset.palette = state.palette
         }
+        // 液态玻璃开启时尽早切到折射外观，避免刷新时先闪一下普通玻璃。
+        if (state && state.liquidGlass === true) {
+          document.documentElement.dataset.liquidGlass = 'on'
+        }
       } catch (error) {
         // 首屏脚本失败时保持默认浅色，不影响应用启动。
       }

@@ -1,11 +1,17 @@
 // 应用外框：视口、画布与滚动容器。
 
 .lg-shell {
+  /* 外壳留白用变量表示：canvas 需要向右、向下吃掉这部分留白，
+     让滚动内容能一直滚到视口边缘。 */
+  --shell-pad-top: 10px;
+  --shell-pad-right: 10px;
+  --shell-pad-bottom: 10px;
+  --shell-pad-left: 10px;
   position: relative;
   z-index: 1;
   display: flex;
   gap: 10px;
-  padding: 10px;
+  padding: var(--shell-pad-top) var(--shell-pad-right) var(--shell-pad-bottom) var(--shell-pad-left);
   height: 100%;
   min-height: 0;
   overflow: hidden;
@@ -15,7 +21,11 @@
   flex: 1;
   min-width: 0;
   min-height: 0;
-  height: 100%;
+  /* 外框仍保持 10px 留白，但滚动视口向右/向下延伸到视口边缘；
+     内部再用 padding 把静止状态的布局放回原位。 */
+  height: calc(100% + var(--shell-pad-bottom));
+  margin-right: calc(-1 * var(--shell-pad-right));
+  margin-bottom: calc(-1 * var(--shell-pad-bottom));
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -25,6 +35,10 @@
   min-width: 0;
   min-height: 0;
   flex: 1;
+  /* 抵消 canvas 的负 margin：静置时内容位置与之前一致，
+     但滚动时内容可以穿过这 10px，一直滚到视口边缘。 */
+  padding-right: var(--shell-pad-right);
+  padding-bottom: var(--shell-pad-bottom);
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: none;
@@ -51,6 +65,11 @@
   min-width: 0;
   /* 首次挂载做一次短促入场；CSS 动画避免保活页长期维护额外的动画实例。 */
   animation: page-stage-in 0.22s cubic-bezier(0.22, 0.8, 0.28, 1);
+}
+/* 液态玻璃下面板带 backdrop-filter：整页做位移动画会让每一帧都重新采样
+   所有面板的背景，一次入场就会顶满 GPU。这里直接关掉，换取导航流畅度。 */
+:root[data-liquid-glass='on'] .page-stage {
+  animation: none;
 }
 @media (prefers-reduced-motion: reduce) {
   .page-stage {

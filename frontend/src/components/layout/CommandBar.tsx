@@ -10,6 +10,7 @@ import { useAuth } from '../../stores/auth'
 import { useLock } from '../../stores/lock'
 import { useTabs } from '../../stores/tabs'
 import { useUi } from '../../stores/ui'
+import { supportsBackdropRefraction } from '../../utils/liquidGlass'
 import { Icon } from '../Icon'
 import { useToast } from '../../hooks/useToast'
 import { NotificationCenter } from './NotificationCenter'
@@ -29,6 +30,8 @@ export function CommandBar() {
   const setDensity = useUi((state) => state.setDensity)
   const watermark = useUi((state) => state.watermark)
   const toggleWatermark = useUi((state) => state.toggleWatermark)
+  const liquidGlass = useUi((state) => state.liquidGlass)
+  const setLiquidGlass = useUi((state) => state.setLiquidGlass)
   const lockIdleMinutes = useUi((state) => state.lockIdleMinutes)
   const setLockIdleMinutes = useUi((state) => state.setLockIdleMinutes)
   const lockScreen = useLock((state) => state.lock)
@@ -59,6 +62,9 @@ export function CommandBar() {
       (item) => !keyword || `${item.label}${item.path}${item.group}`.toLowerCase().includes(keyword),
     )
   }, [query, navItems])
+
+  // 液态玻璃的实际能力：SVG 位移滤镜负责面板边缘折射。
+  const refractionSupported = useMemo(supportsBackdropRefraction, [])
 
   const userMenu: MenuProps['items'] = [
     { key: 'profile', icon: <Icon name="user" size={14} />, label: '个人中心' },
@@ -103,6 +109,25 @@ export function CommandBar() {
         <span className="label">全局水印</span>
         <Switch size="small" checked={watermark} onChange={toggleWatermark} />
       </div>
+      <div className="settings-row">
+        <span className="label">液态玻璃</span>
+        <Switch
+          size="small"
+          checked={liquidGlass}
+          onChange={setLiquidGlass}
+          aria-label="液态玻璃外观"
+        />
+      </div>
+      {liquidGlass && (
+        <div className="settings-note">
+          <span className={`settings-chip ${refractionSupported ? 'is-on' : ''}`}>
+            {refractionSupported ? 'LENS' : 'BLUR'}
+          </span>
+          <span>
+            {refractionSupported ? '边缘折射已启用，滚动时自动降级以保证流畅' : '当前浏览器仅支持磨砂降级'}
+          </span>
+        </div>
+      )}
       <div className="settings-row">
         <span className="label">自动锁屏</span>
         <Segmented

@@ -10,7 +10,6 @@ import { useIdleLock } from '../../hooks/useIdleLock'
 import { useTabs } from '../../stores/tabs'
 import { bindLockAcrossTabs } from '../../stores/lock'
 import { Ambient } from '../Ambient'
-import { useGlassLight } from '../useGlassLight'
 import { CommandBar } from './CommandBar'
 import { KeepAliveOutlet } from './KeepAliveOutlet'
 import { ContextBar } from './ContextBar'
@@ -19,7 +18,6 @@ import { Rail } from './Rail'
 import { TabBar } from './TabBar'
 
 export function AppLayout() {
-  useGlassLight()
   useSiteConfig()
   useIdleLock()
   const location = useLocation()

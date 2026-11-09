@@ -6,7 +6,14 @@ import { DEFAULT_PALETTE } from '../config/themes'
 import { useUi } from './ui'
 
 function reset() {
-  useUi.setState({ theme: 'light', palette: DEFAULT_PALETTE, density: 'middle', watermark: false, lockIdleMinutes: 10 })
+  useUi.setState({
+    theme: 'light',
+    palette: DEFAULT_PALETTE,
+    density: 'middle',
+    watermark: false,
+    liquidGlass: false,
+    lockIdleMinutes: 10,
+  })
 }
 
 describe('useUi palette', () => {
@@ -24,6 +31,40 @@ describe('useUi palette', () => {
     expect(useUi.getState().palette).toBe('ocean')
     const persisted = JSON.parse(localStorage.getItem('x-admin.ui') ?? '{}')
     expect(persisted.state.palette).toBe('ocean')
+  })
+})
+
+describe('useUi liquidGlass', () => {
+  beforeEach(reset)
+  afterEach(reset)
+
+  it('is off by default and persists changes', () => {
+    expect(useUi.getState().liquidGlass).toBe(false)
+
+    useUi.getState().setLiquidGlass(true)
+    expect(useUi.getState().liquidGlass).toBe(true)
+    const persisted = JSON.parse(localStorage.getItem('x-admin.ui') ?? '{}')
+    expect(persisted.state.liquidGlass).toBe(true)
+
+    useUi.getState().setLiquidGlass(false)
+    expect(useUi.getState().liquidGlass).toBe(false)
+  })
+
+  it('migrates legacy state without liquidGlass', async () => {
+    localStorage.setItem(
+      'x-admin.ui',
+      JSON.stringify({
+        state: { theme: 'dark', density: 'small', watermark: true, columns: {} },
+        version: 2,
+      }),
+    )
+
+    vi.resetModules()
+    const { useUi: reloaded } = (await import('./ui')) as typeof import('./ui')
+
+    expect(reloaded.getState().liquidGlass).toBe(false)
+    const persisted = JSON.parse(localStorage.getItem('x-admin.ui') ?? '{}')
+    expect(persisted.version).toBe(3)
   })
 })
 
@@ -63,8 +104,8 @@ describe('useUi lockIdleMinutes', () => {
 
     expect(reloaded.getState().lockIdleMinutes).toBe(10)
     expect(reloaded.getState().theme).toBe('dark')
-    // migrate 产生的合法状态回写后版本号为 2。
+    // migrate 产生的合法状态回写后版本号为 3。
     const persisted = JSON.parse(localStorage.getItem('x-admin.ui') ?? '{}')
-    expect(persisted.version).toBe(2)
+    expect(persisted.version).toBe(3)
   })
 })

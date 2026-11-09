@@ -49,6 +49,12 @@ html.ambient-live .login-orb {
 html.ambient-live .blob {
   will-change: transform;
 }
+/* 液态玻璃开启时背景光斑保持静止：这些大面积模糊图层在 backdrop-filter
+   后面移动时，所有面板都要逐帧重新采样，是导航后卡顿的主要来源之一。 */
+:root[data-liquid-glass='on'] .blob {
+  animation: none;
+  will-change: auto;
+}
 .blob-a {
   width: 680px;
   height: 680px;

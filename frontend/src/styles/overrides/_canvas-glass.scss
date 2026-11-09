@@ -1,14 +1,15 @@
 // 最终表面覆盖：依赖导入顺序，必须在所有玻璃样式之后。
+// 仅作用于经典磨砂模式；液态玻璃有自己的一套边缘阴影。
 
 /* 内容区面板贴合极光背景，只有外框浮在其上。 */
-.canvas-body .glass,
-.canvas-body .glass:hover {
+:root:not([data-liquid-glass='on']) .canvas-body .glass,
+:root:not([data-liquid-glass='on']) .canvas-body .glass:hover {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.92),
     inset 0 -1px 0 rgba(255, 255, 255, 0.28);
 }
-:root[data-theme='dark'] .canvas-body .glass,
-:root[data-theme='dark'] .canvas-body .glass:hover {
+:root[data-theme='dark']:not([data-liquid-glass='on']) .canvas-body .glass,
+:root[data-theme='dark']:not([data-liquid-glass='on']) .canvas-body .glass:hover {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.09),
     inset 0 -1px 0 rgba(255, 255, 255, 0.03);

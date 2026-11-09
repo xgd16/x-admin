@@ -36,6 +36,32 @@
 .settings-row.button:hover {
   background: var(--glass-soft);
 }
+/* 液态玻璃开关下方的能力提示。 */
+.settings-note {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 2px 9px 8px;
+  font-size: 9.5px;
+  line-height: 1.5;
+  color: var(--dim);
+}
+.settings-chip {
+  flex: none;
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--glass-soft);
+  font-family: var(--mono);
+  font-size: 7.5px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.settings-chip.is-on {
+  border-color: color-mix(in srgb, var(--accent) 34%, transparent);
+  color: color-mix(in srgb, var(--accent) 80%, var(--ink));
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
 /* 主题色板选择：色块圆点 + 当前色板名称。 */
 .settings-themes {
   display: grid;

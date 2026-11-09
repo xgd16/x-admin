@@ -23,6 +23,7 @@ styles/
 │   └── _tabs.scss              # 页面标签栏与右键菜单
 ├── components/
 │   ├── _glass.scss             # 玻璃拟态表面
+│   ├── _liquid-glass.scss      # 可选的液态玻璃外观（边缘折射 + 镜面高光）
 │   ├── _icon-button.scss       # 圆形图标按钮
 │   ├── _page-header.scss       # 页面标题区
 │   ├── _buttons.scss           # 胶囊按钮

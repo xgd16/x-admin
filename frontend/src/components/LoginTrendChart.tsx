@@ -27,16 +27,24 @@ export function LoginTrendChart({ trend }: LoginTrendChartProps) {
     if (!host) return
     const chart = echarts.init(host, undefined, { renderer: 'canvas' })
     chartRef.current = chart
+    let resizeTimer = 0
     const observer =
       typeof ResizeObserver === 'undefined'
         ? null
         : new ResizeObserver(() => {
             // 页签保活时隐藏页的容器尺寸为 0，此时 resize 只会白跑一次绘制。
-            if (host.clientWidth === 0 || host.clientHeight === 0) return
-            chart.resize()
+            if (host.clientWidth === 0 || host.clientHeight === 0) {
+              window.clearTimeout(resizeTimer)
+              return
+            }
+            // 侧栏展开/收起会让容器连续多帧变化，合并成一次 resize，
+            // 避免 ECharts 每一帧都重排画布。
+            window.clearTimeout(resizeTimer)
+            resizeTimer = window.setTimeout(() => chart.resize(), 160)
           })
     observer?.observe(host)
     return () => {
+      window.clearTimeout(resizeTimer)
       observer?.disconnect()
       chart.dispose()
       chartRef.current = null

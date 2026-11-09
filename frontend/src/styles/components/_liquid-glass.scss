@@ -1,0 +1,204 @@
+// 液态玻璃外观（实验性）：每个面板独立做边缘折射 + 镜面高光 + 玻璃厚度。
+//
+// 默认关闭；开启后 <html data-liquid-glass="on">，由 ThemeProvider 给每个
+// .glass 面板写入 --lg-refract 位移滤镜，浏览器不支持时退回普通模糊玻璃。
+
+/* ---------------- 面板表面 ---------------- */
+
+:root[data-liquid-glass='on'] .glass {
+  /* 折射滤镜由 JS 注入；没有命中（尺寸过小/初始化中）时保持原有磨砂。 */
+  backdrop-filter: var(--lg-refract, blur(28px) saturate(170%));
+  -webkit-backdrop-filter: var(--lg-refract, blur(28px) saturate(170%));
+  background-image:
+    /* 静态的左上角薄雾，作为玻璃表面的基础反光。 */
+    radial-gradient(circle 130px at 18% 0%, rgba(255, 255, 255, 0.16), transparent 66%),
+    /* 上缘的玻璃厚度：窄亮带向内侧快速衰减。 */
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.42) 0, rgba(255, 255, 255, 0.12) 7px, transparent 20px),
+    /* 左缘的冷色反光，与右下角的暖色形成轻微色散。 */
+    linear-gradient(to right, rgba(255, 255, 255, 0.24) 0, rgba(255, 255, 255, 0.05) 4px, transparent 16px),
+    linear-gradient(
+      to top left,
+      color-mix(in srgb, var(--accent) 9%, transparent) 0,
+      color-mix(in srgb, var(--accent-3) 4%, transparent) 10px,
+      transparent 26px
+    ),
+    radial-gradient(
+      circle 240px at 22% 0%,
+      color-mix(in srgb, var(--accent-2) 10%, rgba(255, 255, 255, 0.14)),
+      transparent 70%
+    ),
+    linear-gradient(
+      115deg,
+      rgba(255, 255, 255, 0.22) 0%,
+      rgba(255, 255, 255, 0.02) 32%,
+      rgba(255, 255, 255, 0) 62%,
+      rgba(255, 255, 255, 0.1) 100%
+    ),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05));
+
+  border-color: transparent;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.16),
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(255, 255, 255, 0.3) inset,
+    1px 0 0 color-mix(in srgb, var(--cyan) 16%, transparent) inset,
+    -1px 0 0 color-mix(in srgb, var(--accent-3) 13%, transparent) inset,
+    0 0 20px rgba(255, 255, 255, 0.2) inset,
+    0 1px 2px rgba(23, 43, 63, 0.06),
+    0 6px 18px -8px rgba(23, 43, 63, 0.12),
+    0 20px 44px -28px rgba(23, 43, 63, 0.22);
+}
+
+/* 滚动期间（JS 写入 data-lg-scrolling）关掉内容区大块元素的实时模糊：
+   这些元素每一帧都要重新采样背后的区域，是滚动时 GPU 的主要开销。
+   内容区面板背后本身就是模糊过的背景极光，没有需要再用 backdrop 磨砂
+   的细节；命令栏背后有滚动内容，单独保留轻量模糊。 */
+:root[data-liquid-glass='on'][data-lg-scrolling='on'] .canvas-body
+  :is(
+    .glass:not(.command),
+    .glass-inset,
+    .btn,
+    .cmd,
+    .file-select-remove,
+    .x-brand-loader-logo,
+    .x-chart-loading-hint,
+    .ant-table-cell-fix-end-shadow-show
+  ) {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+:root[data-liquid-glass='on'][data-lg-scrolling='on'] .canvas-body .command {
+  backdrop-filter: blur(6px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(6px) saturate(160%) !important;
+}
+
+:root[data-theme='dark'][data-liquid-glass='on'] .glass {
+  background-image:
+    radial-gradient(circle 130px at 18% 0%, rgba(255, 255, 255, 0.05), transparent 66%),
+    linear-gradient(to bottom, rgba(220, 240, 255, 0.14) 0, rgba(220, 240, 255, 0.04) 7px, transparent 20px),
+    linear-gradient(to right, rgba(160, 215, 255, 0.07) 0, transparent 16px),
+    linear-gradient(
+      to top left,
+      color-mix(in srgb, var(--accent) 7%, transparent) 0,
+      color-mix(in srgb, var(--accent-3) 3%, transparent) 10px,
+      transparent 26px
+    ),
+    radial-gradient(
+      circle 240px at 22% 0%,
+      color-mix(in srgb, var(--accent-2) 10%, rgba(255, 255, 255, 0.035)),
+      transparent 70%
+    ),
+    linear-gradient(
+      115deg,
+      rgba(255, 255, 255, 0.06) 0%,
+      rgba(255, 255, 255, 0.008) 32%,
+      transparent 64%,
+      rgba(255, 255, 255, 0.028) 100%
+    ),
+    linear-gradient(150deg, rgba(30, 43, 61, 0.5), rgba(13, 20, 32, 0.4));
+
+  box-shadow:
+    0 0 0 1px rgba(190, 220, 245, 0.06),
+    0 1px 0 rgba(255, 255, 255, 0.16) inset,
+    0 -1px 0 rgba(255, 255, 255, 0.05) inset,
+    1px 0 0 rgba(80, 200, 235, 0.09) inset,
+    -1px 0 0 rgba(160, 120, 255, 0.09) inset,
+    0 0 24px rgba(160, 200, 240, 0.08) inset,
+    0 2px 4px rgba(0, 0, 0, 0.16),
+    0 8px 20px -10px rgba(0, 0, 0, 0.3),
+    0 22px 48px -28px rgba(0, 0, 0, 0.42);
+}
+
+/* 内容区面板不投外阴影，只保留玻璃边缘：与经典主题的处理一致。
+   基础态和 hover 写在同一组选择器里，避免鼠标移入时阴影跳变。 */
+:root[data-liquid-glass='on'] .canvas-body .glass,
+:root[data-liquid-glass='on'] .canvas-body .glass:hover {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(255, 255, 255, 0.28) inset,
+    1px 0 0 color-mix(in srgb, var(--cyan) 16%, transparent) inset,
+    -1px 0 0 color-mix(in srgb, var(--accent-3) 13%, transparent) inset;
+}
+
+:root[data-theme='dark'][data-liquid-glass='on'] .canvas-body .glass,
+:root[data-theme='dark'][data-liquid-glass='on'] .canvas-body .glass:hover {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.16) inset,
+    0 -1px 0 rgba(255, 255, 255, 0.05) inset,
+    1px 0 0 rgba(80, 200, 235, 0.09) inset,
+    -1px 0 0 rgba(160, 120, 255, 0.09) inset;
+}
+
+/* 面板边缘的一圈镜面高光：上缘最亮，右下角带一点色散。 */
+:root[data-liquid-glass='on'] .glass::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(255, 255, 255, 0.62) 10%,
+    rgba(255, 255, 255, 0.12) 32%,
+    rgba(255, 255, 255, 0.02) 56%,
+    rgba(255, 255, 255, 0.22) 80%,
+    color-mix(in srgb, var(--accent) 18%, rgba(255, 255, 255, 0.62)) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: 0.92;
+  pointer-events: none;
+}
+
+:root[data-theme='dark'][data-liquid-glass='on'] .glass::after {
+  background: linear-gradient(
+    135deg,
+    rgba(225, 242, 255, 0.72) 0%,
+    rgba(195, 222, 247, 0.28) 12%,
+    rgba(160, 190, 220, 0.05) 36%,
+    rgba(160, 190, 220, 0.02) 58%,
+    rgba(190, 220, 245, 0.14) 82%,
+    color-mix(in srgb, var(--accent-2) 16%, rgba(200, 230, 255, 0.34)) 100%
+  );
+  opacity: 0.8;
+}
+
+/* 内嵌的小玻璃块保持轻量，避免和面板边缘叠出双层折射。 */
+:root[data-liquid-glass='on'] .glass-inset {
+  background: rgba(255, 255, 255, 0.24);
+  border-color: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(10px) saturate(165%);
+  -webkit-backdrop-filter: blur(10px) saturate(165%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 -1px 0 rgba(23, 43, 63, 0.05) inset;
+}
+:root[data-theme='dark'][data-liquid-glass='on'] .glass-inset {
+  background: rgba(255, 255, 255, 0.045);
+  border-color: rgba(180, 205, 230, 0.12);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.16) inset;
+}
+
+/* 液态模式下的按钮/输入框高光稍微收紧，避免整页都在发亮。 */
+:root[data-liquid-glass='on'] .cmd {
+  border-color: rgba(255, 255, 255, 0.6);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.8) inset,
+    0 -1px 0 rgba(23, 43, 63, 0.04) inset;
+}
+:root[data-theme='dark'][data-liquid-glass='on'] .cmd {
+  border-color: rgba(180, 205, 230, 0.14);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.07) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.2) inset;
+}

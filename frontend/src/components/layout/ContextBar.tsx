@@ -1,6 +1,7 @@
 /**
  * 二级导航面板与服务健康状态。
  */
+import { useLayoutEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useNavigate } from 'react-router-dom'
@@ -10,6 +11,9 @@ import { useNav } from '../../config/nav'
 import { useAuth } from '../../stores/auth'
 import { Icon } from '../Icon'
 import { useContextNav } from './useContextNav'
+
+/** 二级导航展开/收起动画时长（毫秒）。 */
+const CONTEXT_ANIM_MS = 340
 
 export function ContextBar() {
   const navigate = useNavigate()
@@ -60,7 +64,26 @@ export function ContextBar() {
   // 展开/收起使用宽度与位移组合动画；减少动态效果时直接跳过。
   const transition = reduceMotion
     ? { duration: 0 }
-    : { type: 'tween' as const, duration: 0.34, ease: [0.22, 0.8, 0.28, 1] as const }
+    : { type: 'tween' as const, duration: CONTEXT_ANIM_MS / 1000, ease: [0.22, 0.8, 0.28, 1] as const }
+
+  // 面板宽度每帧变化会让 canvas 内所有 backdrop-filter 跟着重新采样，
+  // 这是展开/收起卡顿的主要来源。动画期间临时关闭实时模糊，结束后恢复。
+  const firstRender = useRef(true)
+  useLayoutEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false
+      return
+    }
+    const root = document.documentElement
+    root.dataset.lgAnimating = 'on'
+    const timer = window.setTimeout(() => {
+      delete root.dataset.lgAnimating
+    }, CONTEXT_ANIM_MS + 40)
+    return () => {
+      window.clearTimeout(timer)
+      delete root.dataset.lgAnimating
+    }
+  }, [open])
 
   return (
     <AnimatePresence initial={false}>

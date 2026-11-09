@@ -1,5 +1,5 @@
 /**
- * 界面偏好 Store：主题、主题色板、表格密度、水印、列设置与二级导航状态。
+ * 界面偏好 Store：主题、主题色板、表格密度、水印、液态玻璃、列设置与二级导航状态。
  */
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
@@ -18,6 +18,8 @@ interface UiState {
   palette: ThemePalette
   density: Density
   watermark: boolean
+  /** 液态玻璃外观：WebGPU 背景 + 玻璃边缘折射，关闭时保持原有玻璃拟态。 */
+  liquidGlass: boolean
   /** 闲置自动锁屏分钟数，0 表示关闭。 */
   lockIdleMinutes: number
   columns: Record<string, string[]> // 按表格 storageKey 保存用户选择的列。
@@ -27,6 +29,7 @@ interface UiState {
   setPalette: (palette: ThemePalette) => void
   setDensity: (density: Density) => void
   toggleWatermark: () => void
+  setLiquidGlass: (enabled: boolean) => void
   setLockIdleMinutes: (minutes: number) => void
   setColumns: (key: string, columns: string[]) => void
   setContextPref: (group: string, open: boolean) => void
@@ -46,6 +49,7 @@ export const useUi = create<UiState>()(
       palette: DEFAULT_PALETTE,
       density: 'middle',
       watermark: false,
+      liquidGlass: false,
       lockIdleMinutes: 10,
       columns: {},
       contextPref: null,
@@ -54,6 +58,7 @@ export const useUi = create<UiState>()(
       setPalette: (palette) => set({ palette }),
       setDensity: (density) => set({ density }),
       toggleWatermark: () => set({ watermark: !get().watermark }),
+      setLiquidGlass: (enabled) => set({ liquidGlass: enabled }),
       setLockIdleMinutes: (minutes) => set({ lockIdleMinutes: isLockIdleMinutes(minutes) ? minutes : 10 }),
       setColumns: (key, columns) => set({ columns: { ...get().columns, [key]: columns } }),
       setContextPref: (group, open) => set({ contextPref: { group, open } }),
@@ -61,13 +66,14 @@ export const useUi = create<UiState>()(
     {
       // 仅持久化长期偏好；二级导航状态跟随当前会话即可。
       name: 'x-admin.ui',
-      version: 2,
-      // 旧版本没有 palette/lockIdleMinutes 字段；缺失或非法值统一回退默认值。
+      version: 3,
+      // 旧版本缺少 palette/liquidGlass/lockIdleMinutes 等字段；缺失或非法值统一回退默认值。
       migrate: (persisted) => {
         const state = (persisted ?? {}) as Partial<UiState>
         return {
           ...state,
           palette: isThemePalette(state.palette) ? state.palette : DEFAULT_PALETTE,
+          liquidGlass: typeof state.liquidGlass === 'boolean' ? state.liquidGlass : false,
           lockIdleMinutes: isLockIdleMinutes(state.lockIdleMinutes) ? state.lockIdleMinutes : 10,
         } as UiState
       },
@@ -76,6 +82,7 @@ export const useUi = create<UiState>()(
         palette: state.palette,
         density: state.density,
         watermark: state.watermark,
+        liquidGlass: state.liquidGlass,
         lockIdleMinutes: state.lockIdleMinutes,
         columns: state.columns,
       }),

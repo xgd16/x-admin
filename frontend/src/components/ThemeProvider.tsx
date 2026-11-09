@@ -9,6 +9,7 @@ import { useReducedMotion } from 'motion/react'
 import { paletteOf, tint } from '../config/themes'
 import { useAuth } from '../stores/auth'
 import { useUi } from '../stores/ui'
+import { mountGlassRefraction, supportsBackdropRefraction } from '../utils/liquidGlass'
 
 // 与全局样式保持一致的字体栈。
 const fontFamily = '"Avenir Next", "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif'
@@ -17,6 +18,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const themeMode = useUi((state) => state.theme)
   const palette = useUi((state) => state.palette)
   const watermark = useUi((state) => state.watermark)
+  const liquidGlass = useUi((state) => state.liquidGlass)
   const user = useAuth((state) => state.user)
   const dark = themeMode === 'dark'
   const reduceMotion = useReducedMotion()
@@ -26,10 +28,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.documentElement.dataset.theme = themeMode
     document.documentElement.dataset.palette = palette
+    document.documentElement.dataset.liquidGlass = liquidGlass ? 'on' : 'off'
     document
       .querySelector('meta[name="theme-color"]')
       ?.setAttribute('content', themeMode === 'dark' ? '#070c15' : '#edf3f9')
-  }, [themeMode, palette])
+  }, [themeMode, palette, liquidGlass])
+
+  // 液态玻璃开启时给所有 .glass 面板挂上边缘折射；Chromium 之外自动退回普通玻璃。
+  useEffect(() => {
+    if (!liquidGlass || !supportsBackdropRefraction()) return
+    return mountGlassRefraction(document.body)
+  }, [liquidGlass])
 
   // Toast 的位置由 Router 内的 ToastScope 决定：后台避让吸顶导航，登录页没有框架导航。
   const body = <div className="app-watermark-layer">{children}</div>
