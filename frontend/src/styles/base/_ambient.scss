@@ -26,12 +26,14 @@
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
+  /* 整个背景只做一次 70px 模糊：四个光斑各自带 filter 会生成四张
+     大尺寸滤镜图层，合成器每帧都要处理，空闲时也会持续占用 GPU。 */
+  filter: blur(70px);
 }
 
 .blob {
   position: absolute;
   border-radius: 50%;
-  filter: blur(70px);
   opacity: 0.8;
 }
 /* 装饰层只在导航后短暂播放，随后暂停，详见 Ambient.tsx。 */

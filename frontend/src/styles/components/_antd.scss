@@ -10,7 +10,6 @@
 }
 .ant-modal .ant-modal-container {
   background: rgba(250, 253, 255, 0.97);
-  backdrop-filter: blur(30px) saturate(160%);
   border: 1px solid var(--line);
   box-shadow: 0 30px 80px rgba(23, 43, 63, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
@@ -30,15 +29,8 @@
 .ant-modal .ant-modal-footer {
   margin-top: 14px;
 }
-.ant-drawer .ant-drawer-content {
-  backdrop-filter: blur(28px) saturate(160%);
-}
-.ant-dropdown .ant-dropdown-menu,
-.ant-select-dropdown,
-.ant-picker-dropdown .ant-picker-panel-container,
-.ant-popover .ant-popover-container {
-  backdrop-filter: blur(22px) saturate(160%);
-}
+/* 抽屉、下拉、选择器、日期面板与气泡卡片的背景都已接近不透明，
+   实时模糊不可见，去掉后打开浮层也不会持续拉高 GPU。 */
 /* ---------------- antd 6 浮层表面 ---------------- */
 :root .ant-popover .ant-popover-container {
   border-radius: 16px;

@@ -68,7 +68,6 @@
   display: grid;
   place-items: center;
   cursor: pointer;
-  backdrop-filter: blur(6px);
   transition: background 0.18s;
 }
 .file-select-remove:hover {

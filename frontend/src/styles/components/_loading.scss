@@ -195,8 +195,6 @@
   box-shadow:
     inset 0 1px 0 #fff,
     0 10px 22px -10px color-mix(in srgb, var(--accent) 55%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
 :root[data-theme='dark'] .x-brand-loader-logo {
   background: rgba(255, 255, 255, 0.08);
@@ -334,8 +332,6 @@
   font-family: var(--mono);
   font-size: 8.5px;
   letter-spacing: 0.05em;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 
 .x-file-grid-skeleton {
@@ -424,8 +420,6 @@
 .m-list-spin .ant-spin-spinning .ant-spin-container::after {
   background: rgba(246, 251, 255, 0.52);
   opacity: 0.58;
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
 }
 .data-panel .ant-spin-section,
 .m-list-spin .ant-spin-section {
@@ -435,8 +429,6 @@
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.68);
   box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.86);
-  backdrop-filter: blur(16px) saturate(150%);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
 }
 .data-panel .ant-spin-description,
 .m-list-spin .ant-spin-description {

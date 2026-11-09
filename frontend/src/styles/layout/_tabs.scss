@@ -111,7 +111,6 @@
   border: 1px solid var(--line);
   background: rgba(250, 253, 255, 0.97);
   box-shadow: 0 18px 44px rgba(23, 43, 63, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(22px) saturate(160%);
   transform-origin: top left;
 }
 :root[data-theme='dark'] .tab-menu {

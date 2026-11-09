@@ -13,6 +13,14 @@
   position: relative;
   z-index: 20;
 }
+
+/* 命令栏的实时磨砂只在内容滚到它下方时开启：停在页面顶部时背后是静态
+   极光，模糊与否几乎看不出来，却会让合成器每帧重新采样背景。不要用纯色
+   兜底，否则滚动后的玻璃感会丢失。 */
+:root:not([data-liquid-glass='on'])[data-canvas-scrolled='on'] .command {
+  backdrop-filter: blur(28px) saturate(170%);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+}
 .crumb {
   font-family: var(--mono);
   font-size: 9px;
@@ -38,7 +46,6 @@
   padding: 0 12px;
   color: var(--muted);
   font-size: 10.5px;
-  backdrop-filter: blur(12px);
   cursor: pointer;
   transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.16s;
 }

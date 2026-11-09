@@ -7,7 +7,6 @@
   border: 1px solid var(--line);
   border-radius: 999px;
   background-clip: padding-box;
-  backdrop-filter: blur(18px) saturate(160%);
   box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.42);
 }
 :root[data-theme='dark'] .ant-message .ant-message-notice {
@@ -27,7 +26,6 @@
 :root .ant-notification .ant-notification-notice {
   border: 1px solid var(--line);
   background-clip: padding-box;
-  backdrop-filter: blur(24px) saturate(160%);
   box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.55);
 }
 :root[data-theme='dark'] .ant-notification .ant-notification-notice {
