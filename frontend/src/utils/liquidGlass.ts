@@ -2,9 +2,15 @@
  * 液态玻璃（Liquid Glass）能力探测与边缘折射。
  *
  * 思路参考 Apple WWDC25 的 Liquid Glass 与社区在 Web 上的还原方式：
- * - 面板边缘的「折射」用一张圆角矩形高度场生成的位移图（feDisplacementMap）实现，
- *   通过 backdrop-filter: url(#filter) 作用在面板背后的真实内容上；
+ * - 边缘的「折射」用一张圆角矩形高度场生成的位移图（feDisplacementMap）实现，
+ *   通过 backdrop-filter: url(#filter) 作用在元素背后的真实内容上；
  * - 浏览器不支持 SVG 作为 backdrop-filter 时自动退回普通玻璃拟态，不影响可用性。
+ *
+ * 只有顶部命令栏保留实时折射。Chrome 会在滚动时逐帧重新采样 backdrop，
+ * SVG 位移（高斯模糊 + 位移映射）比普通 blur 贵得多；把整套滤镜铺到侧栏和
+ * 内容面板上，即使内容面板在滚动时临时降级，GPU 仍会被大面积面板打满，
+ * 而且面板会明显“变回毛玻璃”。大面板改用 CSS 静态镜面边缘，观感几乎一致，
+ * 但滚动期间没有任何实时滤镜开销。
  */
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
@@ -12,8 +18,8 @@ const FILTER_PREFIX = 'lg-refract-'
 const MAP_LONG_SIDE = 360
 /** 位移图按尺寸分桶缓存，避免拖拽窗口时不断生成新滤镜。 */
 const SIZE_BUCKET = 8
-/** 滚动停止后延迟恢复折射，避免惯性滚动中反复切换。 */
-const SCROLL_RESTORE_MS = 160
+/** 只有命令栏需要实时折射；其它面板的液态边缘由 CSS 静态完成。 */
+const LIVE_GLASS_SELECTOR = '.glass.command'
 
 /** 是否支持把 SVG 滤镜当作 backdrop-filter（目前只有 Chromium 系会真正渲染）。 */
 export function supportsBackdropRefraction(): boolean {
@@ -226,7 +232,7 @@ export function mountGlassRefraction(container: HTMLElement): () => void {
         entries.delete(element)
       }
     })
-    container.querySelectorAll<HTMLElement>('.glass').forEach(apply)
+    container.querySelectorAll<HTMLElement>(LIVE_GLASS_SELECTOR).forEach(apply)
 
     // 回收当前没有任何面板使用的尺寸滤镜。
     const used = new Set(Array.from(entries.values(), (entry) => entry.key))
@@ -244,35 +250,13 @@ export function mountGlassRefraction(container: HTMLElement): () => void {
     timer = window.setTimeout(scan, 180)
   }
 
-  // 内容滚动时，每个 backdrop-filter 都要按新位置重新采样整块背景。
-  // SVG 位移滤镜（高斯模糊 + 位移映射）比普通 blur 贵得多，很容易把 GPU 打满。
-  // 因此滚动期间先关掉内容区的实时模糊，停下后再恢复折射。
-  const root = document.documentElement
-  let scrollTimer = 0
-  const startScroll = () => {
-    if (root.dataset.lgScrolling !== 'on') root.dataset.lgScrolling = 'on'
-    window.clearTimeout(scrollTimer)
-    scrollTimer = window.setTimeout(() => {
-      scrollTimer = 0
-      delete root.dataset.lgScrolling
-    }, SCROLL_RESTORE_MS)
-  }
-  // 只响应主内容区的滚动：表格、下拉框等内部滚动不会带动整个页面，
-  // 它们自己的实时模糊（如表格固定列）需要保留，不能跟着降级。
-  const onScroll = (event: Event) => {
-    const target = event.target
-    if (!(target instanceof HTMLElement) || !target.classList.contains('canvas-body')) return
-    startScroll()
-  }
-  document.addEventListener('scroll', onScroll, { capture: true, passive: true })
-
   const observer = new MutationObserver(scheduleScan)
   observer.observe(container, { childList: true, subtree: true })
 
   const resize = new ResizeObserver(scheduleScan)
   const resizeTargets = new WeakSet<HTMLElement>()
   const track = () => {
-    container.querySelectorAll<HTMLElement>('.glass').forEach((element) => {
+    container.querySelectorAll<HTMLElement>(LIVE_GLASS_SELECTOR).forEach((element) => {
       if (!resizeTargets.has(element)) {
         resizeTargets.add(element)
         resize.observe(element)
@@ -294,10 +278,7 @@ export function mountGlassRefraction(container: HTMLElement): () => void {
     observer.disconnect()
     resize.disconnect()
     window.clearTimeout(timer)
-    window.clearTimeout(scrollTimer)
     window.removeEventListener('resize', onResize)
-    document.removeEventListener('scroll', onScroll, { capture: true })
-    delete root.dataset.lgScrolling
     entries.forEach((_entry, element) => {
       element.style.removeProperty('--lg-refract')
     })

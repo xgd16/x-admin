@@ -21,6 +21,40 @@
   backdrop-filter: blur(28px) saturate(170%);
   -webkit-backdrop-filter: blur(28px) saturate(170%);
 }
+
+/* 滚动期间改走高密度静态霜面：实时 backdrop-filter 每帧都要重新采样整块
+   背景，Apple Silicon 的 tile GPU 在滚动时会被明显拉高。霜面保留半透明
+   和极光色，内容仍被“糊住”；停止滚动后立即恢复真正的背景模糊，静止观感
+   与原来一致。 */
+.command::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  background:
+    radial-gradient(120% 260% at 0% 0%, rgba(142, 216, 255, 0.22), transparent 62%),
+    radial-gradient(120% 260% at 100% 0%, rgba(255, 198, 168, 0.18), transparent 62%),
+    linear-gradient(115deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.68));
+}
+:root[data-theme='dark'] .command::before {
+  background:
+    radial-gradient(120% 260% at 0% 0%, rgba(56, 189, 248, 0.14), transparent 62%),
+    radial-gradient(120% 260% at 100% 0%, rgba(251, 146, 60, 0.1), transparent 62%),
+    linear-gradient(115deg, rgba(22, 33, 49, 0.88), rgba(13, 20, 32, 0.76));
+}
+:root[data-canvas-scrolled='on'][data-canvas-scrolling='on'] .command::before {
+  opacity: 1;
+  /* 滚动开始时立即盖上霜面，避免先露出清晰内容再慢慢变糊。 */
+  transition-duration: 0s;
+}
+:root:not([data-liquid-glass='on'])[data-canvas-scrolling='on'] .command {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
 .crumb {
   font-family: var(--mono);
   font-size: 9px;

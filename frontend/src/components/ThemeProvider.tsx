@@ -34,7 +34,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       ?.setAttribute('content', themeMode === 'dark' ? '#070c15' : '#edf3f9')
   }, [themeMode, palette, liquidGlass])
 
-  // 液态玻璃开启时给所有 .glass 面板挂上边缘折射；Chromium 之外自动退回普通玻璃。
+  // 液态玻璃开启时只给命令栏挂实时边缘折射（大面积面板用 CSS 静态镜面边缘）；
+  // Chromium 之外自动退回普通玻璃。
   useEffect(() => {
     if (!liquidGlass || !supportsBackdropRefraction()) return
     return mountGlassRefraction(document.body)

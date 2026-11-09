@@ -23,13 +23,18 @@
 .kpi::before {
   content: '';
   position: absolute;
-  width: 130px;
-  height: 130px;
-  right: -34px;
-  top: -44px;
+  /* 用径向渐变直接画出柔光，避免每个卡片生成一张 blur 滤镜图层。 */
+  width: 150px;
+  height: 150px;
+  right: -44px;
+  top: -54px;
   border-radius: 50%;
-  background: var(--glow, rgba(47, 184, 217, 0.35));
-  filter: blur(26px);
+  background: radial-gradient(
+    circle,
+    var(--glow, rgba(47, 184, 217, 0.35)) 0%,
+    color-mix(in srgb, var(--glow, rgba(47, 184, 217, 0.35)) 50%, transparent) 45%,
+    transparent 72%
+  );
   opacity: 0.75;
   pointer-events: none;
 }
@@ -62,7 +67,6 @@
 }
 :root[data-theme='dark'] .kpi::before {
   opacity: 0.45;
-  filter: blur(32px);
 }
 .kpi-top {
   display: flex;

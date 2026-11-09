@@ -1,14 +1,14 @@
-// 液态玻璃外观（实验性）：每个面板独立做边缘折射 + 镜面高光 + 玻璃厚度。
+// 液态玻璃外观（实验性）：边缘折射 + 镜面高光 + 玻璃厚度。
 //
-// 默认关闭；开启后 <html data-liquid-glass="on">，由 ThemeProvider 给每个
-// .glass 面板写入 --lg-refract 位移滤镜，浏览器不支持时退回普通模糊玻璃。
+// 默认关闭；开启后 <html data-liquid-glass="on">，由 ThemeProvider 只给
+// 命令栏写入 --lg-refract 位移滤镜。大面积面板用静态镜面边缘：Chrome 在
+// 滚动时会对每个 backdrop-filter 逐帧重新采样整块背景，SVG 位移滤镜铺满
+// 侧栏和内容面板会直接把 GPU 打满，且滚动时面板会明显退回普通毛玻璃。
 
 /* ---------------- 面板表面 ---------------- */
 
+/* 面板本身不挂实时折射，保留渐变、厚度和镜面边缘即可。 */
 :root[data-liquid-glass='on'] .glass {
-  /* 折射滤镜由 JS 注入；没有命中（尺寸过小/初始化中）时保持原有磨砂。 */
-  backdrop-filter: var(--lg-refract, blur(28px) saturate(170%));
-  -webkit-backdrop-filter: var(--lg-refract, blur(28px) saturate(170%));
   background-image:
     /* 静态的左上角薄雾，作为玻璃表面的基础反光。 */
     radial-gradient(circle 130px at 18% 0%, rgba(255, 255, 255, 0.16), transparent 66%),
@@ -49,27 +49,18 @@
     0 20px 44px -28px rgba(23, 43, 63, 0.22);
 }
 
-/* 滚动期间（JS 写入 data-lg-scrolling）关掉内容区大块元素的实时模糊：
-   这些元素每一帧都要重新采样背后的区域，是滚动时 GPU 的主要开销。
-   内容区面板背后本身就是模糊过的背景极光，没有需要再用 backdrop 磨砂
-   的细节；命令栏背后有滚动内容，单独保留轻量模糊。 */
-:root[data-liquid-glass='on'][data-lg-scrolling='on'] .canvas-body
-  :is(
-    .glass:not(.command),
-    .glass-inset,
-    .btn,
-    .cmd,
-    .file-select-remove,
-    .x-brand-loader-logo,
-    .x-chart-loading-hint,
-    .ant-table-cell-fix-end-shadow-show
-  ) {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+/* 只有命令栏保留实时折射：它面积小，且只在内容滚到下方时才需要。
+   停在顶部时背后是静态极光，不做采样；JS 拿到 --lg-refract 时走 SVG
+   位移，初始化中或浏览器不支持时退回磨砂。 */
+:root[data-liquid-glass='on'][data-canvas-scrolled='on'] .command.glass {
+  backdrop-filter: var(--lg-refract, blur(28px) saturate(170%));
+  -webkit-backdrop-filter: var(--lg-refract, blur(28px) saturate(170%));
 }
-:root[data-liquid-glass='on'][data-lg-scrolling='on'] .canvas-body .command {
-  backdrop-filter: blur(6px) saturate(160%) !important;
-  -webkit-backdrop-filter: blur(6px) saturate(160%) !important;
+/* 滚动期间命令栏和其它模式一样切到静态霜面：实时折射每帧都要重采样，
+   面积虽小也足以把滚动 GPU 拉高；停下后 CSS 自动恢复上面的折射。 */
+:root[data-liquid-glass='on'][data-canvas-scrolling='on'] .command.glass {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 :root[data-theme='dark'][data-liquid-glass='on'] .glass {
@@ -171,12 +162,10 @@
   opacity: 0.8;
 }
 
-/* 内嵌的小玻璃块保持轻量，避免和面板边缘叠出双层折射。 */
+/* 内嵌的小玻璃块只保留底色与高光，不再做实时模糊，避免滚动时逐帧采样。 */
 :root[data-liquid-glass='on'] .glass-inset {
   background: rgba(255, 255, 255, 0.24);
   border-color: rgba(255, 255, 255, 0.5);
-  backdrop-filter: blur(10px) saturate(165%);
-  -webkit-backdrop-filter: blur(10px) saturate(165%);
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.6) inset,
     0 -1px 0 rgba(23, 43, 63, 0.05) inset;

@@ -26,9 +26,9 @@
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
-  /* 整个背景只做一次 70px 模糊：四个光斑各自带 filter 会生成四张
-     大尺寸滤镜图层，合成器每帧都要处理，空闲时也会持续占用 GPU。 */
-  filter: blur(70px);
+  /* 光斑本身就是大半径径向渐变，边缘已经足够柔和；不再叠 70px 的
+     filter: blur。整屏滤镜会生成一张视口大小的离屏纹理，滚动时合成器
+     还要反复搬运它，在 HiDPI 屏上是笔不小的固定带宽开销。 */
 }
 
 .blob {
@@ -51,7 +51,7 @@ html.ambient-live .login-orb {
 html.ambient-live .blob {
   will-change: transform;
 }
-/* 液态玻璃开启时背景光斑保持静止：这些大面积模糊图层在 backdrop-filter
+/* 液态玻璃开启时背景光斑保持静止：这些大面积渐变图层在 backdrop-filter
    后面移动时，所有面板都要逐帧重新采样，是导航后卡顿的主要来源之一。 */
 :root[data-liquid-glass='on'] .blob {
   animation: none;
