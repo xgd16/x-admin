@@ -1,7 +1,7 @@
 // 应用外框：视口、画布与滚动容器。
 
 .lg-shell {
-  /* 外壳留白用变量表示：canvas 需要向右、向下吃掉这部分留白，
+  /* 外壳留白用变量表示：canvas 需要向上、向右、向下吃掉这部分留白，
      让滚动内容能一直滚到视口边缘。 */
   --shell-pad-top: 10px;
   --shell-pad-right: 10px;
@@ -21,9 +21,10 @@
   flex: 1;
   min-width: 0;
   min-height: 0;
-  /* 外框仍保持 10px 留白，但滚动视口向右/向下延伸到视口边缘；
+  /* 外框仍保持 10px 留白，但滚动视口向四边延伸到视口边缘；
      内部再用 padding 把静止状态的布局放回原位。 */
-  height: calc(100% + var(--shell-pad-bottom));
+  height: calc(100% + var(--shell-pad-top) + var(--shell-pad-bottom));
+  margin-top: calc(-1 * var(--shell-pad-top));
   margin-right: calc(-1 * var(--shell-pad-right));
   margin-bottom: calc(-1 * var(--shell-pad-bottom));
   overflow: hidden;
@@ -54,6 +55,9 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  /* 吸顶组顶部留白放在自身，而不是滚动容器的 padding：
+     滚动时内容可以从这 10px 透明区域穿过去，命令栏位置保持不变。 */
+  padding-top: var(--shell-pad-top);
   margin-bottom: 10px;
 }
 
