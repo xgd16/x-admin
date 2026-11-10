@@ -83,6 +83,20 @@ func (r *UserRepo) FindByUsername(ctx context.Context, username string) (*model.
 	return &user, nil
 }
 
+// ListByIDs 批量返回用户基础字段，供在线会话等聚合场景使用。
+// 只查询必要列，避免把密码哈希、TOTP 密钥等敏感字段带出仓储层。
+func (r *UserRepo) ListByIDs(ctx context.Context, ids []uint64) ([]model.User, error) {
+	if len(ids) == 0 {
+		return []model.User{}, nil
+	}
+	var users []model.User
+	err := r.db.WithContext(ctx).
+		Select("id", "username", "nickname", "dept_id", "status", "session_version").
+		Where("id IN ?", ids).
+		Find(&users).Error
+	return users, err
+}
+
 // ExistsUsername 判断用户名是否已被占用；excludeID > 0 时排除自身（更新场景）。
 func (r *UserRepo) ExistsUsername(ctx context.Context, username string, excludeID uint64) (bool, error) {
 	q := r.db.WithContext(ctx).Model(&model.User{}).Where("username = ?", username)

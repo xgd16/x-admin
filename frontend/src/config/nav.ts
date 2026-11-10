@@ -29,6 +29,8 @@ export const navItems: NavItem[] = [
   { key: 'parameters', label: '参数配置', path: '/system/parameters', icon: 'sliders', permission: 'system:param:list', group: '系统' },
   { key: 'files', label: '文件管理', path: '/system/files', icon: 'folder', permission: 'system:file:list', group: '系统' },
   { key: 'jobs', label: '定时任务', path: '/system/jobs', icon: 'clock', permission: 'system:job:list', group: '系统' },
+  { key: 'online', label: '在线用户', path: '/system/online', icon: 'login', permission: 'system:online:list', group: '系统' },
+  { key: 'monitor', label: '系统监控', path: '/system/monitor', icon: 'activity', permission: 'system:monitor:view', group: '系统' },
   { key: 'operations', label: '操作日志', path: '/system/logs/operations', icon: 'file', permission: 'system:log:operation', group: '审计' },
   { key: 'logins', label: '登录日志', path: '/system/logs/logins', icon: 'login', permission: 'system:log:login', group: '审计' },
   { key: 'exports', label: '导出记录', path: '/system/exports', icon: 'download', permission: 'system:export:list', group: '审计' },

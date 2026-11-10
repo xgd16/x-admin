@@ -16,6 +16,8 @@ import { Files } from './pages/Files'
 import { Jobs } from './pages/Jobs'
 import { Login } from './pages/Login'
 import { Logs } from './pages/Logs'
+import { Monitor } from './pages/Monitor'
+import { Online } from './pages/Online'
 import { Exports } from './pages/Exports'
 import { Menus } from './pages/Menus'
 import { NotFound } from './pages/NotFound'
@@ -88,6 +90,8 @@ export function AppRoutes() {
           <Route path="system/parameters" element={<Parameters />} />
           <Route path="system/files" element={<Files />} />
           <Route path="system/jobs" element={<Jobs />} />
+          <Route path="system/online" element={<Online />} />
+          <Route path="system/monitor" element={<Monitor />} />
           <Route path="system/logs/operations" element={<Logs mode="operations" />} />
           <Route path="system/logs/logins" element={<Logs mode="logins" />} />
           <Route path="system/exports" element={<Exports />} />

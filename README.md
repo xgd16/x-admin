@@ -64,6 +64,7 @@ x-admin 是一套可直接用于中后台系统的全栈脚手架：后端提供
 | 迁移 | golang-migrate + embed | 启动时自动执行 |
 | 定时任务 | robfig/cron v3 | 进程内调度，标准 5 段 Cron |
 | Passkey | go-webauthn | WebAuthn 注册与免密码登录 |
+| 监控 | gopsutil v4 | 主机 CPU/内存/磁盘/网络采集 |
 | 文档 | OpenAPI 3 + Swagger UI | `/swagger/index.html` |
 | Excel | excelize v2 | 用户导入导出 |
 
@@ -196,7 +197,7 @@ flowchart TB
   LAYOUT --> CTX["ContextBar<br/>二级上下文栏"]
   LAYOUT --> CMD["CommandBar<br/>⌘K / 通知中心"]
   LAYOUT --> TABS["TabBar<br/>多标签页"]
-  LAYOUT --> PAGES["pages/*<br/>13 个页面组件"]
+  LAYOUT --> PAGES["pages/*<br/>16 个页面组件"]
   PAGES --> COMP["components<br/>DataTable / FormModal<br/>FilePicker / FileSelect / 图表"]
   PAGES --> STORE["Zustand<br/>auth / tabs / ui"]
   PAGES --> API["api/client.ts<br/>fetch + 401 单飞刷新"]
@@ -308,11 +309,13 @@ erDiagram
 | 认证 | 验证码、密码登录、TOTP 二次验证、Passkey 登录、刷新、退出、当前用户 | 登录接口公开 |
 | 看板 | 用户/角色/菜单/文件/任务统计、7 日登录趋势、最近操作 | `dashboard:view` |
 | 用户 | 分页筛选、增删改、状态、重置密码、角色分配、Excel 导入、列表异步导出 | `system:user:*` |
+| 在线用户 | 管理员查看全部在线会话、设备/IP/登录时间、强制下线单设备或整用户 | `system:online:list` `system:online:kick` |
 | 角色 | CRUD、菜单权限树、内置角色保护 | `system:role:*` |
 | 菜单 | 目录/菜单/按钮三级、权限码、树形防环 | `system:menu:*` |
 | 部门 | 树形组织、子部门/成员删除检查 | `system:dept:*` |
 | 字典 | 类型 + 字典项、编码唯一 | `system:dict:*` |
 | 参数 | 键值配置、`public` 控制对外读取 | `system:param:*` |
+| 系统监控 | 主机 CPU/内存/磁盘/网络、Go 运行时、数据库连接池与缓存探测 | `system:monitor:view` |
 | 文件 | 上传、列表、下载、删除、按类型筛选、文件库选择器 | `system:file:*` |
 | 定时任务 | CRUD、启停、立即执行、最近结果、执行历史 | `system:job:*` |
 | 操作日志 | 分页、筛选、删除、清空 | `system:log:operation` |
@@ -340,6 +343,9 @@ system:log:operation
 system:log:login
 system:export:list system:export:submit system:export:cancel system:export:delete
 system:export:download system:export:config
+
+system:online:list  system:online:kick
+system:monitor:view
 ```
 
 ---
@@ -474,7 +480,7 @@ x-admin/
 │   │   ├── components/             # 通用组件
 │   │   │   └── layout/             # AppLayout / Rail / ContextBar / CommandBar / TabBar / NotificationCenter
 │   │   ├── config/                 # 导航配置
-│   │   ├── pages/                  # 13 个页面组件
+│   │   ├── pages/                  # 16 个页面组件
 │   │   ├── stores/                 # Zustand：auth / tabs / ui
 │   │   ├── styles/                 # 全局 CSS 变量与玻璃视觉
 │   │   ├── test/                   # Vitest setup
@@ -538,6 +544,8 @@ x-admin/
 | 部门 | `/departments/tree`、`/departments`、`/departments/:id` |
 | 字典 | `/dict/types`、`/dict/types/:id/items`、`/dict/items/:id` |
 | 参数 | `/parameters`、`/parameters/:id` |
+| 在线用户 | `GET /online-sessions`、`DELETE /online-sessions/:userID`（请求体可选 `session_id`） |
+| 系统监控 | `GET /monitor/overview` |
 | 文件 | `POST /files`、`GET /files`、`GET /files/:id/download`、`GET/POST /files/:id/shares`、`DELETE /files/:id/shares/:shareID`、`DELETE /files/:id` |
 | 任务 | `GET/POST /jobs`、`PUT/DELETE /jobs/:id`、`PUT /jobs/:id/status`、`POST /jobs/:id/run`、`GET /jobs/:id/runs` |
 | 操作日志 | `GET/DELETE /logs/operations`、`DELETE /logs/operations/clear`（导出走异步任务） |
@@ -741,6 +749,8 @@ npm run test:watch
 | `/system/parameters` | `Parameters` | `system:param:list` |
 | `/system/files` | `Files` | `system:file:list` |
 | `/system/jobs` | `Jobs` | `system:job:list` |
+| `/system/online` | `Online` | `system:online:list` |
+| `/system/monitor` | `Monitor` | `system:monitor:view` |
 | `/system/logs/operations` | `Logs(operations)` | `system:log:operation` |
 | `/system/logs/logins` | `Logs(logins)` | `system:log:login` |
 | `/system/exports` | `Exports` | `system:export:list` |

@@ -10,6 +10,8 @@ tags:
   - name: Auth
     description: 验证码、登录、刷新、当前用户
   - name: Dashboard
+  - name: Online
+  - name: Monitor
   - name: User
   - name: Role
   - name: Menu
@@ -149,6 +151,42 @@ paths:
       responses:
         '200':
           description: DashboardSummary
+  /admin/v1/online-sessions:
+    get:
+      tags: [Online]
+      summary: 管理员视角的在线会话分页列表
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Keyword'
+        - { name: user_id, in: query, schema: { type: integer } }
+      responses:
+        '200':
+          description: 在线会话列表；额外返回去重后的在线用户数 users
+    delete:
+      tags: [Online]
+      summary: 强制下线指定设备或某个用户的全部会话
+      description: 请求体带 session_id 时只撤销该设备；不带时撤销该用户全部会话。
+      parameters:
+        - name: userID
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                session_id: { type: string }
+  /admin/v1/monitor/overview:
+    get:
+      tags: [Monitor]
+      summary: 系统监控快照（主机、Go 运行时、数据库连接池、缓存）
+      responses:
+        '200':
+          description: MonitorOverview
   /admin/v1/users:
     get:
       tags: [User]

@@ -243,6 +243,164 @@ export interface LoginSession {
   last_seen_at: string
 }
 
+/** 管理员视角的在线会话。 */
+export interface OnlineSession {
+  id: string
+  user_id: number
+  username: string
+  nickname: string
+  ip: string
+  user_agent: string
+  device: string
+  remember: boolean
+  current: boolean
+  created_at: string
+  last_seen_at: string
+}
+
+/** 在线会话分页结果；users 为去重后的在线用户数。 */
+export interface OnlineSessionPage extends PageResult<OnlineSession> {
+  users: number
+}
+
+// —— 系统监控 ——
+
+export interface MonitorAppInfo {
+  name: string
+  env: string
+  version: string
+  pid: number
+  started_at: string
+  uptime_seconds: number
+}
+
+export interface MonitorHostInfo {
+  hostname: string
+  os: string
+  platform: string
+  platform_family: string
+  version: string
+  kernel_version: string
+  arch: string
+  virtualization: string
+  boot_time: number
+  uptime_seconds: number
+  procs: number
+}
+
+export interface MonitorCPUInfo {
+  model: string
+  physical_cores: number
+  logical_cores: number
+  mhz: number
+  usage_percent: number
+}
+
+export interface MonitorMemoryInfo {
+  total: number
+  used: number
+  available: number
+  free: number
+  used_percent: number
+}
+
+export interface MonitorSwapInfo {
+  total: number
+  used: number
+  used_percent: number
+}
+
+export interface MonitorLoadInfo {
+  load1: number
+  load5: number
+  load15: number
+}
+
+export interface MonitorDiskInfo {
+  device: string
+  mountpoint: string
+  fstype: string
+  total: number
+  used: number
+  free: number
+  used_percent: number
+}
+
+export interface MonitorNetworkInfo {
+  interfaces: number
+  bytes_sent: number
+  bytes_recv: number
+  packets_sent: number
+  packets_recv: number
+  errors_in: number
+  errors_out: number
+  drops_in: number
+  drops_out: number
+}
+
+export interface MonitorProcessInfo {
+  pid: number
+  threads: number
+  rss: number
+  vms: number
+  swap: number
+}
+
+export interface MonitorDatabaseInfo {
+  status: string
+  latency_ms: number
+  open: number
+  in_use: number
+  idle: number
+  max_open: number
+  wait_count: number
+  wait_duration_ms: number
+}
+
+export interface MonitorCacheInfo {
+  driver: string
+  status: string
+  latency_ms: number
+}
+
+export interface MonitorRuntimeInfo {
+  go_version: string
+  goroutines: number
+  gomaxprocs: number
+  alloc: number
+  total_alloc: number
+  sys: number
+  heap_alloc: number
+  heap_inuse: number
+  heap_idle: number
+  heap_released: number
+  stack_inuse: number
+  stack_sys: number
+  num_gc: number
+  gc_cpu_fraction: number
+  last_gc: string | null
+  last_gc_pause_ms: number
+}
+
+/** 系统监控快照。 */
+export interface MonitorOverview {
+  app: MonitorAppInfo
+  system: {
+    host: MonitorHostInfo
+    cpu: MonitorCPUInfo
+    memory: MonitorMemoryInfo
+    swap: MonitorSwapInfo
+    load: MonitorLoadInfo
+    disks: MonitorDiskInfo[]
+    network: MonitorNetworkInfo
+    process: MonitorProcessInfo
+    collected_at: string
+  }
+  runtime: MonitorRuntimeInfo
+  database: MonitorDatabaseInfo
+  cache: MonitorCacheInfo
+}
+
 /** 图形验证码；image 为 data URL。 */
 export interface Captcha {
   captcha_id: string

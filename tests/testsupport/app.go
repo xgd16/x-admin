@@ -26,6 +26,7 @@ import (
 	"x-admin/internal/pkg/captcha"
 	"x-admin/internal/pkg/security"
 	"x-admin/internal/pkg/storage"
+	"x-admin/internal/pkg/sysinfo"
 	"x-admin/internal/repository"
 	"x-admin/internal/router"
 	"x-admin/internal/service"
@@ -62,6 +63,8 @@ type Services struct {
 	Notifications *service.NotificationService
 	Passkeys      *service.PasskeyService
 	Exports       *service.ExportService
+	Online        *service.OnlineService
+	Monitor       *service.MonitorService
 }
 
 type App struct {
@@ -170,6 +173,8 @@ func New(t *testing.T) *App {
 	exportSvc.Boot()
 	t.Cleanup(exportSvc.Close)
 	services.Exports = exportSvc
+	services.Online = service.NewOnlineService(repos.Users, store)
+	services.Monitor = service.NewMonitorService(store, "memory", testDBStats{db: db}, cfg.App.Name, cfg.App.Env, "")
 
 	handlers := router.Handlers{
 		Auth: handler.NewAuthHandler(authSvc, captchaGen, passkeySvc, tokens, false, cfg.JWT.RefreshTTL), Dashboard: handler.NewDashboardHandler(services.Dashboard),
@@ -180,6 +185,8 @@ func New(t *testing.T) *App {
 		Log: handler.NewLogHandler(logs), Profile: handler.NewProfileHandler(services.Profile, passkeySvc, authSvc),
 		Notification: handler.NewNotificationHandler(notifications),
 		Export:       handler.NewExportHandler(exportSvc),
+		Online:       handler.NewOnlineHandler(services.Online),
+		Monitor:      handler.NewMonitorHandler(services.Monitor),
 	}
 	engine := router.New(router.Deps{
 		Config: cfg, Tokens: tokens, Auth: authSvc, Captcha: captchaGen, Cache: store,
@@ -311,4 +318,29 @@ func (a *App) Login(t *testing.T, username, password string) *service.TokenPair 
 		t.Fatalf("token decode: %v", err)
 	}
 	return &pair
+}
+
+// testDBStats 在测试中复用生产同样的连接池指标采集逻辑。
+type testDBStats struct {
+	db *gorm.DB
+}
+
+func (s testDBStats) Stats(ctx context.Context) (sysinfo.DatabaseStats, error) {
+	sqlDB, err := s.db.DB()
+	if err != nil {
+		return sysinfo.DatabaseStats{Status: "down"}, err
+	}
+	stats := sqlDB.Stats()
+	out := sysinfo.DatabaseStats{
+		Status: "up", Open: stats.OpenConnections, InUse: stats.InUse, Idle: stats.Idle,
+		MaxOpen: stats.MaxOpenConnections, WaitCount: stats.WaitCount,
+		WaitDurationMS: stats.WaitDuration.Milliseconds(),
+	}
+	start := time.Now()
+	err = sqlDB.PingContext(ctx)
+	out.LatencyMS = float64(time.Since(start).Microseconds()) / 1000
+	if err != nil {
+		out.Status = "down"
+	}
+	return out, err
 }

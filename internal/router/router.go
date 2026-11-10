@@ -37,6 +37,8 @@ type Handlers struct {
 	Profile      *handler.ProfileHandler
 	Notification *handler.NotificationHandler
 	Export       *handler.ExportHandler
+	Online       *handler.OnlineHandler
+	Monitor      *handler.MonitorHandler
 }
 
 // Deps 是构建路由所需的依赖集合。
@@ -200,6 +202,13 @@ func New(d Deps) *gin.Engine {
 		secured.DELETE("/logs/operations/clear", middleware.Require("system:log:operation"), d.Handlers.Log.ClearOperations)
 		secured.GET("/logs/logins", middleware.Require("system:log:login"), d.Handlers.Log.Logins)
 		secured.DELETE("/logs/logins/clear", middleware.Require("system:log:login"), d.Handlers.Log.ClearLogins)
+
+		// 在线会话：管理员查看全部登录设备并强制下线指定设备或用户。
+		secured.GET("/online-sessions", middleware.Require("system:online:list"), d.Handlers.Online.List)
+		secured.DELETE("/online-sessions/:userID", middleware.Require("system:online:kick"), d.Handlers.Online.Revoke)
+
+		// 系统监控：主机、Go 运行时、数据库连接池与缓存探测。
+		secured.GET("/monitor/overview", middleware.Require("system:monitor:view"), d.Handlers.Monitor.Overview)
 
 		// 异步导出：提交任务、查看记录与进度、取消、删除与下载产物。
 		secured.GET("/export-tasks", middleware.Require("system:export:list"), d.Handlers.Export.List)

@@ -23,6 +23,8 @@ type UserRepository interface {
 	Update(ctx context.Context, user *model.User) error
 	Get(ctx context.Context, id uint64) (*model.User, error)
 	FindByUsername(ctx context.Context, username string) (*model.User, error)
+	// ListByIDs 批量返回用户基础信息，供在线会话等聚合场景避免 N+1 查询。
+	ListByIDs(ctx context.Context, ids []uint64) ([]model.User, error)
 	List(ctx context.Context, filter model.UserFilter) ([]model.User, int64, error)
 	Count(ctx context.Context, filter model.UserFilter) (int64, error)
 	ExportPage(ctx context.Context, filter model.UserFilter, afterID uint64, limit int) ([]model.User, error)

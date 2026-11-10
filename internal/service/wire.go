@@ -8,6 +8,7 @@ import (
 // 依赖配置数值（密码长度、上传上限等）的服务由 bootstrap 的适配器提供。
 var ProviderSet = wire.NewSet(
 	NewAuthService,
+	NewOnlineService,
 	NewNotificationService,
 	NewRoleService,
 	NewMenuService,

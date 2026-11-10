@@ -21,6 +21,7 @@ import (
 	"x-admin/internal/pkg/captcha"
 	"x-admin/internal/pkg/security"
 	"x-admin/internal/pkg/storage"
+	"x-admin/internal/pkg/sysinfo"
 	"x-admin/internal/repository"
 	"x-admin/internal/router"
 	"x-admin/internal/service"
@@ -108,6 +109,47 @@ func provideFileService(files service.FileRepository, store storage.Store, cfg c
 
 func provideProfileService(users service.UserRepository, hasher security.PasswordHasher, notifier service.Notifier, cfg config.Config) *service.ProfileService {
 	return service.NewProfileService(users, hasher, cfg.Security.PasswordMinLen, cfg.App.Name, notifier)
+}
+
+// dbStatsProvider 把 GORM 连接池转换成监控服务需要的数据库指标。
+type dbStatsProvider struct {
+	db *gorm.DB
+}
+
+// Stats 读取连接池统计并执行一次带上下文的 Ping。
+func (p dbStatsProvider) Stats(ctx context.Context) (sysinfo.DatabaseStats, error) {
+	sqlDB, err := p.db.DB()
+	if err != nil {
+		return sysinfo.DatabaseStats{Status: "down"}, err
+	}
+	stats := sqlDB.Stats()
+	out := sysinfo.DatabaseStats{
+		Status:         "up",
+		Open:           stats.OpenConnections,
+		InUse:          stats.InUse,
+		Idle:           stats.Idle,
+		MaxOpen:        stats.MaxOpenConnections,
+		WaitCount:      stats.WaitCount,
+		WaitDurationMS: stats.WaitDuration.Milliseconds(),
+	}
+	start := time.Now()
+	if err := sqlDB.PingContext(ctx); err != nil {
+		out.Status = "down"
+		out.LatencyMS = float64(time.Since(start).Microseconds()) / 1000
+		return out, err
+	}
+	out.LatencyMS = float64(time.Since(start).Microseconds()) / 1000
+	return out, nil
+}
+
+// provideDBStatsProvider 将 GORM 连接绑定为监控端口实现。
+func provideDBStatsProvider(db *gorm.DB) service.DBStatsProvider {
+	return dbStatsProvider{db: db}
+}
+
+// provideMonitorService 创建系统监控服务；版本号为空时使用构建信息。
+func provideMonitorService(store cache.Store, dbStats service.DBStatsProvider, cfg config.Config) *service.MonitorService {
+	return service.NewMonitorService(store, cfg.Redis.Driver, dbStats, cfg.App.Name, cfg.App.Env, cfg.App.Version)
 }
 
 // providePasskeyService 会话有效期固定为 5 分钟。

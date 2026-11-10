@@ -31,7 +31,7 @@ internal/
   middleware/             request-id / auth / permission / rate-limit / audit
   router/                 路由与依赖注入
   pkg/                    可复用、无业务依赖的基础模块
-    apperr response pagination requestid security cache captcha storage excel tree
+    apperr response pagination requestid security cache captcha storage excel tree sysinfo
 migrations/               版本化 SQL + seed
 tests/                    所有 Go 测试（unit / integration）
 frontend/                 React SPA
@@ -125,6 +125,8 @@ deploy/                   Docker Compose、Nginx
 | 参数 | `/parameters`、`/parameters/:id` | `system:param:*` |
 | 文件 | `POST /files`、`GET /files`、`GET /files/:id/download`、`DELETE /files/:id` | `system:file:*` |
 | 任务 | `/jobs`、`/jobs/:id`、`/jobs/:id/status`、`/jobs/:id/run` | `system:job:*` |
+| 在线用户 | `GET /online-sessions`、`DELETE /online-sessions/:userID` | `system:online:*` |
+| 系统监控 | `GET /monitor/overview` | `system:monitor:view` |
 | 操作日志 | `/logs/operations`、`DELETE /logs/operations`、`DELETE /logs/operations/:id` | `system:log:operation` |
 | 登录日志 | `/logs/logins`、`DELETE /logs/logins` | `system:log:login` |
 | 个人中心 | `GET/PUT /profile`、`PUT /profile/password` | 登录即可 |
@@ -146,6 +148,8 @@ system:dict:list create update delete
 system:param:list create update delete
 system:file:list upload delete download
 system:job:list create update delete run
+system:online:list kick
+system:monitor:view
 system:log:operation  system:log:login
 ```
 

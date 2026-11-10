@@ -85,6 +85,11 @@ func newApp(cfg config.Config, db *gorm.DB) (*App, func(), error) {
 	profileHandler := handler.NewProfileHandler(profileService, passkeyService, authService)
 	notificationHandler := handler.NewNotificationHandler(notificationService)
 	exportHandler := handler.NewExportHandler(exportService)
+	onlineService := service.NewOnlineService(userRepo, store)
+	onlineHandler := handler.NewOnlineHandler(onlineService)
+	serviceDBStatsProvider := provideDBStatsProvider(db)
+	monitorService := provideMonitorService(store, serviceDBStatsProvider, cfg)
+	monitorHandler := handler.NewMonitorHandler(monitorService)
 	handlers := router.Handlers{
 		Auth:         authHandler,
 		Dashboard:    dashboardHandler,
@@ -100,6 +105,8 @@ func newApp(cfg config.Config, db *gorm.DB) (*App, func(), error) {
 		Profile:      profileHandler,
 		Notification: notificationHandler,
 		Export:       exportHandler,
+		Online:       onlineHandler,
+		Monitor:      monitorHandler,
 	}
 	engine := provideRouter(cfg, db, tokenManager, authService, generator, store, logService, handlers)
 	app := assembleApp(cfg, db, store, storageStore, tokenManager, cron, logService, jobService, engine)
