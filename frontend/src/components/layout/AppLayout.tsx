@@ -4,7 +4,7 @@
 import { useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useSiteConfig } from '../../api/public'
-import { useNav } from '../../config/nav'
+import { isKnownPath, useNav } from '../../config/nav'
 import { useCanvasScrollSurface } from '../../hooks/useCanvasScrollSurface'
 import { useScrollAutoHide } from '../../hooks/useScrollAutoHide'
 import { useIdleLock } from '../../hooks/useIdleLock'
@@ -24,6 +24,8 @@ export function AppLayout() {
   const location = useLocation()
   const { byPath } = useNav()
   const open = useTabs((state) => state.open)
+  const close = useTabs((state) => state.close)
+  const tabs = useTabs((state) => state.tabs)
   const refreshKey = useTabs((state) => state.refreshKey)
   const canvasBodyRef = useRef<HTMLDivElement>(null)
 
@@ -47,17 +49,29 @@ export function AppLayout() {
     }
   }, [location.pathname, markProgrammaticScroll])
 
-  // 每次进入页面时确保对应页签已打开；登录页不参与页签体系。
+  // 每次进入页面时确保对应页签已打开；登录页与 404 不参与页签体系。
   useEffect(() => {
     if (location.pathname === '/login') return
     const item = byPath(location.pathname)
+    if (!isKnownPath(location.pathname)) {
+      // 未知地址只显示 404 页面，不创建“页面不存在”页签。
+      close(location.pathname)
+      return
+    }
     const profile = location.pathname === '/profile'
     open({
       key: location.pathname,
       label: profile ? '个人中心' : item.label,
       path: location.pathname,
     })
-  }, [location.pathname, open, byPath])
+  }, [location.pathname, open, close, byPath])
+
+  // 清理旧版本可能留在 sessionStorage 里的未知路径页签。
+  useEffect(() => {
+    tabs.forEach((tab) => {
+      if (!isKnownPath(tab.path)) close(tab.key)
+    })
+  }, [tabs, close])
 
   return (
     <div className="lg-app">

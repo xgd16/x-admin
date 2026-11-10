@@ -75,6 +75,16 @@ export const profileNav: NavItem = {
   group: '账号',
 }
 
+/** 未知路由的导航元数据；页签与面包屑不能回退成“总览”。 */
+export const notFoundNav: NavItem = {
+  key: 'not-found',
+  label: '页面不存在',
+  path: '/404',
+  icon: 'search',
+  permission: '',
+  group: '页面',
+}
+
 /** 返回页面所需权限；首页、个人中心与未知路径不做权限拦截。 */
 export function permissionForPath(pathname: string): string {
   if (pathname === '/' || pathname === profileNav.path) return ''
@@ -82,12 +92,18 @@ export function permissionForPath(pathname: string): string {
   return item?.permission ?? ''
 }
 
-/** 根据路径匹配导航项，用于面包屑和页签标题。 */
+/** 判断路径是否属于静态注册的后台页面。 */
+export function isKnownPath(pathname: string): boolean {
+  if (pathname === profileNav.path) return true
+  return navItems.some((item) => pathname === item.path || pathname.startsWith(`${item.path}/`))
+}
+
+/** 根据路径匹配导航项，用于面包屑和页签标题。未知路径返回 404 元数据。 */
 export function navByPath(pathname: string): NavItem {
   if (pathname === profileNav.path) return profileNav
   return (
     navItems.find((item) => pathname === item.path || pathname.startsWith(`${item.path}/`)) ??
-    navItems[0]
+    notFoundNav
   )
 }
 
@@ -165,8 +181,7 @@ export function buildNav(menus: Menu[], can: (permission?: string) => boolean): 
     if (pathname === profileNav.path) return profileNav
     return (
       items.find((item) => pathname === item.path || pathname.startsWith(`${item.path}/`)) ??
-      items[0] ??
-      navItems[0]
+      notFoundNav
     )
   }
 

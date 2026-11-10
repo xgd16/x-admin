@@ -35,6 +35,7 @@
 @use 'pages/users';
 @use 'pages/menus';
 @use 'pages/monitor';
+@use 'pages/notfound';
 @use 'pages/login';
 
 // Ant Design 集成
@@ -55,3 +56,5 @@
 // 依赖顺序的覆盖与响应式规则
 @use 'overrides/canvas-glass';
 @use 'responsive';
+// 纯色材质最后加载：需要覆盖玻璃、极光与响应式里的表面规则。
+@use 'overrides/solid';

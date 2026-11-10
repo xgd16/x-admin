@@ -1,8 +1,9 @@
 /**
- * 界面偏好 Store：主题、主题色板、表格密度、水印、液态玻璃、列设置与二级导航状态。
+ * 界面偏好 Store：主题、材质、主题色板、表格密度、水印、列设置与二级导航状态。
  */
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { DEFAULT_SURFACE, isSurfaceMode, type SurfaceMode } from '../config/appearance'
 import { DEFAULT_PALETTE, isThemePalette, type ThemePalette } from '../config/themes'
 
 export type ThemeMode = 'light' | 'dark'
@@ -18,8 +19,8 @@ interface UiState {
   palette: ThemePalette
   density: Density
   watermark: boolean
-  /** 液态玻璃外观：WebGPU 背景 + 玻璃边缘折射，关闭时保持原有玻璃拟态。 */
-  liquidGlass: boolean
+  /** 界面材质：纯色（默认，低性能优先）、毛玻璃、液态玻璃。 */
+  surface: SurfaceMode
   /** 闲置自动锁屏分钟数，0 表示关闭。 */
   lockIdleMinutes: number
   columns: Record<string, string[]> // 按表格 storageKey 保存用户选择的列。
@@ -29,7 +30,7 @@ interface UiState {
   setPalette: (palette: ThemePalette) => void
   setDensity: (density: Density) => void
   toggleWatermark: () => void
-  setLiquidGlass: (enabled: boolean) => void
+  setSurface: (surface: SurfaceMode) => void
   setLockIdleMinutes: (minutes: number) => void
   setColumns: (key: string, columns: string[]) => void
   setContextPref: (group: string, open: boolean) => void
@@ -49,7 +50,7 @@ export const useUi = create<UiState>()(
       palette: DEFAULT_PALETTE,
       density: 'middle',
       watermark: false,
-      liquidGlass: false,
+      surface: DEFAULT_SURFACE,
       lockIdleMinutes: 10,
       columns: {},
       contextPref: null,
@@ -58,7 +59,7 @@ export const useUi = create<UiState>()(
       setPalette: (palette) => set({ palette }),
       setDensity: (density) => set({ density }),
       toggleWatermark: () => set({ watermark: !get().watermark }),
-      setLiquidGlass: (enabled) => set({ liquidGlass: enabled }),
+      setSurface: (surface) => set({ surface: isSurfaceMode(surface) ? surface : DEFAULT_SURFACE }),
       setLockIdleMinutes: (minutes) => set({ lockIdleMinutes: isLockIdleMinutes(minutes) ? minutes : 10 }),
       setColumns: (key, columns) => set({ columns: { ...get().columns, [key]: columns } }),
       setContextPref: (group, open) => set({ contextPref: { group, open } }),
@@ -66,14 +67,22 @@ export const useUi = create<UiState>()(
     {
       // 仅持久化长期偏好；二级导航状态跟随当前会话即可。
       name: 'x-admin.ui',
-      version: 3,
-      // 旧版本缺少 palette/liquidGlass/lockIdleMinutes 等字段；缺失或非法值统一回退默认值。
+      version: 4,
+      // v4 用三档 surface 取代布尔 liquidGlass：显式开启过液态玻璃的老用户保留
+      // liquid，其余（旧版默认的 false 和更早版本）统一落到新的纯色默认。
       migrate: (persisted) => {
-        const state = (persisted ?? {}) as Partial<UiState>
+        const state = (persisted ?? {}) as Partial<UiState> & { liquidGlass?: unknown }
+        const legacyLiquid = state.liquidGlass
+        const surface = isSurfaceMode(state.surface)
+          ? state.surface
+          : legacyLiquid === true
+            ? 'liquid'
+            : DEFAULT_SURFACE
+        const { liquidGlass: _legacyLiquidGlass, ...rest } = state
         return {
-          ...state,
+          ...rest,
+          surface,
           palette: isThemePalette(state.palette) ? state.palette : DEFAULT_PALETTE,
-          liquidGlass: typeof state.liquidGlass === 'boolean' ? state.liquidGlass : false,
           lockIdleMinutes: isLockIdleMinutes(state.lockIdleMinutes) ? state.lockIdleMinutes : 10,
         } as UiState
       },
@@ -82,7 +91,7 @@ export const useUi = create<UiState>()(
         palette: state.palette,
         density: state.density,
         watermark: state.watermark,
-        liquidGlass: state.liquidGlass,
+        surface: state.surface,
         lockIdleMinutes: state.lockIdleMinutes,
         columns: state.columns,
       }),

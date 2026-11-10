@@ -1,7 +1,7 @@
 // 命令面板与设置菜单行。
 
 .settings-menu {
-  min-width: 230px;
+  min-width: 264px;
   padding: 0;
 }
 .settings-row {
@@ -36,10 +36,10 @@
 .settings-row.button:hover {
   background: var(--glass-soft);
 }
-/* 液态玻璃开关下方的能力提示。 */
+/* 材质档位下方的能力/说明提示。 */
 .settings-note {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 7px;
   padding: 2px 9px 8px;
   font-size: 9.5px;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Menu } from '../api/types'
-import { buildNav } from './nav'
+import { buildNav, isKnownPath, navByPath } from './nav'
 
 function menu(overrides: Partial<Menu>): Menu {
   return {
@@ -58,5 +58,14 @@ describe('buildNav', () => {
     const nav = buildNav([], () => true)
     expect(nav.items.length).toBeGreaterThan(0)
     expect(nav.items[0].path).toBe('/dashboard')
+  })
+
+  it('未知路径回退到 404 导航项', () => {
+    const nav = buildNav([], () => true)
+    expect(nav.byPath('/system/monitora').key).toBe('not-found')
+    expect(nav.byPath('/system/monitora').label).toBe('页面不存在')
+    expect(navByPath('/system/monitora').label).toBe('页面不存在')
+    expect(isKnownPath('/system/monitor')).toBe(true)
+    expect(isKnownPath('/system/monitora')).toBe(false)
   })
 })

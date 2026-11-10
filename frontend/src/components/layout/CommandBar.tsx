@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Drawer, Dropdown, Input, Modal, Popover, Segmented, Switch } from 'antd'
 import type { MenuProps } from 'antd'
 import { useNavigate } from 'react-router-dom'
+import { SURFACES, type SurfaceMode } from '../../config/appearance'
 import { useNav } from '../../config/nav'
 import { useAuth } from '../../stores/auth'
 import { useLock } from '../../stores/lock'
@@ -30,8 +31,8 @@ export function CommandBar() {
   const setDensity = useUi((state) => state.setDensity)
   const watermark = useUi((state) => state.watermark)
   const toggleWatermark = useUi((state) => state.toggleWatermark)
-  const liquidGlass = useUi((state) => state.liquidGlass)
-  const setLiquidGlass = useUi((state) => state.setLiquidGlass)
+  const surface = useUi((state) => state.surface)
+  const setSurface = useUi((state) => state.setSurface)
   const lockIdleMinutes = useUi((state) => state.lockIdleMinutes)
   const setLockIdleMinutes = useUi((state) => state.setLockIdleMinutes)
   const lockScreen = useLock((state) => state.lock)
@@ -74,7 +75,7 @@ export function CommandBar() {
     { key: 'logout', icon: <Icon name="logout" size={14} />, label: '退出登录', danger: true },
   ]
 
-  // 偏好设置弹层：主题、主题色、表格密度、水印与快捷键提示。
+  // 偏好设置弹层：主题、材质、主题色、表格密度、水印与快捷键提示。
   const settings = (
     <div className="settings-menu">
       <div className="settings-row">
@@ -110,24 +111,27 @@ export function CommandBar() {
         <Switch size="small" checked={watermark} onChange={toggleWatermark} />
       </div>
       <div className="settings-row">
-        <span className="label">液态玻璃</span>
-        <Switch
+        <span className="label">界面材质</span>
+        <Segmented
           size="small"
-          checked={liquidGlass}
-          onChange={setLiquidGlass}
-          aria-label="液态玻璃外观"
+          value={surface}
+          options={SURFACES.map((preset) => ({ label: preset.label, value: preset.id }))}
+          onChange={(value) => setSurface(value as SurfaceMode)}
+          aria-label="界面材质"
         />
       </div>
-      {liquidGlass && (
-        <div className="settings-note">
-          <span className={`settings-chip ${refractionSupported ? 'is-on' : ''}`}>
-            {refractionSupported ? 'LENS' : 'BLUR'}
-          </span>
-          <span>
-            {refractionSupported ? '边缘折射已启用，滚动时自动降级以保证流畅' : '当前浏览器仅支持磨砂降级'}
-          </span>
-        </div>
-      )}
+      <div className="settings-note">
+        <span className={`settings-chip ${surface === 'liquid' && refractionSupported ? 'is-on' : ''}`}>
+          {surface === 'liquid' ? (refractionSupported ? 'LENS' : 'BLUR') : surface === 'glass' ? 'GLASS' : 'SOLID'}
+        </span>
+        <span>
+          {surface === 'liquid'
+            ? refractionSupported
+              ? '边缘折射已启用，滚动时自动降级以保证流畅'
+              : '当前浏览器仅支持磨砂降级'
+            : SURFACES.find((preset) => preset.id === surface)?.description}
+        </span>
+      </div>
       <div className="settings-row">
         <span className="label">自动锁屏</span>
         <Segmented

@@ -1,0 +1,290 @@
+// 404：路由未命中，使用“断开的路径”图示 + 可恢复入口。
+
+.notfound-page {
+  display: grid;
+  place-items: center;
+  min-height: calc(100dvh - 180px);
+  padding: 8px 0 24px;
+}
+
+.notfound-panel {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.9fr) minmax(360px, 1.1fr);
+  width: min(100%, 1000px);
+  min-height: 480px;
+  overflow: hidden;
+  border-radius: 30px;
+}
+
+.notfound-art {
+  position: relative;
+  display: grid;
+  min-height: 100%;
+  place-items: center;
+  overflow: hidden;
+  border-right: 1px solid var(--line-soft);
+  background:
+    radial-gradient(circle at 22% 18%, color-mix(in srgb, var(--accent) 15%, transparent), transparent 58%),
+    radial-gradient(circle at 82% 78%, color-mix(in srgb, var(--cyan) 12%, transparent), transparent 56%);
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--line-soft) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+    background-size: 42px 42px;
+    -webkit-mask-image: radial-gradient(circle at 50% 45%, #000 18%, transparent 76%);
+    mask-image: radial-gradient(circle at 50% 45%, #000 18%, transparent 76%);
+    opacity: 0.7;
+    pointer-events: none;
+  }
+}
+
+.notfound-map {
+  position: relative;
+  z-index: 1;
+  width: 84%;
+  max-width: 360px;
+  height: auto;
+  color: var(--muted);
+}
+
+.notfound-ring {
+  fill: none;
+  stroke: color-mix(in srgb, var(--ink) 12%, transparent);
+  stroke-width: 1;
+
+  &.soft {
+    stroke: color-mix(in srgb, var(--ink) 18%, transparent);
+    stroke-dasharray: 2 7;
+  }
+}
+
+.notfound-route {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  opacity: 0.9;
+
+  &.dashed {
+    stroke: color-mix(in srgb, var(--accent) 48%, transparent);
+    stroke-dasharray: 3 7;
+  }
+}
+
+.notfound-node {
+  fill: var(--accent);
+  stroke: var(--bg);
+  stroke-width: 3;
+
+  &.lost {
+    fill: var(--danger);
+  }
+}
+
+.notfound-cross {
+  fill: none;
+  stroke: var(--danger);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+.notfound-code {
+  position: absolute;
+  bottom: 16px;
+  left: 24px;
+  z-index: 0;
+  color: color-mix(in srgb, var(--ink) 10%, transparent);
+  font-size: clamp(92px, 13vw, 156px);
+  font-weight: 600;
+  line-height: 0.8;
+  letter-spacing: -0.08em;
+  pointer-events: none;
+}
+
+.notfound-caption {
+  position: absolute;
+  top: 22px;
+  left: 26px;
+  z-index: 2;
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.05em;
+  color: var(--dim);
+}
+
+.notfound-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  padding: 54px 56px;
+}
+
+.notfound-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: max-content;
+  padding: 5px 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  background: var(--glass-soft);
+  font-family: var(--mono);
+  font-size: 8px;
+  color: var(--muted);
+
+  i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--danger);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--danger) 55%, transparent);
+  }
+}
+
+.notfound-copy h1 {
+  max-width: 420px;
+  margin: 18px 0 14px;
+  font-size: clamp(28px, 3vw, 38px);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.045em;
+}
+
+.notfound-copy > p {
+  max-width: 420px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.9;
+}
+
+.notfound-path {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  margin-top: 22px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background: var(--glass-soft);
+
+  span {
+    flex: none;
+    font-family: var(--mono);
+    font-size: 7.5px;
+    letter-spacing: 0.04em;
+    color: var(--dim);
+  }
+
+  code {
+    overflow: hidden;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.notfound-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 22px;
+
+  .btn {
+    text-decoration: none;
+  }
+}
+
+.notfound-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin-top: 26px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line-soft);
+  font-family: var(--mono);
+  font-size: 8px;
+  color: var(--dim);
+
+  span {
+    letter-spacing: 0.04em;
+  }
+
+  a {
+    padding-bottom: 1px;
+    border-bottom: 1px solid transparent;
+    color: var(--muted);
+    text-decoration: none;
+  }
+
+  a:hover {
+    color: var(--accent);
+    border-color: currentColor;
+  }
+
+  a:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+}
+
+@media (max-width: 900px) {
+  .notfound-page {
+    min-height: calc(100dvh - 150px);
+  }
+
+  .notfound-panel {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .notfound-art {
+    min-height: 230px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .notfound-code {
+    font-size: 92px;
+  }
+
+  .notfound-copy {
+    padding: 30px 28px 32px;
+  }
+}
+
+@media (max-width: 560px) {
+  .notfound-page {
+    padding: 0 0 16px;
+  }
+
+  .notfound-art {
+    min-height: 204px;
+  }
+
+  .notfound-map {
+    width: 72%;
+  }
+
+  .notfound-code {
+    font-size: 76px;
+  }
+
+  .notfound-copy h1 {
+    font-size: 27px;
+  }
+
+  .notfound-actions .btn {
+    flex: 1 1 100%;
+  }
+}

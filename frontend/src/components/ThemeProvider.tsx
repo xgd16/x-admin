@@ -18,28 +18,32 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const themeMode = useUi((state) => state.theme)
   const palette = useUi((state) => state.palette)
   const watermark = useUi((state) => state.watermark)
-  const liquidGlass = useUi((state) => state.liquidGlass)
+  const surface = useUi((state) => state.surface)
   const user = useAuth((state) => state.user)
   const dark = themeMode === 'dark'
   const reduceMotion = useReducedMotion()
   const accent = paletteOf(palette).accent
+  const solid = surface === 'solid'
+  const liquid = surface === 'liquid'
 
-  // 把主题与色板写到 html 属性上，CSS 变量、暗色选择器与 data-palette 都依赖它们。
+  // 把主题、色板与材质写到 html 属性上，CSS 变量、暗色选择器与 data-surface 都依赖它们。
   useEffect(() => {
     document.documentElement.dataset.theme = themeMode
     document.documentElement.dataset.palette = palette
-    document.documentElement.dataset.liquidGlass = liquidGlass ? 'on' : 'off'
+    document.documentElement.dataset.surface = surface
+    // 液态玻璃的既有样式仍以 data-liquid-glass 为开关，这里保持一致。
+    document.documentElement.dataset.liquidGlass = liquid ? 'on' : 'off'
     document
       .querySelector('meta[name="theme-color"]')
       ?.setAttribute('content', themeMode === 'dark' ? '#070c15' : '#edf3f9')
-  }, [themeMode, palette, liquidGlass])
+  }, [themeMode, palette, surface, liquid])
 
   // 液态玻璃开启时只给命令栏挂实时边缘折射（大面积面板用 CSS 静态镜面边缘）；
-  // Chromium 之外自动退回普通玻璃。
+  // Chromium 之外自动退回普通玻璃，纯色/毛玻璃模式则完全不加载滤镜。
   useEffect(() => {
-    if (!liquidGlass || !supportsBackdropRefraction()) return
+    if (!liquid || !supportsBackdropRefraction()) return
     return mountGlassRefraction(document.body)
-  }, [liquidGlass])
+  }, [liquid])
 
   // Toast 的位置由 Router 内的 ToastScope 决定：后台避让吸顶导航，登录页没有框架导航。
   const body = <div className="app-watermark-layer">{children}</div>
@@ -48,7 +52,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     <ConfigProvider
       locale={zhCN}
       theme={{
-        // 通过 antd 算法 + token 覆盖，让组件默认样式与玻璃拟态主题一致。
+        // 通过 antd 算法 + token 覆盖，让组件默认样式与当前材质一致。
         algorithm: dark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
         token: {
           colorPrimary: accent,
@@ -58,73 +62,170 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           colorError: '#e14b4b',
           colorText: dark ? '#f3f7fc' : '#0b1c2c',
           colorTextSecondary: dark ? '#a0b1c3' : '#5b7186',
-          colorBgContainer: dark ? 'rgba(19, 27, 40, .5)' : 'rgba(255, 255, 255, .38)',
-          colorBgElevated: dark ? 'rgba(18, 26, 39, .97)' : 'rgba(250, 253, 255, .94)',
-          colorBorder: dark ? 'rgba(156, 182, 210, .16)' : 'rgba(255,255,255,.72)',
-          colorSplit: dark ? 'rgba(156, 182, 210, .1)' : 'rgba(255,255,255,.5)',
+          // 纯色模式使用不透明实底与中性描边，避免再叠半透明玻璃层。
+          colorBgContainer: solid
+            ? dark
+              ? '#121a27'
+              : '#ffffff'
+            : dark
+              ? 'rgba(19, 27, 40, .5)'
+              : 'rgba(255, 255, 255, .38)',
+          colorBgElevated: solid
+            ? dark
+              ? '#182231'
+              : '#ffffff'
+            : dark
+              ? 'rgba(18, 26, 39, .97)'
+              : 'rgba(250, 253, 255, .94)',
+          colorBorder: solid
+            ? dark
+              ? 'rgba(156, 182, 210, .18)'
+              : 'rgba(11, 28, 44, .12)'
+            : dark
+              ? 'rgba(156, 182, 210, .16)'
+              : 'rgba(255,255,255,.72)',
+          colorSplit: solid
+            ? dark
+              ? 'rgba(156, 182, 210, .12)'
+              : 'rgba(11, 28, 44, .08)'
+            : dark
+              ? 'rgba(156, 182, 210, .1)'
+              : 'rgba(255,255,255,.5)',
           borderRadius: 12,
           borderRadiusLG: 20,
           controlHeight: 34,
           fontFamily,
           fontSize: 13,
           motion: !reduceMotion,
-          boxShadow: dark ? '0 10px 30px rgba(0, 0, 0, .35)' : '0 10px 30px rgba(23, 43, 63, .1)',
-          boxShadowSecondary: dark ? '0 24px 60px rgba(0, 0, 0, .45)' : '0 24px 60px rgba(23, 43, 63, .16)',
+          boxShadow: solid
+            ? dark
+              ? '0 2px 8px rgba(0, 0, 0, .28)'
+              : '0 2px 8px rgba(23, 43, 63, .08)'
+            : dark
+              ? '0 10px 30px rgba(0, 0, 0, .35)'
+              : '0 10px 30px rgba(23, 43, 63, .1)',
+          boxShadowSecondary: solid
+            ? dark
+              ? '0 12px 32px rgba(0, 0, 0, .38)'
+              : '0 12px 32px rgba(23, 43, 63, .12)'
+            : dark
+              ? '0 24px 60px rgba(0, 0, 0, .45)'
+              : '0 24px 60px rgba(23, 43, 63, .16)',
         },
         components: {
           Button: {
             borderRadius: 999,
             borderRadiusSM: 999,
-            primaryShadow: `0 10px 24px ${tint(accent, 0.3)}`,
-            defaultBg: dark ? 'rgba(255,255,255,.07)' : 'rgba(255,255,255,.42)',
-            defaultBorderColor: dark ? 'rgba(156, 182, 210, .16)' : 'rgba(255,255,255,.72)',
+            primaryShadow: solid ? 'none' : `0 10px 24px ${tint(accent, 0.3)}`,
+            defaultBg: solid
+              ? dark
+                ? '#1a2332'
+                : '#ffffff'
+              : dark
+                ? 'rgba(255,255,255,.07)'
+                : 'rgba(255,255,255,.42)',
+            defaultBorderColor: solid
+              ? dark
+                ? 'rgba(156, 182, 210, .18)'
+                : 'rgba(11, 28, 44, .14)'
+              : dark
+                ? 'rgba(156, 182, 210, .16)'
+                : 'rgba(255,255,255,.72)',
             defaultColor: dark ? '#f3f7fc' : '#0b1c2c',
           },
           Table: {
-            headerBg: 'transparent',
+            headerBg: solid ? (dark ? 'rgba(255,255,255,.03)' : 'rgba(11,28,44,.03)') : 'transparent',
             headerColor: dark ? '#9fb0c3' : '#5b7186',
             headerSplitColor: 'transparent',
-            borderColor: dark ? 'rgba(156, 182, 210, .1)' : 'rgba(255,255,255,.5)',
-            rowHoverBg: dark ? 'rgba(255,255,255,.05)' : 'rgba(255,255,255,.3)',
+            borderColor: solid
+              ? dark
+                ? 'rgba(156, 182, 210, .1)'
+                : 'rgba(11, 28, 44, .08)'
+              : dark
+                ? 'rgba(156, 182, 210, .1)'
+                : 'rgba(255,255,255,.5)',
+            rowHoverBg: solid
+              ? dark
+                ? 'rgba(255,255,255,.05)'
+                : 'rgba(11, 28, 44, .035)'
+              : dark
+                ? 'rgba(255,255,255,.05)'
+                : 'rgba(255,255,255,.3)',
             colorBgContainer: 'transparent',
             cellPaddingBlock: 10,
           },
           Input: {
-            colorBgContainer: dark ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.38)',
+            colorBgContainer: solid
+              ? dark
+                ? '#151e2c'
+                : '#ffffff'
+              : dark
+                ? 'rgba(255,255,255,.06)'
+                : 'rgba(255,255,255,.38)',
             activeBorderColor: accent,
             hoverBorderColor: tint(accent, 0.45),
             activeShadow: `0 0 0 3px ${tint(accent, 0.12)}`,
           },
           InputNumber: {
-            colorBgContainer: dark ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.38)',
+            colorBgContainer: solid
+              ? dark
+                ? '#151e2c'
+                : '#ffffff'
+              : dark
+                ? 'rgba(255,255,255,.06)'
+                : 'rgba(255,255,255,.38)',
             activeBorderColor: accent,
             hoverBorderColor: tint(accent, 0.45),
             activeShadow: `0 0 0 3px ${tint(accent, 0.12)}`,
           },
           Select: {
-            colorBgContainer: dark ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.38)',
+            colorBgContainer: solid
+              ? dark
+                ? '#151e2c'
+                : '#ffffff'
+              : dark
+                ? 'rgba(255,255,255,.06)'
+                : 'rgba(255,255,255,.38)',
             optionSelectedBg: tint(accent, 0.12),
-            optionActiveBg: dark ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.5)',
+            optionActiveBg: solid
+              ? dark
+                ? 'rgba(255,255,255,.07)'
+                : 'rgba(11, 28, 44, .05)'
+              : dark
+                ? 'rgba(255,255,255,.08)'
+                : 'rgba(255,255,255,.5)',
           },
           DatePicker: {
-            colorBgContainer: dark ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.38)',
+            colorBgContainer: solid
+              ? dark
+                ? '#151e2c'
+                : '#ffffff'
+              : dark
+                ? 'rgba(255,255,255,.06)'
+                : 'rgba(255,255,255,.38)',
             activeBorderColor: accent,
             hoverBorderColor: tint(accent, 0.45),
           },
           Modal: {
-            contentBg: dark ? 'rgba(18,26,39,.97)' : 'rgba(250,253,255,.97)',
+            contentBg: solid ? (dark ? '#182231' : '#ffffff') : dark ? 'rgba(18,26,39,.97)' : 'rgba(250,253,255,.97)',
             headerBg: 'transparent',
             borderRadiusLG: 24,
           },
           Drawer: {
-            colorBgElevated: dark ? 'rgba(18,26,39,.97)' : 'rgba(248,252,255,.94)',
+            colorBgElevated: solid ? (dark ? '#182231' : '#ffffff') : dark ? 'rgba(18,26,39,.97)' : 'rgba(248,252,255,.94)',
           },
           Dropdown: {
-            colorBgElevated: dark ? 'rgba(18,26,39,.97)' : 'rgba(250,253,255,.94)',
+            colorBgElevated: solid ? (dark ? '#182231' : '#ffffff') : dark ? 'rgba(18,26,39,.97)' : 'rgba(250,253,255,.94)',
           },
           Tree: {
             nodeSelectedBg: tint(accent, 0.12),
-            nodeHoverBg: dark ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.4)',
+            nodeHoverBg: solid
+              ? dark
+                ? 'rgba(255,255,255,.06)'
+                : 'rgba(11, 28, 44, .04)'
+              : dark
+                ? 'rgba(255,255,255,.06)'
+                : 'rgba(255,255,255,.4)',
             colorBgContainer: 'transparent',
           },
           Pagination: {
@@ -136,11 +237,21 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           },
           Switch: { colorPrimary: accent },
           Tag: {
-            defaultBg: dark ? 'rgba(255,255,255,.07)' : 'rgba(255,255,255,.42)',
+            defaultBg: solid
+              ? dark
+                ? 'rgba(255,255,255,.07)'
+                : 'rgba(11, 28, 44, .05)'
+              : dark
+                ? 'rgba(255,255,255,.07)'
+                : 'rgba(255,255,255,.42)',
             defaultColor: dark ? '#c3d1df' : '#5b7186',
           },
-          Popover: { colorBgElevated: dark ? 'rgba(18,26,39,.97)' : 'rgba(250,253,255,.96)' },
-          Message: { contentBg: dark ? 'rgba(18,26,39,.97)' : 'rgba(250,253,255,.96)' },
+          Popover: {
+            colorBgElevated: solid ? (dark ? '#182231' : '#ffffff') : dark ? 'rgba(18,26,39,.97)' : 'rgba(250,253,255,.96)',
+          },
+          Message: {
+            contentBg: solid ? (dark ? '#182231' : '#ffffff') : dark ? 'rgba(18,26,39,.97)' : 'rgba(250,253,255,.96)',
+          },
           Skeleton: {
             gradientFromColor: dark ? 'rgba(255,255,255,.055)' : 'rgba(11,28,44,.045)',
             gradientToColor: dark ? 'rgba(255,255,255,.12)' : 'rgba(11,28,44,.095)',

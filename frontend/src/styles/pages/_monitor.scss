@@ -1,118 +1,525 @@
-// 系统监控：资源进度条、主机信息与磁盘列表。
+// 系统监控：12 列控制台布局、实时趋势与资源明细。
+//
+// 统一用网格 gap 控制纵向节奏，页面内不再写零散的 margin-top，
+// 避免各面板之间出现 10px / 12px / 15px 混排。
 
-.monitor-meters {
+.monitor-dashboard {
   display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 14px;
-  margin-top: 14px;
 }
 
-.monitor-meter-head {
+.monitor-tone-cyan {
+  --tone: var(--cyan);
+}
+.monitor-tone-violet {
+  --tone: var(--violet);
+}
+.monitor-tone-amber {
+  --tone: var(--amber);
+}
+.monitor-tone-mint {
+  --tone: var(--mint);
+}
+
+/* ---------- 顶部指标卡 ---------- */
+.monitor-stat {
+  grid-column: span 3;
+  display: flex;
+  flex-direction: column;
+  min-height: 132px;
+  padding: 16px 18px 14px;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.monitor-stat-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.monitor-stat-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 13%, transparent);
+}
+
+.monitor-stat-main {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  margin-top: 14px;
+
+  b {
+    font-size: 30px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.monitor-spark {
+  flex: none;
+  width: 94px;
+  height: 36px;
+  color: var(--tone);
+  overflow: visible;
+}
+
+.monitor-stat-bar {
+  flex: none;
+  width: 80px;
+  height: 6px;
+  margin-bottom: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(23, 43, 63, 0.1);
+
+  i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--mint);
+    transition: width 0.5s ease;
+  }
+
+  &.warn i {
+    background: var(--amber);
+  }
+
+  &.danger i {
+    background: var(--danger);
+  }
+}
+
+.monitor-stat-detail {
+  margin: auto 0 0;
+  padding-top: 10px;
+  overflow: hidden;
+  font-size: 9px;
+  line-height: 1.5;
+  color: var(--dim);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- 采样间隔 ---------- */
+.monitor-sampling {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 34px;
+  padding: 0 8px 0 11px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.42);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 6px 16px rgba(23, 43, 63, 0.07);
+  color: var(--muted);
+  font-size: 10px;
+  white-space: nowrap;
+
+  span {
+    color: var(--muted);
+  }
+
+  .ant-select {
+    width: 62px;
+    font-size: 10px;
+  }
+
+  // 只压缩 Ant Design Select 的外层内边距，弹出菜单仍使用组件库默认样式。
+  .ant-select-selector,
+  .ant-select-content {
+    padding: 0 !important;
+  }
+
+  .ant-select-selection-item,
+  .ant-select-content {
+    color: var(--ink);
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .ant-select-arrow {
+    inset-inline-end: 0;
+    color: var(--dim);
+    font-size: 9px;
+  }
+}
+
+:root[data-theme='dark'] .monitor-sampling {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: var(--line);
+  box-shadow: none;
+}
+
+/* ---------- 面板基础 ---------- */
+.monitor-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 18px;
+  border-radius: 22px;
+}
+
+.monitor-span-8 {
+  grid-column: span 8;
+}
+.monitor-span-6 {
+  grid-column: span 6;
+}
+.monitor-span-4 {
+  grid-column: span 4;
+}
+
+.monitor-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 6px;
+  gap: 12px;
+  margin-bottom: 14px;
+
+  h2 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  span {
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: 0.04em;
+    color: var(--dim);
+  }
+}
+
+/* ---------- 实时趋势 ---------- */
+.monitor-chart {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.monitor-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+}
+
+.monitor-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9.5px;
+  color: var(--muted);
+
+  i {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--tone);
+    box-shadow: 0 0 9px color-mix(in srgb, var(--tone) 55%, transparent);
+  }
 
   b {
+    margin-left: 2px;
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+}
+
+.monitor-chart-window {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 8px;
+  color: var(--dim);
+}
+
+.monitor-chart-body {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.monitor-chart-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 180px;
+  padding: 1px 0;
+  font-family: var(--mono);
+  font-size: 7.5px;
+  color: var(--dim);
+  text-align: right;
+}
+
+.monitor-chart-plot {
+  position: relative;
+  height: 180px;
+  border-bottom: 1px solid var(--line-soft);
+  background-image: linear-gradient(to bottom, var(--line-soft) 1px, transparent 1px);
+  background-size: 100% 50%;
+
+  svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  polyline {
+    stroke: var(--tone);
+  }
+}
+
+.monitor-chart-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+  color: var(--dim);
+}
+
+.monitor-chart-foot {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding-left: 42px;
+  font-family: var(--mono);
+  font-size: 7.5px;
+  color: var(--dim);
+}
+
+/* ---------- 服务状态 ---------- */
+.monitor-health {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: 14px;
+  background: var(--glass-soft);
+
+  div b {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  div span {
+    display: block;
+    margin-top: 2px;
+    font-size: 8.5px;
+    color: var(--dim);
+  }
+}
+
+.monitor-health-orb {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--mint);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--mint) 14%, transparent);
+  animation: monitor-pulse 2.6s ease-in-out infinite;
+}
+
+.monitor-health.bad {
+  .monitor-health-orb {
+    background: var(--danger);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger) 14%, transparent);
+  }
+}
+
+.monitor-health.pending {
+  .monitor-health-orb {
+    background: var(--amber);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--amber) 14%, transparent);
+    animation: none;
+  }
+}
+
+.monitor-services {
+  display: flex;
+  flex-direction: column;
+  margin-top: 10px;
+}
+
+.monitor-service {
+  display: grid;
+  grid-template-columns: 7px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line-soft);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+.monitor-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--mint);
+
+  &.bad {
+    background: var(--danger);
+  }
+}
+
+.monitor-service-main {
+  min-width: 0;
+
+  b {
+    display: block;
     font-size: 10.5px;
     font-weight: 600;
   }
 
   span {
+    display: block;
+    margin-top: 2px;
+    overflow: hidden;
+    font-size: 8.5px;
+    color: var(--dim);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.monitor-service-meta {
+  text-align: right;
+
+  b {
+    display: block;
     font-family: var(--mono);
-    font-size: 9px;
+    font-size: 8.5px;
+    font-weight: 500;
+  }
+
+  em {
+    display: block;
+    margin-top: 2px;
+    font-style: normal;
+    font-size: 7.5px;
+    color: var(--mint);
+
+    &.bad {
+      color: var(--danger);
+    }
+  }
+}
+
+.monitor-app-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 8.5px;
+  color: var(--dim);
+
+  b {
+    font-family: var(--mono);
+    font-weight: 500;
     color: var(--muted);
   }
 
-  span.warn {
-    color: #9a5a0a;
-  }
-
-  span.danger {
-    color: var(--danger);
+  em {
+    margin-left: auto;
+    font-style: normal;
   }
 }
 
-.monitor-track {
-  height: 6px;
-  border-radius: 999px;
-  overflow: hidden;
-  background: rgba(23, 43, 63, 0.08);
-
-  > span {
-    display: block;
-    height: 100%;
-    border-radius: inherit;
-    background: linear-gradient(90deg, var(--mint), color-mix(in srgb, var(--mint) 65%, var(--cyan)));
-    transition: width 0.5s ease;
-  }
-
-  &.warn > span {
-    background: linear-gradient(90deg, #f3a93c, #ffcb7a);
-  }
-
-  &.danger > span {
-    background: linear-gradient(90deg, var(--danger), #ff8d8d);
-  }
-}
-
-:root[data-theme='dark'] .monitor-track {
-  background: rgba(255, 255, 255, 0.09);
-}
-
-:root[data-theme='dark'] .monitor-meter-head span.warn {
-  color: #ffc46a;
-}
-
-.monitor-meter-detail {
-  margin-top: 5px;
-  font-size: 8.5px;
-  color: var(--dim);
-  line-height: 1.45;
-}
-
-.monitor-info-grid {
+/* ---------- 事实网格 ---------- */
+.monitor-facts {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px 18px;
-  margin-top: 12px;
+  gap: 14px 22px;
+  margin: 0;
 }
 
-.monitor-kv {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.monitor-fact {
   min-width: 0;
-  padding-bottom: 7px;
-  border-bottom: 1px solid var(--line-soft);
 
-  span {
+  &.full {
+    grid-column: 1 / -1;
+  }
+
+  dt {
     font-family: var(--mono);
     font-size: 7.5px;
     letter-spacing: 0.05em;
-    text-transform: uppercase;
     color: var(--dim);
   }
 
-  b {
+  dd {
+    margin: 3px 0 0;
     overflow: hidden;
-    font-size: 10px;
+    font-size: 10.5px;
     font-weight: 500;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 }
 
-.monitor-disks {
-  margin-top: 10px;
+/* ---------- 磁盘表 ---------- */
+.monitor-disk-table {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
 }
 
-.monitor-disk {
+.monitor-disk-head,
+.monitor-disk-row {
   display: grid;
-  grid-template-columns: minmax(170px, 1.15fr) minmax(120px, 1.6fr) minmax(150px, 0.9fr);
-  gap: 16px;
+  grid-template-columns: minmax(0, 1.3fr) minmax(120px, 1fr) minmax(135px, 0.9fr) minmax(64px, 0.5fr);
+  gap: 14px;
   align-items: center;
-  padding: 10px 0;
+}
+
+.monitor-disk-head {
+  padding: 0 4px 8px;
+  border-bottom: 1px solid var(--line-soft);
+  font-family: var(--mono);
+  font-size: 7.5px;
+  color: var(--dim);
+}
+
+.monitor-disk-scroll {
+  max-height: 250px;
+  overflow: auto;
+}
+
+.monitor-disk-row {
+  padding: 10px 4px;
   border-bottom: 1px solid var(--line-soft);
 
   &:last-child {
@@ -121,18 +528,22 @@
 }
 
 .monitor-disk-main {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
   min-width: 0;
 
   b {
+    display: block;
+    overflow: hidden;
     font-size: 10.5px;
     font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   span {
+    display: block;
+    margin-top: 2px;
     overflow: hidden;
+    font-family: var(--mono);
     font-size: 8px;
     color: var(--dim);
     text-overflow: ellipsis;
@@ -140,39 +551,243 @@
   }
 }
 
-.monitor-disk-usage {
+.monitor-disk-meter {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  text-align: right;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 
   b {
+    flex: none;
+    width: 42px;
     font-family: var(--mono);
-    font-size: 10px;
-    font-weight: 600;
-  }
-
-  span {
-    font-family: var(--mono);
-    font-size: 8px;
-    color: var(--dim);
+    font-size: 8.5px;
+    font-weight: 500;
+    text-align: right;
   }
 }
 
-@media (max-width: 860px) {
-  .monitor-info-grid {
-    grid-template-columns: 1fr;
+.monitor-bar {
+  flex: 1;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(23, 43, 63, 0.1);
+
+  i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--mint);
+    transition: width 0.5s ease;
   }
 
-  .monitor-disk {
-    grid-template-columns: 1fr;
-    gap: 7px;
+  &.warn i {
+    background: var(--amber);
   }
 
-  .monitor-disk-usage {
-    flex-direction: row;
-    align-items: baseline;
-    justify-content: space-between;
-    text-align: left;
+  &.danger i {
+    background: var(--danger);
+  }
+}
+
+.monitor-disk-number {
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: 8px;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.monitor-disk-summary {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.monitor-disk-summary-bar {
+  height: 6px;
+  margin-bottom: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--line-soft);
+
+  i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--accent);
+    transition: width 0.5s ease;
+  }
+}
+
+.monitor-disk-summary-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  font-size: 8.5px;
+  color: var(--dim);
+
+  b {
+    font-family: var(--mono);
+    font-weight: 500;
+    color: var(--muted);
+  }
+}
+
+.monitor-empty {
+  padding: 26px 12px;
+  font-size: 9px;
+  color: var(--dim);
+  text-align: center;
+}
+
+/* ---------- 网络与进程 ---------- */
+.monitor-subhead {
+  margin: 0 0 8px;
+  font-family: var(--mono);
+  font-size: 7.5px;
+  letter-spacing: 0.05em;
+  color: var(--dim);
+}
+
+.monitor-pairs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+}
+
+.monitor-pair {
+  min-width: 0;
+
+  span {
+    display: block;
+    font-size: 8px;
+    color: var(--dim);
+  }
+
+  b {
+    display: block;
+    margin-top: 2px;
+    overflow: hidden;
+    font-size: 10.5px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.monitor-divider {
+  height: 1px;
+  margin: 13px 0;
+  background: var(--line-soft);
+}
+
+@keyframes monitor-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--mint) 14%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--mint) 4%, transparent);
+  }
+}
+
+:root[data-theme='dark'] {
+  .monitor-stat-bar,
+  .monitor-bar {
+    background: rgba(255, 255, 255, 0.09);
+  }
+}
+
+/* ---------- 响应式 ---------- */
+@media (max-width: 1080px) {
+  .monitor-stat {
+    grid-column: span 6;
+  }
+
+  .monitor-span-8,
+  .monitor-span-4 {
+    grid-column: span 12;
+  }
+
+  .monitor-chart-axis,
+  .monitor-chart-plot {
+    height: 160px;
+  }
+
+  .monitor-disk-scroll {
+    max-height: 320px;
+  }
+}
+
+@media (max-width: 760px) {
+  .monitor-dashboard {
+    gap: 12px;
+  }
+
+  .monitor-sampling {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .monitor-stat {
+    grid-column: span 12;
+    min-height: 116px;
+    padding: 14px 16px 12px;
+  }
+
+  .monitor-span-6 {
+    grid-column: span 12;
+  }
+
+  .monitor-panel {
+    padding: 15px;
+    border-radius: 20px;
+  }
+
+  .monitor-head {
+    margin-bottom: 12px;
+  }
+
+  .monitor-facts {
+    gap: 12px 18px;
+  }
+
+  .monitor-chart-axis,
+  .monitor-chart-plot {
+    height: 140px;
+  }
+
+  .monitor-disk-head {
+    display: none;
+  }
+
+  .monitor-disk-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px 14px;
+    padding: 12px 2px;
+  }
+
+  .monitor-disk-main,
+  .monitor-disk-meter {
+    grid-column: 1 / -1;
+  }
+
+  .monitor-disk-number {
+    font-size: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .monitor-health-orb {
+    animation: none;
+  }
+
+  .monitor-stat-bar i,
+  .monitor-bar i {
+    transition: none;
   }
 }

@@ -1,0 +1,359 @@
+// 纯色材质（默认）：实色面板 + 无背景采样，面向低性能设备。
+//
+// 加载顺序在 responsive 之后，确保能覆盖基础玻璃、极光与液态玻璃的装饰规则。
+// 这里只处理「表面质感」：实底、描边、极简阴影，并关闭 backdrop-filter、
+// 大面积渐变与背景动画；字体、间距、主题色和交互行为保持不变。
+
+/* ---------------- 设计令牌 ---------------- */
+
+:root[data-surface='solid'] {
+  --solid-surface: #ffffff;
+  --solid-surface-raised: #ffffff;
+  --solid-surface-sunken: #f2f6fb;
+  --solid-surface-hover: #eaf0f7;
+  --solid-border: rgba(11, 28, 44, 0.1);
+  --solid-border-strong: rgba(11, 28, 44, 0.16);
+  --solid-shadow: 0 1px 2px rgba(23, 43, 63, 0.05), 0 8px 20px -14px rgba(23, 43, 63, 0.16);
+  /* 复用玻璃时代的语义变量，让子组件无需逐个改色。 */
+  --glass-border: var(--solid-border);
+  --glass-strong: #e9eff7;
+  --glass-soft: var(--solid-surface-sunken);
+  --line: var(--solid-border);
+  --line-soft: rgba(11, 28, 44, 0.06);
+  --shadow-lg: var(--solid-shadow);
+  --shadow-sm: 0 1px 2px rgba(23, 43, 63, 0.05);
+}
+
+:root[data-surface='solid'][data-theme='dark'] {
+  --solid-surface: #121a27;
+  --solid-surface-raised: #182231;
+  --solid-surface-sunken: #0e1622;
+  --solid-surface-hover: #1a2534;
+  --solid-border: rgba(156, 182, 210, 0.14);
+  --solid-border-strong: rgba(156, 182, 210, 0.22);
+  --solid-shadow: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -16px rgba(0, 0, 0, 0.5);
+  --glass-strong: #1c2838;
+  --glass-soft: var(--solid-surface-sunken);
+  --line-soft: rgba(156, 182, 210, 0.08);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+
+/* ---------------- 背景装饰 ---------------- */
+
+/* 纯色模式不需要极光与漂浮光斑：直接移除图层，避免任何合成开销。 */
+:root[data-surface='solid'] .ambient,
+:root[data-surface='solid'] .login-stage::before,
+:root[data-surface='solid'] .login-orb,
+:root[data-surface='solid'] .x-page-loader-aurora {
+  display: none;
+}
+
+/* ---------------- 玻璃表面 ---------------- */
+
+:root[data-surface='solid'] .glass {
+  background: var(--solid-surface);
+  background-image: none;
+  border: 1px solid var(--solid-border);
+  box-shadow: var(--solid-shadow);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* 内容面板贴合实底背景，不再需要浮起阴影。 */
+:root[data-surface='solid'] .canvas-body .glass,
+:root[data-surface='solid'] .canvas-body .glass:hover {
+  box-shadow: none;
+}
+
+:root[data-surface='solid'] .glass-inset {
+  background: var(--solid-surface-sunken);
+  border: 1px solid var(--solid-border);
+  box-shadow: none;
+}
+
+/* 极光隐藏后，命令栏滚动时也无需实时磨砂。 */
+:root[data-surface='solid'] .command::before {
+  display: none;
+}
+:root[data-surface='solid'] .command,
+:root[data-surface='solid'][data-canvas-scrolled='on'] .command,
+:root[data-surface='solid'][data-canvas-scrolling='on'] .command {
+  background: var(--solid-surface);
+  border: 1px solid var(--solid-border);
+  box-shadow: var(--solid-shadow);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* ---------------- 导航与页签 ---------------- */
+
+:root[data-surface='solid'] .rail {
+  background: var(--solid-surface);
+  border: 1px solid var(--solid-border);
+  box-shadow: var(--solid-shadow);
+}
+:root[data-surface='solid'] .rail-brand {
+  background: transparent;
+}
+:root[data-surface='solid'] .rail-logo {
+  background: var(--solid-surface);
+  border-color: var(--solid-border-strong);
+  box-shadow: none;
+}
+:root[data-surface='solid'] .rail-logo::before {
+  display: none;
+}
+:root[data-surface='solid'] .rail-btn:hover {
+  background: var(--solid-surface-hover);
+}
+:root[data-surface='solid'] .rail-active {
+  background: color-mix(in srgb, var(--accent) 12%, var(--solid-surface));
+  border-color: color-mix(in srgb, var(--accent) 26%, var(--solid-border));
+  box-shadow: none;
+}
+:root[data-surface='solid'][data-theme='dark'] .rail-active {
+  background: color-mix(in srgb, var(--accent) 18%, var(--solid-surface));
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--solid-border));
+}
+:root[data-surface='solid'] .rail-sep {
+  background: var(--solid-border);
+}
+
+:root[data-surface='solid'] .ctx-active {
+  background: color-mix(in srgb, var(--accent) 10%, var(--solid-surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 20%, var(--solid-border));
+}
+
+:root[data-surface='solid'] .cmd {
+  background: var(--solid-surface-sunken);
+  border-color: var(--solid-border);
+  box-shadow: none;
+}
+:root[data-surface='solid'] .cmd:hover {
+  background: var(--solid-surface-hover);
+}
+:root[data-surface='solid'] .cmd kbd {
+  background: var(--solid-surface);
+  border-color: var(--solid-border);
+}
+
+:root[data-surface='solid'] .tab-chip {
+  background: var(--solid-surface-sunken);
+  border-color: var(--solid-border);
+}
+:root[data-surface='solid'] .tab-chip:hover {
+  background: var(--solid-surface-hover);
+}
+:root[data-surface='solid'] .tab-chip.active,
+:root[data-surface='solid'][data-theme='dark'] .tab-chip.active {
+  background: color-mix(in srgb, var(--accent) 10%, var(--solid-surface));
+  border-color: color-mix(in srgb, var(--accent) 26%, var(--solid-border));
+  box-shadow: none;
+}
+:root[data-surface='solid'] .mobile-tab-chip {
+  background: var(--solid-surface-sunken);
+  box-shadow: none;
+}
+:root[data-surface='solid'] .mobile-tab-switch {
+  background: var(--solid-surface-sunken);
+  border-color: var(--solid-border);
+}
+:root[data-surface='solid'] .tab-menu,
+:root[data-surface='solid'][data-theme='dark'] .tab-menu,
+:root[data-surface='solid'] .tab-sheet,
+:root[data-surface='solid'] .tab-sheet .ant-drawer-content,
+:root[data-surface='solid'] .tab-sheet.ant-drawer-content,
+:root[data-surface='solid'] .tab-sheet.ant-drawer-section,
+:root[data-surface='solid'] .notif-sheet,
+:root[data-surface='solid'] .notif-sheet .ant-drawer-content,
+:root[data-surface='solid'] .notif-sheet.ant-drawer-content,
+:root[data-surface='solid'] .notif-sheet.ant-drawer-section {
+  background: var(--solid-surface-raised);
+  box-shadow: var(--solid-shadow);
+}
+
+/* ---------------- 按钮与交互面 ---------------- */
+
+:root[data-surface='solid'] .btn:not(.primary) {
+  background: var(--solid-surface);
+  border-color: var(--solid-border);
+  box-shadow: none;
+}
+:root[data-surface='solid'] .btn:not(.primary):hover {
+  background: var(--solid-surface-hover);
+  box-shadow: none;
+}
+:root[data-surface='solid'] .btn.primary,
+:root[data-surface='solid'] .submit,
+:root[data-surface='solid'] .lock-submit,
+:root[data-surface='solid'] .ant-btn-primary,
+:root[data-surface='solid'] .role-chip input:checked + span,
+:root[data-surface='solid'] .file-picker-tabs button.active,
+:root[data-surface='solid'] .file-card-check {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  box-shadow: none !important;
+}
+:root[data-surface='solid'] .btn.primary:hover,
+:root[data-surface='solid'] .submit:hover,
+:root[data-surface='solid'] .lock-submit:hover:enabled,
+:root[data-surface='solid'] .ant-btn-primary:hover {
+  filter: brightness(0.96);
+  box-shadow: none !important;
+}
+:root[data-surface='solid'] .role-chip span {
+  background: var(--solid-surface-sunken);
+  border-color: var(--solid-border);
+  box-shadow: none;
+}
+:root[data-surface='solid'] .role-chip span:hover {
+  background: var(--solid-surface-hover);
+}
+
+/* 头像与身份色块保持品牌色，但改成纯色填充。 */
+:root[data-surface='solid'] .rail-logo,
+:root[data-surface='solid'] .ins-head .big-avatar,
+:root[data-surface='solid'] .profile-avatar,
+:root[data-surface='solid'] .lock-avatar {
+  box-shadow: none;
+}
+:root[data-surface='solid'] .ins-head .big-avatar,
+:root[data-surface='solid'] .profile-avatar,
+:root[data-surface='solid'] .lock-avatar {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ---------------- 页面装饰 ---------------- */
+
+:root[data-surface='solid'] .kpi::before {
+  display: none;
+}
+:root[data-surface='solid'] .kpi:hover {
+  transform: none;
+  box-shadow: none;
+}
+:root[data-surface='solid'] .kpi-icon,
+:root[data-surface='solid'] .quick,
+:root[data-surface='solid'] .file-card-thumb {
+  background: var(--solid-surface-sunken);
+  border-color: var(--solid-border);
+  box-shadow: none;
+}
+:root[data-surface='solid'] .quick:hover {
+  background: var(--solid-surface-hover);
+  transform: none;
+  box-shadow: none;
+}
+:root[data-surface='solid'] .m-card {
+  background: var(--solid-surface-sunken);
+  box-shadow: none;
+}
+:root[data-surface='solid'] .m-card.selected {
+  background: color-mix(in srgb, var(--accent) 8%, var(--solid-surface));
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+:root[data-surface='solid'] .cell-avatar {
+  background: var(--solid-surface-sunken);
+  border-color: var(--solid-border);
+  box-shadow: none;
+}
+:root[data-surface='solid'] .notfound-art {
+  background: var(--solid-surface-sunken);
+}
+
+/* 纯色模式不再播放页面入场位移动画。 */
+:root[data-surface='solid'] .page-stage,
+:root[data-surface='solid'] .monitor-health-orb,
+:root[data-surface='solid'] .x-page-loader-card,
+:root[data-surface='solid'] .x-brand-loader-halo,
+:root[data-surface='solid'] .x-brand-loader-pulse {
+  animation: none;
+}
+
+/* ---------------- Ant Design 浮层与表格 ---------------- */
+
+:root[data-surface='solid'] .ant-modal-mask {
+  background: rgba(11, 28, 44, 0.42);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+:root[data-surface='solid'][data-theme='dark'] .ant-modal-mask {
+  background: rgba(0, 0, 0, 0.62);
+}
+:root[data-surface='solid'] .ant-modal .ant-modal-container {
+  background: var(--solid-surface-raised);
+  border: 1px solid var(--solid-border);
+  box-shadow: var(--solid-shadow);
+}
+:root[data-surface='solid'] .ant-message .ant-message-notice,
+:root[data-surface='solid'] .ant-notification .ant-notification-notice,
+:root[data-surface='solid'] .x-chart-loading-hint {
+  background: var(--solid-surface-raised);
+  border-color: var(--solid-border);
+  box-shadow: var(--solid-shadow);
+}
+
+/* 固定操作列改为实底，去掉滚动时的实时采样与纱幕渐变。 */
+:root[data-surface='solid'] .ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell-fix-end,
+:root[data-surface='solid'] .ant-table-wrapper .ant-table-tbody > tr > td.ant-table-cell-fix-end,
+:root[data-surface='solid'] .ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell-fix-start,
+:root[data-surface='solid'] .ant-table-wrapper .ant-table-tbody > tr > td.ant-table-cell-fix-start {
+  background: var(--solid-surface) !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+:root[data-surface='solid'] .ant-table-wrapper .ant-table-tbody > tr:hover > td.ant-table-cell-fix-end,
+:root[data-surface='solid'] .ant-table-wrapper .ant-table-tbody > tr:hover > td.ant-table-cell-fix-start {
+  background: var(--solid-surface-hover) !important;
+}
+:root[data-surface='solid'] .ant-table-wrapper .ant-table-tbody > tr.ant-table-row-selected > td {
+  background: color-mix(in srgb, var(--accent) 8%, var(--solid-surface)) !important;
+}
+:root[data-surface='solid'] .ant-table-wrapper .ant-table-tbody > tr.ant-table-row-selected > td.ant-table-cell-fix-end,
+:root[data-surface='solid'] .ant-table-wrapper .ant-table-tbody > tr.ant-table-row-selected > td.ant-table-cell-fix-start {
+  background: color-mix(in srgb, var(--accent) 10%, var(--solid-surface)) !important;
+}
+:root[data-surface='solid'] .ant-table-wrapper .ant-table-cell-fix-end-shadow::before,
+:root[data-surface='solid'] .ant-table-wrapper .ant-table-cell-fix-end-shadow::after {
+  display: none;
+}
+:root[data-surface='solid'] .ant-table-wrapper .ant-table-cell-fix-end-shadow-show {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* ---------------- 登录、锁屏与加载 ---------------- */
+
+:root[data-surface='solid'] .login-hero .brand .logo {
+  background: var(--solid-surface);
+  border-color: var(--solid-border-strong);
+  box-shadow: none;
+}
+:root[data-surface='solid'] .login-hero .brand .logo::before {
+  display: none;
+}
+:root[data-surface='solid'] .captcha .code,
+:root[data-surface='solid'] .passkey-login {
+  background: var(--solid-surface-sunken);
+  border-color: var(--solid-border);
+  box-shadow: none;
+}
+:root[data-surface='solid'] .lock-screen {
+  background: rgba(238, 244, 251, 0.9);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+:root[data-surface='solid'][data-theme='dark'] .lock-screen {
+  background: rgba(5, 9, 17, 0.9);
+}
+:root[data-surface='solid'] .x-loader-halo {
+  display: none;
+}
+:root[data-surface='solid'] .x-loader-ring {
+  filter: none;
+}
+:root[data-surface='solid'] .chart-skeleton {
+  background: var(--solid-surface-sunken);
+  animation: none;
+}

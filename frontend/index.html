@@ -23,12 +23,22 @@
         if (state && palettes[state.palette]) {
           document.documentElement.dataset.palette = state.palette
         }
-        // 液态玻璃开启时尽早切到折射外观，避免刷新时先闪一下普通玻璃。
-        if (state && state.liquidGlass === true) {
+        // 材质三档：solid / glass / liquid。旧版本用布尔 liquidGlass 表示是否液态玻璃；
+        // 旧版默认的 false 与缺失值统一使用新的纯色默认。
+        var surfaces = { solid: 1, glass: 1, liquid: 1 }
+        var surface =
+          state && surfaces[state.surface]
+            ? state.surface
+            : state && state.liquidGlass === true
+              ? 'liquid'
+              : 'solid'
+        document.documentElement.dataset.surface = surface
+        // 液态玻璃的既有样式仍以 data-liquid-glass 为开关。
+        if (surface === 'liquid') {
           document.documentElement.dataset.liquidGlass = 'on'
         }
       } catch (error) {
-        // 首屏脚本失败时保持默认浅色，不影响应用启动。
+        // 首屏脚本失败时保持默认浅色与纯色材质，不影响应用启动。
       }
     </script>
     <style>
@@ -49,21 +59,30 @@
         place-content: center;
         justify-items: center;
         gap: 14px;
+        background: #edf3f9;
+        color: #5b7186;
+        font-family: 'Avenir Next', 'SF Pro Display', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+      }
+      /* 毛玻璃 / 液态玻璃保留极光启动底；纯色模式（默认）使用实底，避免低性能设备启动时铺大面积渐变。 */
+      html[data-surface='glass'] .boot-splash,
+      html[data-surface='liquid'] .boot-splash {
         background:
           radial-gradient(circle at 30% 30%, rgba(142, 216, 255, 0.5), transparent 46%),
           radial-gradient(circle at 70% 20%, rgba(199, 184, 255, 0.4), transparent 44%),
           radial-gradient(circle at 55% 80%, rgba(255, 198, 168, 0.5), transparent 48%),
           #edf3f9;
-        color: #5b7186;
-        font-family: 'Avenir Next', 'SF Pro Display', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
       }
       html[data-theme='dark'] .boot-splash {
+        background: #070c15;
+        color: #a0b1c3;
+      }
+      html[data-theme='dark'][data-surface='glass'] .boot-splash,
+      html[data-theme='dark'][data-surface='liquid'] .boot-splash {
         background:
           radial-gradient(circle at 30% 30%, rgba(47, 184, 217, 0.14), transparent 46%),
           radial-gradient(circle at 70% 20%, rgba(139, 124, 246, 0.12), transparent 44%),
           radial-gradient(circle at 55% 80%, rgba(255, 138, 92, 0.12), transparent 48%),
           #070c15;
-        color: #a0b1c3;
       }
       .boot-mark {
         position: relative;
