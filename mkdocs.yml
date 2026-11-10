@@ -91,12 +91,40 @@ plugins:
 
 nav:
   - 首页: index.md
-  - 框架专题:
-      - wire 依赖注入教程: wire-tutorial.md
+  - 开发指南:
+      - 本地开发与快速上手: guide/getting-started.md
+      - 架构与请求生命周期: guide/architecture.md
+      - 新增一个业务模块: guide/adding-a-module.md
+  - 后端开发:
+      - 认证、会话与二次验证: backend/auth.md
+      - 权限体系（RBAC）: backend/rbac.md
+      - 字典、参数、通知与看板: backend/system.md
+      - 文件、存储与分享: backend/files.md
+      - 定时任务: backend/jobs.md
+      - 日志与审计: backend/audit.md
+      - 在线会话与系统监控: backend/monitor.md
       - 异步导出框架: export.md
+      - 基础库: backend/packages.md
+      - 中间件与请求治理: backend/middleware.md
+      - 数据库、模型与迁移: backend/database.md
+      - 测试与质量: backend/testing.md
+  - 前端开发:
+      - 架构、路由与状态: frontend/architecture.md
+      - 页面与功能地图: frontend/pages.md
+      - API 客户端与数据请求: frontend/api-client.md
+      - 通用组件与交互: frontend/components.md
+      - 主题、样式与响应式: frontend/theme.md
+  - 专题深入:
+      - wire 依赖注入教程: wire-tutorial.md
       - 前台用户认证: front-auth.md
-  - 设计契约:
+  - 部署运维:
+      - 配置参考: ops/config.md
+      - 部署与发布: ops/deploy.md
+      - 排错手册: ops/troubleshooting.md
+  - 参考:
       - 系统实现规格（SPEC）: spec.md
+      - API 一览与错误码: reference/api.md
+      - 权限码清单: reference/permissions.md
       - OpenAPI 定义: https://github.com/xgd16/x-admin/blob/main/internal/docs/openapi.yaml
   - 相关资源:
       - GitHub 仓库: https://github.com/xgd16/x-admin
