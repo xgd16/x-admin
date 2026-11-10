@@ -8,6 +8,10 @@ coverage.out
 coverage.html
 *.prof
 
+# docs site build output
+site/
+.cache/
+
 # runtime data
 data/uploads/*
 !data/uploads/.gitkeep

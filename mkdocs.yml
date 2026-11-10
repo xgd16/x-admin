@@ -1,0 +1,110 @@
+# x-admin 框架文档站配置
+# 本地预览：pip install -r docs-requirements.txt && mkdocs serve
+site_name: x-admin 文档
+site_description: x-admin 框架设计、扩展指南与实现契约
+site_url: https://xgd16.github.io/x-admin/
+site_author: xgd16
+copyright: Copyright &copy; 2026 xgd16 · MIT License
+
+repo_url: https://github.com/xgd16/x-admin
+repo_name: xgd16/x-admin
+edit_uri: edit/main/docs/
+
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+  language: zh
+  logo: assets/logo.svg
+  favicon: assets/logo.svg
+  font: false
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-7
+        name: 切换到深色模式
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-4
+        name: 切换到浅色模式
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.indexes
+    - navigation.path
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.top
+    - navigation.footer
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.tooltips
+    - content.tabs.link
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.snippets:
+      base_path:
+        - .
+      check_paths: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+plugins:
+  - search:
+      lang:
+        - zh
+        - en
+
+nav:
+  - 首页: index.md
+  - 框架专题:
+      - wire 依赖注入教程: wire-tutorial.md
+      - 异步导出框架: export.md
+      - 前台用户认证: front-auth.md
+  - 设计契约:
+      - 系统实现规格（SPEC）: spec.md
+      - OpenAPI 定义: https://github.com/xgd16/x-admin/blob/main/internal/docs/openapi.yaml
+  - 相关资源:
+      - GitHub 仓库: https://github.com/xgd16/x-admin
+      - 版本发布: https://github.com/xgd16/x-admin/releases
+      - 问题反馈: https://github.com/xgd16/x-admin/issues
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/xgd16/x-admin
+      name: x-admin on GitHub

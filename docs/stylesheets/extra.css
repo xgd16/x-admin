@@ -1,0 +1,211 @@
+/* ---------------------------------------------------------------------------
+ * x-admin 文档站视觉：深炭色框架 + 珊瑚橙强调色，对齐产品默认色板
+ * ------------------------------------------------------------------------- */
+
+:root {
+  --md-text-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC",
+    sans-serif;
+  --md-code-font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo,
+    Consolas, "Liberation Mono", monospace;
+  --xd-coral: #ff5f33;
+  --xd-coral-soft: #ff8a5c;
+  --xd-ink: #17171a;
+}
+
+/* 顶栏 / 主色 */
+[data-md-color-primary="custom"] {
+  --md-primary-fg-color: var(--xd-ink);
+  --md-primary-fg-color--light: #2b2b31;
+  --md-primary-fg-color--dark: #0c0c0e;
+  --md-primary-bg-color: #ffffff;
+  --md-primary-bg-color--light: #ffffffb3;
+}
+
+/* 强调色 */
+[data-md-color-accent="custom"] {
+  --md-accent-fg-color: #c2410c;
+  --md-accent-fg-color--transparent: #ff5f331a;
+  --md-accent-bg-color: #ffffff;
+  --md-accent-bg-color--light: #ffffffb3;
+}
+
+[data-md-color-scheme="slate"][data-md-color-accent="custom"] {
+  --md-accent-fg-color: var(--xd-coral-soft);
+  --md-accent-fg-color--transparent: #ff8a5c1a;
+}
+
+/* 正文链接颜色：浅色下用足够深的橙，保证对比度 */
+[data-md-color-scheme="default"] {
+  --md-typeset-a-color: #c2410c;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-typeset-a-color: #ff9a6c;
+}
+
+/* 标题对比度：默认主题的 H1/H2 偏灰 */
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3 {
+  color: var(--md-default-fg-color);
+}
+
+.md-typeset h1 {
+  font-weight: 650;
+}
+
+/* 首页 hero */
+.md-typeset .docs-hero {
+  margin: 1.2rem 0 2.6rem;
+  padding: 2.6rem 2.4rem 2.2rem;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 1rem;
+  background:
+    radial-gradient(70% 140% at 100% 0%, #ff5f3320, transparent 62%),
+    radial-gradient(60% 120% at 0% 100%, #ff4d8d12, transparent 60%),
+    var(--md-default-bg-color);
+  overflow: hidden;
+}
+
+.md-typeset .docs-hero h1 {
+  margin: 0 0 0.7rem;
+  font-size: 2.1rem;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.md-typeset .docs-hero__lead {
+  max-width: 44rem;
+  margin: 0 0 1.4rem;
+  color: var(--md-default-fg-color--light);
+  font-size: 0.9rem;
+  line-height: 1.8;
+}
+
+.md-typeset .docs-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0;
+}
+
+.md-typeset .docs-hero__actions .md-button {
+  margin: 0;
+}
+
+/* 文档地图卡片 */
+.md-typeset .grid.cards > ul > li {
+  border-radius: 0.8rem;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.md-typeset .grid.cards > ul > li:hover {
+  border-color: var(--md-accent-fg-color);
+  box-shadow: 0 10px 28px #00000016;
+  transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .md-typeset .grid.cards > ul > li {
+    transition: none;
+  }
+
+  .md-typeset .grid.cards > ul > li:hover {
+    transform: none;
+  }
+}
+
+@media screen and (min-width: 60em) {
+  .md-typeset .grid.cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* 按钮：珊瑚橙主行动色 + 深色模式下的描边按钮 */
+.md-typeset .md-button {
+  border-radius: 0.5rem;
+}
+
+.md-typeset .md-button--primary {
+  background-color: var(--xd-coral);
+  border-color: var(--xd-coral);
+  color: #1c0b05;
+}
+
+.md-typeset .md-button--primary:focus,
+.md-typeset .md-button--primary:hover {
+  background-color: #ff7a52;
+  border-color: #ff7a52;
+  color: #1c0b05;
+}
+
+[data-md-color-scheme="slate"] .md-typeset .md-button:not(.md-button--primary) {
+  border-color: #ffffff38;
+  color: var(--md-default-fg-color);
+}
+
+[data-md-color-scheme="slate"] .md-typeset .md-button:not(.md-button--primary):focus,
+[data-md-color-scheme="slate"] .md-typeset .md-button:not(.md-button--primary):hover {
+  border-color: var(--md-accent-fg-color);
+  color: var(--md-accent-fg-color);
+}
+
+/* 首页截图 */
+.shot-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.2rem;
+  margin: 1.2rem 0 2.2rem;
+}
+
+.shot-grid figure {
+  margin: 0;
+}
+
+.shot-grid img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.6rem;
+  box-shadow: 0 12px 32px #0000001c;
+}
+
+.shot-grid figcaption {
+  margin-top: 0.5rem;
+  color: var(--md-default-fg-color--light);
+  font-size: 0.7rem;
+  text-align: center;
+}
+
+@media screen and (max-width: 600px) {
+  .shot-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .md-typeset .docs-hero {
+    padding: 1.8rem 1.4rem 1.6rem;
+  }
+
+  .md-typeset .docs-hero h1 {
+    font-size: 1.6rem;
+  }
+}
+
+/* 表格与代码块微调 */
+.md-typeset table:not([class]) {
+  font-size: 0.74rem;
+  width: 100%;
+}
+
+.md-typeset table:not([class]) th {
+  white-space: nowrap;
+}
+
+.md-typeset pre > code {
+  font-size: 0.76rem;
+}
