@@ -67,16 +67,19 @@
 }
 .page-stage {
   min-width: 0;
-  /* 首次挂载做一次短促入场；CSS 动画避免保活页长期维护额外的动画实例。 */
+  /* 保活页切换只改 display：祖先从 none 回到 block 时浏览器会重新播放
+     CSS 动画，因此每次进页都有入场效果，且不需要为隐藏页维护动画实例。 */
   animation: page-stage-in 0.22s cubic-bezier(0.22, 0.8, 0.28, 1);
 }
-/* 液态玻璃下面板带 backdrop-filter：整页做位移动画会让每一帧都重新采样
-   所有面板的背景，一次入场就会顶满 GPU。这里直接关掉，换取导航流畅度。 */
+/* 液态玻璃下命令栏挂着 backdrop-filter：位移动画会让它每一帧重采样下方
+   内容。这里退化成纯透明度淡入，保留切页反馈但不动几何。 */
 :root[data-liquid-glass='on'] .page-stage {
-  animation: none;
+  animation: page-stage-fade 0.2s cubic-bezier(0.22, 0.8, 0.28, 1);
 }
 @media (prefers-reduced-motion: reduce) {
-  .page-stage {
+  .page-stage,
+  /* 液态玻璃的选择器特异性更高，需要同权重覆盖。 */
+  :root[data-liquid-glass='on'] .page-stage {
     animation: none;
   }
 }
@@ -88,5 +91,13 @@
   to {
     opacity: 1;
     transform: none;
+  }
+}
+@keyframes page-stage-fade {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 1;
   }
 }

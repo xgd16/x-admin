@@ -262,8 +262,7 @@
   background: var(--solid-surface-sunken);
 }
 
-/* 纯色模式不再播放页面入场位移动画。 */
-:root[data-surface='solid'] .page-stage,
+/* 纯色模式关闭背景与装饰性循环动画；页面切换入场保留，作为导航反馈。 */
 :root[data-surface='solid'] .monitor-health-orb,
 :root[data-surface='solid'] .x-page-loader-card,
 :root[data-surface='solid'] .x-brand-loader-halo,
