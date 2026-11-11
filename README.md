@@ -1001,7 +1001,7 @@ X_ADMIN_JWT_SECRET='<32+ random chars>' \
 refresh token 已失效（过期、被轮换、`session_version` 变化或 Redis 重启）。清除浏览器 `x-admin.access`、`x-admin.refresh` 后重新登录。
 
 **Q：迁移失败或提示多语句错误？**
-应用会自动在 DSN 追加 `multiStatements=true`；请确认数据库账号有建表/修改权限，并检查迁移文件是否被手工改动。升级前务必备份。
+应用会自动在 DSN 追加 `multiStatements=true`；请确认数据库账号有建表/修改权限，并检查迁移文件是否被手工改动。升级前务必备份。若提示 `schema version N is not covered by this binary's migrations`，说明数据库来自迁移压缩前的旧版本：v1.3.0（schema 16）备份后可执行 `UPDATE schema_migrations SET version = 1, dirty = 0`；更早版本请先升级到 v1.3.0，或按 `migrations/README.md` 重建数据库。
 
 **Q：上传返回 413？**
 Nginx 的 `client_max_body_size` 或后端 `X_ADMIN_STORAGE_MAX_MB` 限制过小；两处需同时调整。
@@ -1021,7 +1021,7 @@ Cron 在进程内运行，每个副本都会注册任务。改为单副本、主
 
 新增一个业务模块时，按以下顺序落地：
 
-1. **迁移**：在 `migrations/` 增加 `NNNNNN_name.up.sql` / `.down.sql`。
+1. **迁移**：在 `migrations/` 增加 `NNNNNN_name.up.sql` / `.down.sql`。`000001_init` 是合并后的冻结基线，下一个版本号从 `000002` 开始，不要修改已发布的迁移；旧库升级说明见 `migrations/README.md`。
 2. **模型**：在 `internal/model/` 增加 GORM 模型与过滤器。
 3. **仓储**：在 `internal/repository/` 实现数据访问，复用 `Base[T]`。
 4. **接口**：在 `internal/service/ports.go` 声明 service 需要的仓储方法。

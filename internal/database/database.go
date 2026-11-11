@@ -3,12 +3,15 @@ package database
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
 	migratemysql "github.com/golang-migrate/migrate/v4/database/mysql"
+	"github.com/golang-migrate/migrate/v4/source"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	gormmysql "gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -58,7 +61,7 @@ func Migrate(db *gorm.DB) error {
 // MigrateSQL 从 embed.FS 读取迁移脚本并升级到最新版本。
 // 没有新版本时 migrate.ErrNoChange 属于正常情况，不视为错误。
 func MigrateSQL(sqlDB *sql.DB) error {
-	source, err := iofs.New(migrations.FS, ".")
+	src, err := iofs.New(migrations.FS, ".")
 	if err != nil {
 		return err
 	}
@@ -66,14 +69,74 @@ func MigrateSQL(sqlDB *sql.DB) error {
 	if err != nil {
 		return err
 	}
-	m, err := migrate.NewWithInstance("iofs", source, "mysql", driver)
+	m, err := migrate.NewWithInstance("iofs", src, "mysql", driver)
 	if err != nil {
 		return err
 	}
+	if err := checkSchemaVersion(m, src); err != nil {
+		return err
+	}
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		if errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf(
+				"database: migrate: %w; the database version is not part of the squashed migration history, "+
+					"upgrade to v1.3.0 first or rebuild the database",
+				err,
+			)
+		}
 		return fmt.Errorf("database: migrate: %w", err)
 	}
 	return nil
+}
+
+// checkSchemaVersion 在升级前处理版本冲突。
+// 迁移历史压缩后，旧库的 schema_migrations.version 可能大于内置基线；
+// 若直接交给 golang-migrate，只会得到 "no migration found for version N"。
+func checkSchemaVersion(m *migrate.Migrate, src source.Driver) error {
+	version, dirty, err := m.Version()
+	if errors.Is(err, migrate.ErrNilVersion) {
+		return nil // 全新数据库，直接执行基线。
+	}
+	if err != nil {
+		return fmt.Errorf("database: read schema version: %w", err)
+	}
+	if dirty {
+		return fmt.Errorf("database: schema version %d is dirty; repair the failed migration or rebuild the database", version)
+	}
+
+	latest, err := latestMigrationVersion(src)
+	if err != nil {
+		return fmt.Errorf("database: inspect migrations: %w", err)
+	}
+	if version <= latest {
+		return nil
+	}
+
+	return fmt.Errorf(
+		"database: schema version %d is not covered by this binary's migrations (latest %d); "+
+			"if this database is v1.3.0 (schema version 16), back it up and run "+
+			"`UPDATE schema_migrations SET version = %d, dirty = 0`; "+
+			"for older versions, upgrade to v1.3.0 first or rebuild the database",
+		version, latest, latest,
+	)
+}
+
+// latestMigrationVersion 返回 embed 中最新的迁移版本号。
+func latestMigrationVersion(src source.Driver) (uint, error) {
+	version, err := src.First()
+	if err != nil {
+		return 0, err
+	}
+	for {
+		next, err := src.Next(version)
+		if errors.Is(err, os.ErrNotExist) {
+			return version, nil
+		}
+		if err != nil {
+			return 0, err
+		}
+		version = next
+	}
 }
 
 // AutoMigrate 仅用于测试和本地实验（SQLite），生产环境请使用 Migrate。

@@ -28,7 +28,7 @@ refresh:{token}（Redis）                 front:refresh:{token}（Redis）
 
 ## 2. 第一步：迁移与模型
 
-`migrations/000016_app_users.up.sql`：
+`migrations/000002_app_users.up.sql`：
 
 ```sql
 CREATE TABLE app_users (
@@ -48,7 +48,7 @@ CREATE TABLE app_users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
 
-`migrations/000016_app_users.down.sql`：
+`migrations/000002_app_users.down.sql`：
 
 ```sql
 DROP TABLE IF EXISTS app_users;

@@ -72,7 +72,7 @@ api.post('/export-tasks', {
 
 归属校验：任务只属于提交人，查别人的任务一律 404（不暴露存在性）。
 
-菜单与权限码见迁移 `migrations/000014_export_tasks.up.sql` 与 `000015_filename_template.up.sql`（「人员与权限」→ 新增「导出记录」菜单，按钮码 200–205）。
+菜单与权限码见基线迁移 `migrations/000001_init.up.sql`（「审计」→「导出记录」，按钮码 200–205）。
 
 ---
 
