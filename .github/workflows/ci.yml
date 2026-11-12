@@ -36,6 +36,9 @@ jobs:
       - name: Run Go tests
         run: go test ./tests/... -count=1 -coverpkg=./internal/... -coverprofile=coverage.out
 
+      - name: Run tool tests
+        run: go test ./tool/... -count=1
+
       - name: Coverage summary
         run: go tool cover -func=coverage.out | tail -1
 

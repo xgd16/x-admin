@@ -442,7 +442,11 @@ npm run dev
 ```text
 x-admin/
 ├── cmd/
-│   └── server/main.go              # 进程入口：配置 → 装配 → 监听 → 优雅退出
+│   ├── server/main.go              # 进程入口：配置 → 装配 → 监听 → 优雅退出
+│   └── xadmin/main.go              # 框架工具入口：go tool xadmin
+├── tool/xadmin/                    # 升级（三方合并）、体检与后续代码生成工具
+├── .x-admin/framework.json         # 本地升级缓存（已忽略，不需要提交）
+├── FRAMEWORK_VERSION               # 当前项目同步到的框架版本（需要提交）
 ├── internal/
 │   ├── bootstrap/                  # 依赖装配：wire.go 声明 + wire_gen.go 自动生成
 │   ├── config/                     # YAML + X_ADMIN_* 环境变量
@@ -1021,7 +1025,7 @@ Cron 在进程内运行，每个副本都会注册任务。改为单副本、主
 
 新增一个业务模块时，按以下顺序落地：
 
-1. **迁移**：在 `migrations/` 增加 `NNNNNN_name.up.sql` / `.down.sql`。`000001_init` 是合并后的冻结基线，下一个版本号从 `000002` 开始，不要修改已发布的迁移；旧库升级说明见 `migrations/README.md`。
+1. **迁移**：在 `migrations/` 增加 `NNNNNN_name.up.sql` / `.down.sql`。`000001_init` 是合并后的冻结基线，下一个版本号从 `000002` 开始，不要修改已发布的迁移；旧库升级说明见 `migrations/README.md`。**下游项目建议业务迁移从 `001000` 开始**，把 `000002`~`000999` 留给框架升级，避免与上游新增迁移撞号。
 2. **模型**：在 `internal/model/` 增加 GORM 模型与过滤器。
 3. **仓储**：在 `internal/repository/` 实现数据访问，复用 `Base[T]`。
 4. **接口**：在 `internal/service/ports.go` 声明 service 需要的仓储方法。
@@ -1030,6 +1034,8 @@ Cron 在进程内运行，每个副本都会注册任务。改为单副本、主
 7. **路由与权限**：在 `internal/router/router.go` 注册路由并绑定权限码。
 8. **文档**：同步更新 `internal/docs/openapi.yaml`。
 9. **测试**：在 `tests/unit/service` 增加单测，必要时补 `tests/integration`。
+
+**升级框架版本**：在项目根目录运行 `go tool xadmin upgrade`，它会自动检测版本、生成计划、提示确认并完成三方合并与构建校验。需要先看计划用 `go tool xadmin upgrade plan`；新 `git init` 的项目先运行 `go tool xadmin upgrade init --from v1.3.0` 登记基准，不知道版本时直接跑 `upgrade`，工具会按文件指纹推断。完整说明见 [`docs/tool/upgrade.md`](./docs/tool/upgrade.md)。
 
 约定：
 

@@ -239,6 +239,8 @@ git push origin v1.4.0
 # 在 GitHub 创建 Release，release.yml 自动上传各平台产物与 checksums.txt
 ```
 
+发布前建议把根目录 `FRAMEWORK_VERSION` 更新到本次 tag。它不参与二进制运行，只用于下游源码项目的升级基准；复制源码后新 `git init`、没有上游 git 历史的项目会优先读取它。`.x-admin/framework.json` 是下游本地缓存，不需要维护者处理。
+
 ## 10. 文档站
 
 本站由 MkDocs Material 构建，发布在 GitHub Pages：

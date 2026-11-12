@@ -34,3 +34,15 @@ configs/local.yaml
 *.tsbuildinfo
 
 .zcode
+
+# x-admin upgrade tool
+# 冲突时生成的上游对照文件，解决后删除，不提交
+*.upstream
+# 工具二进制（go build -o xadmin ./cmd/xadmin）
+/xadmin
+/xadmin.exe
+# 本地升级缓存（状态文件、临时信息）；需要提交的是根目录 FRAMEWORK_VERSION
+.x-admin/
+
+# 版本标记需要提交到仓库，不要忽略：
+#   FRAMEWORK_VERSION

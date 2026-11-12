@@ -9,6 +9,7 @@
 ## 新增迁移
 
 - 下一个版本号从 `000002` 开始，文件名格式为 `NNNNNN_name.up.sql` / `NNNNNN_name.down.sql`。
+- 下游项目建议业务迁移从 `001000` 开始，把 `000002`~`000999` 留给框架升级，避免撞号；详见 `docs/tool/upgrade.md`。
 - `up` 与 `down` 必须成对存在。
 - 迁移会在应用启动时由 golang-migrate 自动执行；单个文件可以包含多条语句（DSN 会自动追加 `multiStatements=true`）。
 - 涉及种子数据的语句建议使用 `INSERT IGNORE` 或 `WHERE NOT EXISTS`，避免重复执行时报错。

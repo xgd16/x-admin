@@ -78,6 +78,14 @@ hide:
 
     [:octicons-arrow-right-24: 查阅](reference/api.md)
 
+-   :material-hammer-wrench:{ .lg .middle } __框架升级与工具链__
+
+    ---
+
+    `go tool xadmin`：三方合并升级、冲突处理、迁移撞号检查与构建校验。
+
+    [:octicons-arrow-right-24: 阅读](tool/upgrade.md)
+
 -   :material-server-network:{ .lg .middle } __部署与排错__
 
     ---

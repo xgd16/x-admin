@@ -32,7 +32,7 @@ lint:
 	cd frontend && $(NPM) run lint
 
 fmt:
-	gofmt -w cmd internal migrations tests
+	gofmt -w cmd internal migrations tests tool
 
 tidy:
 	$(GO) mod tidy

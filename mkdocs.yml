@@ -121,6 +121,8 @@ nav:
       - 配置参考: ops/config.md
       - 部署与发布: ops/deploy.md
       - 排错手册: ops/troubleshooting.md
+  - 工具链:
+      - 框架升级工具: tool/upgrade.md
   - 参考:
       - 系统实现规格（SPEC）: spec.md
       - API 一览与错误码: reference/api.md

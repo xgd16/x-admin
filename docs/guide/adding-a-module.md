@@ -20,6 +20,8 @@
 
 在 `migrations/` 新增一对文件，编号接着现有最大值：
 
+> **下游项目注意**：业务迁移建议从 `001000` 开始编号，把 `000002`~`000999` 留给框架升级。否则你新增的 `000002_xxx` 可能和上游新版本的 `000002_yyy` 撞号，且已经执行过的本地迁移会让上游后补的低编号迁移被 `golang-migrate` 跳过。详见 [框架升级工具](../tool/upgrade.md)。
+
 ```sql
 -- migrations/000017_announcements.up.sql
 CREATE TABLE IF NOT EXISTS `sys_announcements` (

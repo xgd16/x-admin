@@ -21,6 +21,10 @@
 
 ```
 cmd/server/               进程入口，只做装配
+cmd/xadmin/               框架工具入口（go tool xadmin）
+tool/xadmin/              升级、体检与代码生成工具
+.x-admin/framework.json   本地升级缓存（已忽略，不需要提交）
+FRAMEWORK_VERSION         当前项目同步到的框架版本（需要提交）
 internal/
   bootstrap/              配置 → DB/Redis → repo → service → router
   config/                 YAML + 环境变量
@@ -43,7 +47,7 @@ deploy/                   Docker Compose、Nginx
 - handler 不直接碰 GORM；service 不碰 `*gin.Context`。
 - 可复用能力一律下沉到 `internal/pkg`，禁止复制粘贴分页、树、错误、存储逻辑。
 - 每个 repository 只暴露 service 需要的方法；接口定义在 `service/ports.go`。
-- 所有测试文件放在 `tests/`，不与被测代码同目录。
+- 所有测试文件放在 `tests/`，不与被测代码同目录；独立工具链 `tool/` 例外，使用同目录测试。
 - 新增接口必须同时补：权限码、Swagger 注释、service 单测。
 
 ## 3. 数据表
