@@ -15,14 +15,14 @@
 | 前端 | React 19 · antd 6 · TypeScript 7 · Vite 8 · oxlint |
 | 前端库 | React Router 7 · TanStack Query · Zustand · dayjs |
 | 样式 | 原生 CSS 变量 + antd token，不引 Tailwind |
-| 部署 | 前后端分离，Nginx 托管 SPA 并反代 `/admin/v1` |
+| 部署 | 前后端分离，Nginx 托管 SPA 并反代 `/admin/v1`；自定义 API 面按需补充 |
 
 ## 2. 目录约定
 
 ```
 cmd/server/               进程入口，只做装配
 cmd/xadmin/               框架工具入口（go tool xadmin）
-tool/xadmin/              升级、体检与代码生成工具
+tool/xadmin/              升级、代码生成（create）与体检工具
 .x-admin/framework.json   本地升级缓存（已忽略，不需要提交）
 FRAMEWORK_VERSION         当前项目同步到的框架版本（需要提交）
 internal/
@@ -31,9 +31,9 @@ internal/
   model/                  GORM 模型（仅数据结构）
   repository/             GORM 实现 + 通用 Base[T]
   service/                业务逻辑；repo 接口定义在 ports.go
-  handler/                HTTP 绑定/校验/响应，不写业务
+  handler/                HTTP 绑定/校验/响应，不写业务；生成代码按 <api>/<version>/ 分层
   middleware/             request-id / auth / permission / rate-limit / audit
-  router/                 路由与依赖注入
+  router/                 多 API 面（admin 内置 + create 生成）路由与依赖注入
   pkg/                    可复用、无业务依赖的基础模块
     apperr response pagination requestid security cache captcha storage excel tree sysinfo
 migrations/               版本化 SQL + seed
@@ -49,6 +49,25 @@ deploy/                   Docker Compose、Nginx
 - 每个 repository 只暴露 service 需要的方法；接口定义在 `service/ports.go`。
 - 所有测试文件放在 `tests/`，不与被测代码同目录；独立工具链 `tool/` 例外，使用同目录测试。
 - 新增接口必须同时补：权限码、Swagger 注释、service 单测。
+
+### 2.1 代码生成
+
+新增 API 面或 handler 时优先使用工具生成，保持 handler 的分层与版本一致：
+
+```bash
+# 带完整 JWT 认证的 API 面
+go tool xadmin create api --name client --version v1 --auth --table client_users
+# 只生成路由壳
+go tool xadmin create api --name partner --version v1
+go tool xadmin create handler --api client --version v1 --name order --path /orders
+```
+
+- handler 目录：`internal/handler/<api>/<version>/`，包名 `<api><version>`（例如 `clientv1`）。
+- 路由模块：`internal/router/<api>_<version>_<name>.go`，通过 `init()` 注册，无需改 `router.go`。
+- `create api` 生成自定义 API 面，配置 `api.<name>` 后挂载；框架内置面只有 `admin`。
+- `create api --auth --table <table>` 额外生成用户表迁移，并注册 `auth/register`、`auth/login`、`auth/refresh`、`auth/logout`、`auth/me`；账号由框架内置的 `SurfaceAuthService` 管理，独立于后台 `sys_users`。
+
+业务 CRUD 的 service/repository/model、OpenAPI 仍按业务模块清单补齐；账号认证不生成重复的 model/repository。详见 `docs/tool/create.md`。
 
 ## 3. 数据表
 
@@ -69,12 +88,27 @@ deploy/                   Docker Compose、Nginx
 | `sys_login_logs` | 登录审计 |
 | `sys_notifications` | 站内通知，按 `user_id` 归属，`read_at` 判未读 |
 | `sys_passkeys` | WebAuthn 通行密钥，一个用户可绑定多台设备，存公钥与签名计数器 |
+| `<api>_users` | `create api --auth` 生成的 API 面账号表，每个面一张，独立于 `sys_users` |
 
 所有业务表带 `id / created_at / updated_at / deleted_at`，软删除。
 
 ## 4. API
 
-统一前缀 `/admin/v1`。响应：
+采用多 API 面：框架默认只挂载后台 `/admin/v1`。client、merchant、partner 等面由用户运行 `go tool xadmin create api` 生成后写入 `api.<name>` 配置。每个面拥有独立前缀、限流桶和 JWT issuer，令牌不能跨面使用。
+
+```yaml
+api:
+  admin:
+    enabled: true
+    prefix: /admin/v1
+  # 运行 go tool xadmin create api 后按提示添加，例如：
+  # client:
+  #   enabled: true
+  #   prefix: /client/v1
+  #   table: client_users
+```
+
+`create api --auth --table client_users` 会生成该表的迁移，并注册 `/auth/register`、`/auth/login`、`/auth/refresh`、`/auth/logout`、`/auth/me`；账号由 `SurfaceAuthService` 管理，与后台 `sys_users` 独立。
 
 ```json
 { "code": 0, "message": "ok", "data": {}, "request_id": "..." }
@@ -90,6 +124,8 @@ deploy/                   Docker Compose、Nginx
 `40401` 不存在、`40901` 冲突、`42301` 锁定、`42901` 限流、`50001` 内部错误。
 
 ### 认证
+
+后台使用 `jwt.issuer` 签发令牌；自定义面默认使用 `jwt.issuer:<name>`。`middleware.Auth` 每请求重新加载身份，不同面的路由必须传入对应的 `TokenManager`，否则隔离失效。自定义面的业务认证按 `docs/guide/multi-api.md` 接入。
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |

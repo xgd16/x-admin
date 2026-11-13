@@ -1,6 +1,8 @@
 # 前台用户认证：独立身份体系实现演示
 
 > x-admin 自带的后台认证（`/admin/v1/auth/*`）服务于管理端账号（`sys_users`）。如果要给前台（C 端）用户做一套登录——独立注册、独立账号体系、不能碰后台任何接口——本文给出一套完整可落地的实现：从迁移、模型一路到路由与 wire 装配，全部代码贴合项目现有约定。
+>
+> 框架可以通过 `go tool xadmin create api --name client --version v1 --auth --table client_users` 直接生成一套独立账号表 + JWT 注册/登录/刷新/登出接口（见 [多 API 模式](guide/multi-api.md)）。如果只需要标准账号密码体系，优先用生成器；本文适合需要独立字段、第三方登录或特殊会话策略的场景。本文的 `FrontAuthService` / `FrontAuth` 可以挂到 `SurfaceAuth["client"]`，并把 TokenManager 换成 `SurfaceTokens["client"]`。文中的 `/api/v1` 是另一种命名示例。
 
 ---
 
@@ -539,7 +541,11 @@ func (h *FrontAuthHandler) Me(c *gin.Context) {
 
 ## 8. 第七步：路由与 wire 装配
 
-### 路由（`internal/router/router.go`）
+### 路由（推荐接入 create api 生成的 `client` 面）
+
+先用 `go tool xadmin create api --name client --version v1` 生成 `/client/v1` API 面。接入本方案时，不需要再手工创建顶层 `/api/v1`：在 `provideRouter` 中把 `FrontAuth` 放进 `SurfaceAuth["client"]`，然后在生成的 `internal/router/client_v1.go` 的 `Mount` 里注册登录、刷新和业务路由，TokenManager 使用 `SurfaceTokens["client"]`（issuer 为 `jwt.issuer:client`）。
+
+如果仍想使用独立的 `/api/v1` 前缀，可以按下面的方式手工注册：
 
 `Handlers` 结构体加一个字段：
 

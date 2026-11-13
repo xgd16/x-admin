@@ -20,6 +20,7 @@ var ProviderSet = wire.NewSet(
 	NewNotificationRepo,
 	NewPasskeyRepo,
 	NewExportTaskRepo,
+	NewAPIUserRepo,
 	wire.Bind(new(service.UserRepository), new(*UserRepo)),
 	wire.Bind(new(service.RoleRepository), new(*RoleRepo)),
 	wire.Bind(new(service.MenuRepository), new(*MenuRepo)),
@@ -32,4 +33,5 @@ var ProviderSet = wire.NewSet(
 	wire.Bind(new(service.NotificationRepository), new(*NotificationRepo)),
 	wire.Bind(new(service.PasskeyRepository), new(*PasskeyRepo)),
 	wire.Bind(new(service.ExportTaskRepository), new(*ExportTaskRepo)),
+	wire.Bind(new(service.APIUserRepository), new(*APIUserRepo)),
 )

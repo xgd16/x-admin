@@ -10,7 +10,7 @@
 | --- | --- |
 | 资源 | 公告：标题、正文、状态、发布时间 |
 | 权限码 | `system:announcement:list/create/update/delete` |
-| 接口前缀 | `/admin/v1/announcements` |
+| 接口前缀 | `/admin/v1/announcements`（自定义 API 面使用 create api 生成的前缀） |
 | 前端页面 | `/system/announcements` |
 | 导出模块名 | `announcements`（可选） |
 
@@ -191,6 +191,8 @@ func validateAnnouncement(in AnnouncementInput) error {
 
 ## 6. 处理器 `internal/handler/announcement.go`
 
+> 新接口推荐先用 `go tool xadmin create handler --api admin --version v1 --name announcement --path /announcements` 生成按 API 面/版本分层的 handler 与自动注册路由，再按本节补齐 service 调用。生成器说明见 [代码生成](../tool/create.md)。
+
 ```go
 type AnnouncementHandler struct {
     announcements *service.AnnouncementService
@@ -240,6 +242,8 @@ type Handlers struct {
 
 ## 7. 路由与权限
 
+后台接口写进 `internal/router/admin.go` 的 `registerAdminRoutes`；如果模块属于自定义 API 面，写进 `create api` 生成的 Surface 的 `Mount`，并接入该面的认证（见 [多 API 模式](multi-api.md)）。
+
 ```go
 secured.GET("/announcements", middleware.Require("system:announcement:list"), d.Handlers.Announcement.List)
 secured.POST("/announcements", middleware.Require("system:announcement:create"), d.Handlers.Announcement.Create)
@@ -247,7 +251,7 @@ secured.PUT("/announcements/:id", middleware.Require("system:announcement:update
 secured.DELETE("/announcements/:id", middleware.Require("system:announcement:delete"), d.Handlers.Announcement.Delete)
 ```
 
-路由是权限的唯一事实来源；新增端点必须在这里写 `Require`，不要指望前端隐藏按钮。
+路由是权限的唯一事实来源；新增端点必须在这里写 `Require`，不要指望前端隐藏按钮。自定义 API 面接口不要复用后台 `system:*` 权限码。
 
 ## 8. 生成 wire 并验证
 

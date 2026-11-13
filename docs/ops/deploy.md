@@ -123,6 +123,10 @@ location /admin/v1/ {
   proxy_read_timeout 60s;
 }
 
+# 生成 client/merchant 等自定义 API 面后，再补充对应反代：
+# location /client/v1/   { proxy_pass http://127.0.0.1:8080; }
+# location /merchant/v1/ { proxy_pass http://127.0.0.1:8080; }
+
 location /uploads/ {
   proxy_pass http://127.0.0.1:8080;
   # 同样透传 Host / X-Real-IP / X-Forwarded-For

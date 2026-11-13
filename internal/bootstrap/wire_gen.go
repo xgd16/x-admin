@@ -58,6 +58,8 @@ func newApp(cfg config.Config, db *gorm.DB) (*App, func(), error) {
 	generator := provideCaptcha(store, cfg)
 	authOptions := provideAuthOptions(cfg)
 	authService := service.NewAuthService(userRepo, menuRepo, logRepo, store, tokenManager, bcryptHasher, generator, notificationService, authOptions)
+	apiUserRepo := repository.NewAPIUserRepo(db)
+	surfaceAuthService := provideSurfaceAuthService(apiUserRepo, store, bcryptHasher, cfg, authOptions)
 	passkeyRepo := repository.NewPasskeyRepo(db)
 	webAuthn := provideWebAuthn(cfg)
 	passkeyService := providePasskeyService(userRepo, passkeyRepo, bcryptHasher, store, webAuthn, notificationService)
@@ -108,7 +110,7 @@ func newApp(cfg config.Config, db *gorm.DB) (*App, func(), error) {
 		Online:       onlineHandler,
 		Monitor:      monitorHandler,
 	}
-	engine := provideRouter(cfg, db, tokenManager, authService, generator, store, logService, handlers)
+	engine := provideRouter(cfg, db, tokenManager, authService, surfaceAuthService, generator, store, logService, handlers)
 	app := assembleApp(cfg, db, store, storageStore, tokenManager, cron, logService, jobService, engine)
 	return app, func() {
 		cleanup3()

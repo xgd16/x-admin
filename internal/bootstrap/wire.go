@@ -34,6 +34,7 @@ func newApp(cfg config.Config, db *gorm.DB) (*App, func(), error) {
 		provideCaptcha,
 		provideWebAuthn,
 		provideAuthOptions,
+		provideSurfaceAuthService,
 		provideLogService,
 		provideUserService,
 		provideFileService,

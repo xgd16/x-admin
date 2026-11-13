@@ -51,6 +51,27 @@ func provideTokens(cfg config.Config) *security.TokenManager {
 	return security.NewTokenManager(cfg.JWT.Secret, cfg.JWT.Issuer, cfg.JWT.AccessTTL)
 }
 
+// buildSurfaceTokens 为每个启用的 API 面创建独立 issuer 的 JWT 管理器。
+//
+// admin 继续使用原来的 TokenManager，保证升级后已有后台令牌仍然有效；
+// client / merchant 默认使用 jwt.issuer:<name>，签发的 access token 无法跨面使用。
+// 预留的 SurfaceAuth 接入时直接取对应的 TokenManager。
+func buildSurfaceTokens(cfg config.Config, admin *security.TokenManager) map[string]*security.TokenManager {
+	out := make(map[string]*security.TokenManager, len(cfg.API.Surfaces()))
+	for name, surface := range cfg.API.Surfaces() {
+		if name == "admin" {
+			out[name] = admin
+			continue
+		}
+		if !surface.Enabled {
+			continue
+		}
+		issuer := surface.IssuerFor(cfg.JWT.Issuer, name)
+		out[name] = security.NewTokenManager(cfg.JWT.Secret, issuer, cfg.JWT.AccessTTL)
+	}
+	return out
+}
+
 func provideHasher(cfg config.Config) *security.BcryptHasher {
 	return security.NewBcryptHasher(cfg.Security.BcryptCost)
 }
@@ -83,6 +104,18 @@ func provideAuthOptions(cfg config.Config) service.AuthOptions {
 		RefreshTTL:    cfg.JWT.RefreshTTL,
 		SessionTTL:    cfg.JWT.SessionTTL,
 	}
+}
+
+// provideSurfaceAuthService 为 create api --auth 生成的自定义面提供认证服务。
+// 账号表由生成命令创建，服务只负责按 scope.Table 读写。
+func provideSurfaceAuthService(
+	users service.APIUserRepository,
+	store cache.Store,
+	hasher security.PasswordHasher,
+	cfg config.Config,
+	opts service.AuthOptions,
+) *service.SurfaceAuthService {
+	return service.NewSurfaceAuthService(users, store, hasher, cfg.Security.PasswordMinLen, opts)
 }
 
 // provideLogService 审计日志队列长度固定为 2048；清理函数关闭审计队列。
@@ -275,19 +308,22 @@ func provideRouter(
 	db *gorm.DB,
 	tokens *security.TokenManager,
 	auth *service.AuthService,
+	surfaceAuth *service.SurfaceAuthService,
 	gen *captcha.Generator,
 	store cache.Store,
 	recorder middleware.OperationRecorder,
 	handlers router.Handlers,
 ) *gin.Engine {
 	return router.New(router.Deps{
-		Config:   cfg,
-		Tokens:   tokens,
-		Auth:     auth,
-		Captcha:  gen,
-		Cache:    store,
-		Recorder: recorder,
-		Handlers: handlers,
+		Config:             cfg,
+		Tokens:             tokens,
+		Auth:               auth,
+		SurfaceAuthService: surfaceAuth,
+		Captcha:            gen,
+		Cache:              store,
+		Recorder:           recorder,
+		Handlers:           handlers,
+		SurfaceTokens:      buildSurfaceTokens(cfg, tokens),
 		Health: func(ctx context.Context) error {
 			if err := database.Health(db); err != nil {
 				return fmt.Errorf("database: %w", err)

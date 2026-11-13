@@ -25,6 +25,9 @@ const rootHelp = `xadmin - x-admin 框架工具链
   upgrade apply     显式执行升级（与 upgrade 相同，保留给脚本）
   upgrade verify    对当前工作区运行构建校验
   upgrade rollback  恢复最近一次升级前的文件快照
+  create            代码生成：新建 API 面或 handler 脚手架
+  create api        新建 API 面 + 版本目录，自动注册路由工厂
+  create handler    在指定 API 面/版本下新建 handler 与路由模块
   doctor            项目体检：版本、配置、迁移、前端工具链
   fix-module        把工具指令/import 适配到自定义 module 路径
   version           打印工具和运行环境版本
@@ -33,7 +36,8 @@ const rootHelp = `xadmin - x-admin 框架工具链
   go tool xadmin upgrade
   go tool xadmin upgrade plan --list
   go tool xadmin upgrade --yes
-  go tool xadmin upgrade --yes --pr
+  go tool xadmin create api --name client --version v1 --auth
+  go tool xadmin create handler --api client --version v1 --name order
   go tool xadmin doctor --online
 
 运行 "go tool xadmin <command> -h" 查看命令参数。
@@ -73,6 +77,45 @@ const upgradeHelp = `x-admin 框架升级
   - 冲突未解决时不提交，退出码为 2
 `
 
+const createHelp = `x-admin 代码生成
+
+用法:
+  go tool xadmin create <api|handler> [flags]
+
+说明:
+  create 用于生成按 API 面和版本分层的 handler 脚手架：
+    internal/handler/<api>/<version>/...
+    internal/router/<api>_<version>_<name>.go
+
+  生成的路由模块通过 init 自动注册，不需要手动修改 router.go。
+  业务逻辑仍需要在 handler 中接入 service。
+
+常用:
+  go tool xadmin create api --name client --version v1 --auth
+  go tool xadmin create handler --api client --version v1 --name order --path /orders
+
+create api:
+  --name <name>       新 API 面名称，例如 client/merchant/partner（必填）
+  --version v1        API 版本，默认 v1
+  --prefix /client/v1 路径前缀，默认 /<name>/<version>
+  --auth              生成完整 JWT 认证（注册/登录/刷新/登出/me）
+  --table <table>     认证用户表名，默认 <name>_users
+  --migration <n>     认证表迁移编号，默认自动取 1000 之后的下一个
+  --dir .             项目目录
+  --force             覆盖已存在的生成文件
+  --json              输出机器可读 JSON
+
+create handler:
+  --api <api>         API 面名称，例如 admin 或已生成的 client/merchant/partner（必填）
+  --version v1        API 版本，默认 v1
+  --name <name>       handler 资源名，例如 order（必填）
+  --path /orders      路由路径，默认 /<name>
+  --permission <p>    权限码前缀，例如 system:order；admin 默认 system:<name>
+  --dir .             项目目录
+  --force             覆盖已存在的生成文件
+  --json              输出机器可读 JSON
+`
+
 // Run 是工具入口，返回进程退出码。
 func Run(args []string) int {
 	if len(args) == 0 {
@@ -88,6 +131,8 @@ func Run(args []string) int {
 		return 0
 	case "doctor":
 		return runDoctor(args[1:])
+	case "create":
+		return runCreate(args[1:])
 	case "fix-module":
 		return runFixModule(args[1:])
 	case "upgrade":
@@ -474,6 +519,120 @@ func runUpgradeRollback(args []string) int {
 	fmt.Println("请运行 git status 检查工作区。")
 	fmt.Println("如果升级已经产生 commit，执行 git reset HEAD^ 回到升级前；需要时再切回原分支。")
 	return 0
+}
+
+func runCreate(args []string) int {
+	if len(args) == 0 {
+		fmt.Print(createHelp)
+		return 0
+	}
+	switch args[0] {
+	case "-h", "--help", "help":
+		fmt.Print(createHelp)
+		return 0
+	case "api":
+		return runCreateAPI(args[1:])
+	case "handler":
+		return runCreateHandler(args[1:])
+	default:
+		fmt.Fprintf(os.Stderr, "未知 create 子命令 %q\n\n%s", args[0], createHelp)
+		return 1
+	}
+}
+
+func runCreateAPI(args []string) int {
+	fs := flag.NewFlagSet("create api", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	var opts CreateAPIOptions
+	var jsonOut bool
+	fs.StringVar(&opts.Dir, "dir", ".", "项目目录")
+	fs.StringVar(&opts.Name, "name", "", "新 API 面名称，例如 partner")
+	fs.StringVar(&opts.Version, "version", "v1", "API 版本，例如 v1")
+	fs.StringVar(&opts.Prefix, "prefix", "", "路径前缀，默认 /<name>/<version>")
+	fs.BoolVar(&opts.Auth, "auth", false, "生成完整 JWT 认证：注册、登录、刷新、登出、me")
+	fs.StringVar(&opts.Table, "table", "", "认证用户表名，默认 <name>_users")
+	fs.StringVar(&opts.Migration, "migration", "", "认证表的迁移编号，默认自动取 1000 之后的下一个")
+	fs.BoolVar(&opts.Force, "force", false, "覆盖已存在的生成文件")
+	fs.BoolVar(&jsonOut, "json", false, "输出机器可读 JSON")
+	if err := fs.Parse(args); err != nil {
+		return 1
+	}
+	result, err := CreateAPI(opts)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "创建 API 面失败: %v\n", err)
+		return 1
+	}
+	if jsonOut {
+		if err := PrintJSON(os.Stdout, result); err != nil {
+			fmt.Fprintf(os.Stderr, "输出 JSON: %v\n", err)
+			return 1
+		}
+		return 0
+	}
+	printCreateResult(result)
+	return 0
+}
+
+func runCreateHandler(args []string) int {
+	fs := flag.NewFlagSet("create handler", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	var opts CreateHandlerOptions
+	var jsonOut bool
+	fs.StringVar(&opts.Dir, "dir", ".", "项目目录")
+	fs.StringVar(&opts.API, "api", "", "API 面名称，例如 admin 或已生成的 client/merchant")
+	fs.StringVar(&opts.Version, "version", "v1", "API 版本，例如 v1")
+	fs.StringVar(&opts.Name, "name", "", "handler 资源名，例如 order")
+	fs.StringVar(&opts.Path, "path", "", "路由路径，默认 /<name>")
+	fs.StringVar(&opts.Permission, "permission", "", "权限码前缀，例如 system:order；admin 默认 system:<name>，none 表示不生成")
+	fs.BoolVar(&opts.Force, "force", false, "覆盖已存在的生成文件")
+	fs.BoolVar(&jsonOut, "json", false, "输出机器可读 JSON")
+	if err := fs.Parse(args); err != nil {
+		return 1
+	}
+	result, err := CreateHandler(opts)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "创建 handler 失败: %v\n", err)
+		return 1
+	}
+	if jsonOut {
+		if err := PrintJSON(os.Stdout, result); err != nil {
+			fmt.Fprintf(os.Stderr, "输出 JSON: %v\n", err)
+			return 1
+		}
+		return 0
+	}
+	printCreateResult(result)
+	return 0
+}
+
+func printCreateResult(result *CreateResult) {
+	if result == nil {
+		return
+	}
+	switch result.Kind {
+	case "api":
+		fmt.Printf("✔ 已创建 API 面 %s %s\n", result.Name, result.Version)
+	case "handler":
+		fmt.Printf("✔ 已创建 handler %s/%s/%s\n", result.API, result.Version, result.Name)
+	default:
+		fmt.Printf("✔ 已生成 %s\n", result.Kind)
+	}
+	for _, f := range result.Files {
+		fmt.Printf("  %s\n", f)
+	}
+	if result.Auth {
+		fmt.Printf("\n认证：JWT（表 %s，迁移 %s）\n", result.Table, result.Migration)
+	}
+	if result.Config != "" {
+		fmt.Println("\n配置（加入 configs/config.yaml）：")
+		fmt.Print(result.Config)
+	}
+	if len(result.NextSteps) > 0 {
+		fmt.Println("\n下一步：")
+		for i, step := range result.NextSteps {
+			fmt.Printf("  %d. %s\n", i+1, step)
+		}
+	}
 }
 
 func runFixModule(args []string) int {

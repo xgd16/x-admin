@@ -10,12 +10,17 @@ r.Use(Audit(recorder))
 r.Use(UploadSecurityHeaders())
 r.Use(UploadAuth(tokens, auth, shares))
 
-api := r.Group("/admin/v1")
-api.Use(RateLimit(store, "rl:global", 100, time.Minute))
-
-secured := api.Group("")
+// 每个 API 面独立挂载：前缀 + 限流桶 + 可选认证。
+admin := r.Group("/admin/v1")
+admin.Use(RateLimit(store, "rl:global", 100, time.Minute))
+secured := admin.Group("")
 secured.Use(Auth(tokens, auth, auth))
 // 每个端点再挂 Require("system:xxx:yyy")
+
+// 自定义面（先运行 go tool xadmin create api --name client --version v1）
+client := r.Group("/client/v1")
+client.Use(RateLimit(store, "rl:client:global", 100, time.Minute))
+// client 的认证接入后，再创建 secured 子组。
 ```
 
 | 顺序 | 中间件 | 作用 | 失败行为 |
@@ -55,7 +60,7 @@ secured.Use(Auth(tokens, auth, auth))
 
 ### 2.4 Audit
 
-- 只审计 `POST/PUT/PATCH/DELETE`，排除 `/admin/v1/auth/*`。
+- 只审计 `POST/PUT/PATCH/DELETE`，排除所有 API 面路径中的 `/auth/`（例如 `/admin/v1/auth/login`、`/client/v1/auth/login`）。
 - 请求体最多复制 64KB，落库前脱敏并截断到 4KB。
 - 敏感字段：名字包含 `password/token/secret/captcha` 或等于 `otp_code`。
 - 非 JSON 请求体记录 `[non-json body]`。
@@ -82,10 +87,15 @@ secured.Use(Auth(tokens, auth, auth))
 | 前缀 | 额度 | 范围 |
 | --- | --- | --- |
 | `rl:global` | 100/min/IP | 整个 `/admin/v1` |
-| `rl:login` | 10/min/IP | 登录 |
-| `rl:mfa` | 20/min/IP | 二次验证 |
-| `rl:passkey` | 20/min/IP | Passkey 登录/解锁 |
-| `rl:unlock` | 10/min/IP | 锁屏解锁 |
+| `rl:<name>:global` | 100/min/IP | `create api` 生成的自定义面 |
+| `rl:<name>-register/login` | 10/min/IP | `create api --auth` 注册/登录 |
+| `rl:<name>-refresh` | 20/min/IP | `create api --auth` 刷新 |
+| `rl:login` | 10/min/IP | 后台登录 |
+| `rl:mfa` | 20/min/IP | 后台二次验证 |
+| `rl:passkey` | 20/min/IP | 后台 Passkey 登录/解锁 |
+| `rl:unlock` | 10/min/IP | 后台锁屏解锁 |
+
+自定义面接入登录后，敏感接口要使用独立前缀，例如 `rl:client-login`、`rl:merchant-sign`，不要和后台桶混用。
 
 ### 2.7 Auth
 
@@ -94,6 +104,7 @@ secured.Use(Auth(tokens, auth, auth))
 - 每次请求重新加载用户（停用/删除立即生效）。
 - 校验 `session_version` 与会话存在性，撤销设备后 access token 立即失效。
 - 成功后把 `Principal` 写入 context，并补上 `SessionID`。
+- `Auth` 本身与 API 面无关，但必须传入该面的 `TokenManager` 和身份加载器；后台传 `d.Tokens`，自定义面传 `d.SurfaceTokens["<name>"]`，否则 token 隔离失效。
 
 ### 2.8 Require
 

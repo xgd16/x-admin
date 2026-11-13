@@ -37,7 +37,9 @@ x-admin 是一套可直接用于中后台系统的全栈脚手架：后端提供
 
 ## 1. 项目简介
 
-- **前后端分离**：React SPA 由 Nginx 托管，后端以 `/admin/v1` 统一前缀提供 JSON API。
+- **前后端分离**：React SPA 由 Nginx 托管，后端以 `/admin/v1` 提供后台 JSON API。
+- **多 API 面**：默认只挂载后台 `/admin/v1`；`go tool xadmin create api` 可按需生成 client、merchant、partner 等独立 API 面，各自限流并使用不同 JWT issuer，令牌与后台互不通用。
+- **分层代码生成**：`go tool xadmin create api --auth` 直接生成独立用户表、完整 JWT 注册/登录/刷新/登出接口；`create handler` 按 API 面与版本生成 handler，新增接口不必改路由总表。
 - **RBAC 权限模型**：用户 → 角色 → 菜单/按钮；`super_admin` 跳过权限判断，其余按权限码授权。
 - **开箱即用的安全能力**：图形验证码、登录锁定、JWT + refresh 轮换、TOTP 双重验证、一次性恢复码、Passkey（WebAuthn）、限流、操作审计。
 - **完整业务模块**：看板、用户、角色、菜单、部门、字典、参数、文件、定时任务、操作/登录日志、个人中心、站内通知。
@@ -261,7 +263,7 @@ sequenceDiagram
 
 Passkey 登录使用同样的令牌签发逻辑，但校验方式不同：`/auth/passkey/login/begin` 生成 discoverable credential 参数，`/finish` 校验签名与计数器后直接签发令牌。
 
-> 若要为前台（C 端）用户增加一套独立身份体系（独立账号表、令牌与后台互不通用），完整实现演示见 [`docs/front-auth.md`](./docs/front-auth.md)。
+> 若要为前台（C 端）用户增加一套独立身份体系（独立账号表、令牌与后台互不通用），完整实现演示见 [`docs/front-auth.md`](./docs/front-auth.md)，多 API 面的路由与认证接入见 [`docs/guide/multi-api.md`](./docs/guide/multi-api.md)。
 
 ### 3.5 部署拓扑
 
@@ -444,7 +446,7 @@ x-admin/
 ├── cmd/
 │   ├── server/main.go              # 进程入口：配置 → 装配 → 监听 → 优雅退出
 │   └── xadmin/main.go              # 框架工具入口：go tool xadmin
-├── tool/xadmin/                    # 升级（三方合并）、体检与后续代码生成工具
+├── tool/xadmin/                    # 升级（三方合并）、代码生成（create）与体检工具
 ├── .x-admin/framework.json         # 本地升级缓存（已忽略，不需要提交）
 ├── FRAMEWORK_VERSION               # 当前项目同步到的框架版本（需要提交）
 ├── internal/
@@ -456,7 +458,7 @@ x-admin/
 │   ├── service/                    # 业务逻辑；ports.go 定义仓储接口
 │   ├── handler/                    # HTTP 参数绑定、校验入口、统一响应
 │   ├── middleware/                 # request-id / recovery / CORS / auth / rate-limit / audit
-│   ├── router/                     # 路由、权限码与 Swagger 静态页
+│   ├── router/                     # 多 API 面路由、权限码与 Swagger 静态页
 │   ├── jobs/                       # robfig/cron 命名调度封装
 │   ├── docs/                       # OpenAPI 3 + Swagger UI
 │   └── pkg/                        # 可复用基础模块
@@ -508,7 +510,24 @@ x-admin/
 
 ### 7.1 API 概览
 
-统一前缀：`/admin/v1`
+默认后台前缀：`/admin/v1`
+
+| API 面 | 默认前缀 | JWT issuer | 说明 |
+| --- | --- | --- | --- |
+| `admin` | `/admin/v1` | `jwt.issuer` | 默认唯一内置面，已实现全部后台接口 |
+| 自定义面 | `create api` 指定 | `jwt.issuer:<name>` | 例如 client、merchant、partner，由用户生成 |
+
+所有面都提供公开的 `GET /ping`。生成、启用和认证接入见 [`docs/guide/multi-api.md`](./docs/guide/multi-api.md) 与 [`docs/tool/create.md`](./docs/tool/create.md)。
+
+`create api --auth --table <table>` 生成的自定义面还会自动提供：
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| POST | `/auth/register` | 注册并返回 token |
+| POST | `/auth/login` | 登录 |
+| POST | `/auth/refresh` | 刷新 token |
+| POST | `/auth/logout` | 退出登录 |
+| GET | `/auth/me` | 当前用户资料 |
 
 #### 认证（无需登录）
 
@@ -736,6 +755,8 @@ npm run test:watch
 | --- | --- |
 | `/admin/v1` | `http://127.0.0.1:8080` |
 | `/uploads` | `http://127.0.0.1:8080` |
+
+生成 client/merchant 等自定义 API 面后，在 `vite.config.ts` 补充对应前缀的代理。
 
 可选环境变量 `VITE_API_BASE`：默认 `/admin/v1`，用于前端独立部署到其他域名或网关路径。
 
@@ -975,7 +996,7 @@ X_ADMIN_JWT_SECRET='<32+ random chars>' \
 ./bin/x-admin -config configs/config.yaml
 ```
 
-前端把 `frontend/dist` 交给 Nginx，并参考 `deploy/nginx.conf` 配置 `/admin/v1`、`/uploads`、`/swagger` 与 SPA fallback。
+前端把 `frontend/dist` 交给 Nginx，并参考 `deploy/nginx.conf` 配置 `/admin/v1`、`/uploads`、`/swagger` 与 SPA fallback。生成自定义 API 面后再补充对应前缀的反代。
 
 ### 10.4 生产检查清单
 
@@ -1030,12 +1051,24 @@ Cron 在进程内运行，每个副本都会注册任务。改为单副本、主
 3. **仓储**：在 `internal/repository/` 实现数据访问，复用 `Base[T]`。
 4. **接口**：在 `internal/service/ports.go` 声明 service 需要的仓储方法。
 5. **服务**：在 `internal/service/` 实现业务规则、校验与通知。
-6. **处理器**：在 `internal/handler/` 完成绑定、`PathID`、统一响应。
-7. **路由与权限**：在 `internal/router/router.go` 注册路由并绑定权限码。
+6. **处理器**：在 `internal/handler/` 完成绑定、`PathID`、统一响应；新接口推荐用 `go tool xadmin create handler` 生成按 API 面/版本分层的 handler。
+7. **路由与权限**：后台路由在 `internal/router/admin.go` 注册并绑定权限码；生成器创建的自定义 API 面模块会自动挂载。
 8. **文档**：同步更新 `internal/docs/openapi.yaml`。
 9. **测试**：在 `tests/unit/service` 增加单测，必要时补 `tests/integration`。
 
 **升级框架版本**：在项目根目录运行 `go tool xadmin upgrade`，它会自动检测版本、生成计划、提示确认并完成三方合并与构建校验。需要先看计划用 `go tool xadmin upgrade plan`；新 `git init` 的项目先运行 `go tool xadmin upgrade init --from v1.3.0` 登记基准，不知道版本时直接跑 `upgrade`，工具会按文件指纹推断。完整说明见 [`docs/tool/upgrade.md`](./docs/tool/upgrade.md)。
+
+**生成 API/handler 脚手架**：
+
+```bash
+# 新建带完整 JWT 认证的 API 面（注册/登录/刷新/登出/me）
+go tool xadmin create api --name client --version v1 --auth --table client_users
+
+# 在已生成的 API 面上新建 handler
+go tool xadmin create handler --api client --version v1 --name order --path /orders
+```
+
+生成器会创建 `internal/handler/<api>/<version>/` 与 `internal/router/` 下的自动注册文件，详细说明见 [`docs/tool/create.md`](./docs/tool/create.md)。
 
 约定：
 

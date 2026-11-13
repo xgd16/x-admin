@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -19,6 +20,7 @@ import (
 type Config struct {
 	App      AppConfig      `yaml:"app"`      // 应用元信息
 	Server   ServerConfig   `yaml:"server"`   // HTTP 服务参数
+	API      APIConfig      `yaml:"api"`      // 多 API 面（admin + create 生成的自定义面）
 	Database DatabaseConfig `yaml:"database"` // MySQL 连接与连接池
 	Redis    RedisConfig    `yaml:"redis"`    // 缓存/会话存储
 	JWT      JWTConfig      `yaml:"jwt"`      // 访问令牌配置
@@ -55,6 +57,56 @@ type ServerConfig struct {
 	// TrustedProxies 是允许携带 X-Forwarded-For / X-Real-IP 的代理网段。
 	// 为空时不信任任何代理，ClientIP 始终使用 TCP 对端地址。
 	TrustedProxies []string `yaml:"trusted_proxies"`
+}
+
+// APIConfig 描述多 API 模式下各个 API 面的配置。
+//
+// 框架默认只挂载 admin 后台面；client、merchant、partner 等面由
+// `go tool xadmin create api` 生成后写入 Extra，需要时再启用。
+// 每个 API 面拥有独立的路径前缀、限流桶和 JWT issuer，彼此令牌互不通用。
+type APIConfig struct {
+	Admin APISurfaceConfig `yaml:"admin"`
+	// Extra 保存通过 go tool xadmin create api 新增的自定义 API 面。
+	// YAML 中直接写 api.<name>，不需要再包一层 surfaces。
+	Extra map[string]APISurfaceConfig `yaml:",inline"`
+}
+
+// APISurfaceConfig 是一个 API 面的前缀与令牌签发配置。
+type APISurfaceConfig struct {
+	Enabled bool   `yaml:"enabled"` // 是否挂载该 API 面
+	Prefix  string `yaml:"prefix"`  // 路径前缀，例如 /admin/v1
+	// Table 是 create api --auth 生成的账号表名；不带认证的面可以为空。
+	Table string `yaml:"table"`
+	// Issuer 是可选的自定义 JWT issuer。为空时 admin 使用 jwt.issuer，
+	// 其他面使用 jwt.issuer:<name>，保证不同面的 access token 互不通用。
+	Issuer string `yaml:"issuer"`
+}
+
+// apiTableRe 限制 create api --auth 生成的表名，避免 SQL 注入和非法标识符。
+var apiTableRe = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+
+// Surfaces 返回全部 API 面配置，键为面名称。
+func (c APIConfig) Surfaces() map[string]APISurfaceConfig {
+	out := map[string]APISurfaceConfig{"admin": c.Admin}
+	for name, surface := range c.Extra {
+		if name == "admin" {
+			continue
+		}
+		out[name] = surface
+	}
+	return out
+}
+
+// IssuerFor 返回该 API 面使用的 JWT issuer。
+// admin 保持与旧版本一致直接使用 jwt.issuer；其他面追加面名称作为命名空间。
+func (s APISurfaceConfig) IssuerFor(baseIssuer, name string) string {
+	if s.Issuer != "" {
+		return s.Issuer
+	}
+	if name == "admin" {
+		return baseIssuer
+	}
+	return baseIssuer + ":" + name
 }
 
 // DatabaseConfig 描述 MySQL DSN 与连接池参数。
@@ -124,6 +176,9 @@ func Default() Config {
 			// 后端直接暴露到公网时应通过配置收紧该列表。
 			TrustedProxies: []string{"127.0.0.1", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"},
 		},
+		API: APIConfig{
+			Admin: APISurfaceConfig{Enabled: true, Prefix: "/admin/v1"},
+		},
 		Database: DatabaseConfig{
 			DSN:             "xadmin:xadmin@tcp(127.0.0.1:3306)/xadmin?charset=utf8mb4&parseTime=True&loc=Local",
 			MaxOpenConns:    50,
@@ -191,6 +246,10 @@ func applyEnv(cfg *Config) {
 	set(&cfg.Redis.Addr, "X_ADMIN_REDIS_ADDR")
 	set(&cfg.Redis.Password, "X_ADMIN_REDIS_PASSWORD")
 	setInt(&cfg.Redis.DB, "X_ADMIN_REDIS_DB")
+	// 多 API 面：后台面的开关、前缀和 issuer 可以覆盖。
+	setBool(&cfg.API.Admin.Enabled, "X_ADMIN_API_ADMIN_ENABLED")
+	set(&cfg.API.Admin.Prefix, "X_ADMIN_API_ADMIN_PREFIX")
+	set(&cfg.API.Admin.Issuer, "X_ADMIN_API_ADMIN_ISSUER")
 	set(&cfg.JWT.Secret, "X_ADMIN_JWT_SECRET")
 	set(&cfg.JWT.Issuer, "X_ADMIN_JWT_ISSUER")
 	setDuration(&cfg.JWT.AccessTTL, "X_ADMIN_JWT_ACCESS_TTL")
@@ -240,6 +299,59 @@ func validate(cfg Config) error {
 			return fmt.Errorf("config: invalid trusted proxy %q", proxy)
 		}
 	}
+	if err := validateAPI(cfg); err != nil {
+		return err
+	}
+	return nil
+}
+
+// validateAPI 校验 API 面的前缀与令牌隔离配置。
+// 不同面的前缀和 issuer 都不能重复，否则路由会冲突或令牌可跨面使用。
+func validateAPI(cfg Config) error {
+	prefixes := make(map[string]string)
+	issuers := make(map[string]string)
+	tables := make(map[string]string)
+	reserved := map[string]bool{"/healthz": true, "/uploads": true, "/swagger": true}
+	for name, surface := range cfg.API.Surfaces() {
+		if !surface.Enabled {
+			continue
+		}
+		prefix := strings.TrimSpace(surface.Prefix)
+		if prefix == "" {
+			return fmt.Errorf("config: api.%s.prefix is required", name)
+		}
+		if !strings.HasPrefix(prefix, "/") || prefix == "/" || strings.HasSuffix(prefix, "/") {
+			return fmt.Errorf("config: api.%s.prefix must start with / and not end with /", name)
+		}
+		if strings.Contains(prefix, "//") {
+			return fmt.Errorf("config: api.%s.prefix must not contain //", name)
+		}
+		if reserved[prefix] || strings.HasPrefix(prefix, "/healthz/") ||
+			strings.HasPrefix(prefix, "/uploads/") || strings.HasPrefix(prefix, "/swagger/") {
+			return fmt.Errorf("config: api.%s.prefix %q is reserved", name, prefix)
+		}
+		if prev, ok := prefixes[prefix]; ok {
+			return fmt.Errorf("config: api.%s.prefix conflicts with api.%s.prefix", name, prev)
+		}
+		prefixes[prefix] = name
+
+		issuer := strings.TrimSpace(surface.IssuerFor(cfg.JWT.Issuer, name))
+		if prev, ok := issuers[issuer]; ok {
+			return fmt.Errorf("config: api.%s.issuer conflicts with api.%s.issuer", name, prev)
+		}
+		issuers[issuer] = name
+
+		table := strings.TrimSpace(surface.Table)
+		if table != "" {
+			if !apiTableRe.MatchString(table) {
+				return fmt.Errorf("config: api.%s.table %q is not a valid table name", name, table)
+			}
+			if prev, ok := tables[table]; ok {
+				return fmt.Errorf("config: api.%s.table conflicts with api.%s.table", name, prev)
+			}
+			tables[table] = name
+		}
+	}
 	return nil
 }
 
@@ -255,6 +367,15 @@ func setInt(target *int, key string) {
 	if v, ok := os.LookupEnv(key); ok {
 		if n, err := strconv.Atoi(v); err == nil {
 			*target = n
+		}
+	}
+}
+
+// setBool 在环境变量存在且可解析为布尔值时覆盖 bool 配置。
+func setBool(target *bool, key string) {
+	if v, ok := os.LookupEnv(key); ok {
+		if b, err := strconv.ParseBool(v); err == nil {
+			*target = b
 		}
 	}
 }

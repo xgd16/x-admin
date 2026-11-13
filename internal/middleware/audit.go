@@ -56,15 +56,14 @@ func Audit(recorder OperationRecorder) gin.HandlerFunc {
 	}
 }
 
-// shouldAudit 只审计写操作，并排除认证接口，避免记录密码、验证码和令牌。
+// shouldAudit 只审计写操作，并排除所有 API 面的认证接口，避免记录密码、验证码和令牌。
 func shouldAudit(c *gin.Context) bool {
 	switch c.Request.Method {
 	case "POST", "PUT", "PATCH", "DELETE":
 	default:
 		return false
 	}
-	path := c.Request.URL.Path
-	return !strings.HasPrefix(path, "/admin/v1/auth/")
+	return !strings.Contains(c.Request.URL.Path, "/auth/")
 }
 
 // bodyCapture 在读取请求体的同时把内容复制到缓冲区，超过上限后停止复制。

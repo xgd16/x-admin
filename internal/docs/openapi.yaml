@@ -1,12 +1,14 @@
 openapi: 3.0.3
 info:
   title: x-admin API
-  description: 通用 RBAC 管理后台 API。所有响应统一为 `{code,message,data,request_id}`。
+  description: 通用 RBAC 管理后台 API，支持 admin 与 go tool xadmin create api 生成的自定义 API 面。所有响应统一为 `{code,message,data,request_id}`。
   version: 1.0.0
 servers:
   - url: /
     description: Same origin (Nginx / Vite proxy)
 tags:
+  - name: Surface
+    description: API 面存活检查（admin 与 create api 生成的自定义面）
   - name: Auth
     description: 验证码、登录、刷新、当前用户
   - name: Dashboard
@@ -26,6 +28,21 @@ tags:
 security:
   - bearerAuth: []
 paths:
+  /admin/v1/ping:
+    get:
+      tags: [Surface]
+      summary: 管理端存活检查
+      security: []
+      responses:
+        '200':
+          description: API 面名称与状态
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  api: { type: string, example: admin }
+                  status: { type: string, example: ok }
   /admin/v1/auth/captcha:
     get:
       tags: [Auth]

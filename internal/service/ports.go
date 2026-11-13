@@ -38,6 +38,15 @@ type UserRepository interface {
 	CountByStatus(ctx context.Context, status *int8) (int64, error)
 }
 
+// APIUserRepository 定义自定义 API 面终端用户的读写能力。
+// table 由 API 面配置决定，每个面一张独立表。
+type APIUserRepository interface {
+	Create(ctx context.Context, table string, user *model.APIUser) error
+	FindByUsername(ctx context.Context, table, username string) (*model.APIUser, error)
+	Get(ctx context.Context, table string, id uint64) (*model.APIUser, error)
+	UpdateFields(ctx context.Context, table string, id uint64, fields map[string]any) error
+}
+
 // RoleRepository 定义角色数据的读写能力。
 type RoleRepository interface {
 	Create(ctx context.Context, role *model.Role) error

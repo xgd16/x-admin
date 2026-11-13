@@ -23,6 +23,17 @@ server:
     - 172.16.0.0/12
     - 192.168.0.0/16
 
+# 多 API 面：框架默认只挂载后台 /admin/v1。
+# 需要客户端、商户端或其他 API 面时，先运行：
+#   go tool xadmin create api --name client --version v1 --auth --table client_users
+# 再把生成的 api.client 配置加到这里。
+#
+# 每个面拥有独立路径前缀、限流桶和 JWT issuer；--auth 生成面还需要 table。
+api:
+  admin:
+    enabled: true
+    prefix: /admin/v1
+
 database:
   dsn: root:change-me@tcp(127.0.0.1:3306)/xadmin?charset=utf8mb4&parseTime=True&loc=Local
   max_open_conns: 50

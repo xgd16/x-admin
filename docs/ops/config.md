@@ -39,6 +39,38 @@ server:
 
 > 后端直接暴露公网时应收紧 `trusted_proxies`；放在 Nginx 后面时要包含 Nginx 的网段，否则 `ClientIP` 全是代理 IP，限流和审计失真。
 
+## 1.1 多 API 面
+
+```yaml
+# 框架默认只有后台面；
+# client / merchant / partner 等面由 create api 生成后写入。
+api:
+  admin:
+    enabled: true
+    prefix: /admin/v1
+  # client:
+  #   enabled: true
+  #   prefix: /client/v1
+  #   table: client_users
+```
+
+| 字段 | 默认 | 环境变量 | 说明 |
+| --- | --- | --- | --- |
+| `api.admin.enabled` | `true` | `X_ADMIN_API_ADMIN_ENABLED` | 是否挂载后台 API |
+| `api.admin.prefix` | `/admin/v1` | `X_ADMIN_API_ADMIN_PREFIX` | 后台路径前缀 |
+| `api.admin.issuer` | `jwt.issuer` | `X_ADMIN_API_ADMIN_ISSUER` | 后台令牌 issuer |
+| `api.<name>.enabled` | `false` | — | 自定义面是否挂载 |
+| `api.<name>.prefix` | — | — | 自定义面路径前缀 |
+| `api.<name>.table` | — | — | `create api --auth` 生成的用户表名 |
+| `api.<name>.issuer` | `jwt.issuer:<name>` | — | 自定义面令牌 issuer |
+
+- 框架不预置 client / merchant 路由；先运行 `go tool xadmin create api --name client --version v1`。
+- 不同 API 面的前缀和 issuer 都不能重复；启动校验会直接拒绝冲突配置。
+- 前缀不能是 `/`，不能以 `/` 结尾，不能包含 `//`，也不能占用 `/healthz`、`/uploads`、`/swagger` 及其子路径。
+- 自定义面生成后先只有 `/ping`，业务路由与认证按 [多 API 模式](../guide/multi-api.md) 接入。
+- `go tool xadmin create api` 会打印对应的 `api.<name>` 配置片段，见 [代码生成](../tool/create.md)。
+- 修改前缀后要同步 Nginx 反代、Vite 代理和前端 `VITE_API_BASE`。
+
 ## 2. 数据库
 
 ```yaml

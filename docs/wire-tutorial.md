@@ -186,7 +186,7 @@ wire 怎么知道顺序？看构造函数的**参数类型**：handler 要 `*Ann
 
 ### 第 8 步：把 handler 挂到路由上（这步是手动的，wire 不管）
 
-打开 `internal/router/router.go`：
+打开 `internal/router/router.go` 添加 `Handlers` 字段，然后到 `internal/router/admin.go` 的 `registerAdminRoutes` 注册路由：
 
 ```go
 // ① Handlers 结构体加字段（wire 会自动填这个字段，你不用在任何地方 new 它）
@@ -195,11 +195,8 @@ type Handlers struct {
 	Announcement *handler.AnnouncementHandler
 }
 
-// ② 在合适的位置注册路由（照抄别的模块的写法）
-sys := api.Group("/announcements")
-{
-	sys.GET("", d.Handlers.Announcement.List)
-}
+// ② 在 admin.go 合适的位置注册路由（照抄别的模块的写法）
+secured.GET("/announcements", middleware.Require("system:announcement:list"), d.Handlers.Announcement.List)
 ```
 
 > 为什么字段不用手动赋值？注入器里有 `wire.Struct(new(router.Handlers), "*")`——把 Handlers 的**所有字段**都用对应类型的提供者填满。这也是清单的一部分，永远不用改。
@@ -284,7 +281,8 @@ func provideAnnouncementService(...) (*service.AnnouncementService, func(), erro
    repository/wire.go  → 构造器 + wire.Bind（两行！）
    service/wire.go     → 构造器（一行）
    handler/wire.go     → 构造器（一行）
-   router/router.go    → Handlers 字段 + 路由（手动，wire 不管）
+   router/router.go    → Handlers 字段（手动，wire 不管）
+   router/admin.go     → 路由注册（手动）
 
 收尾：make wire && go build ./...
 

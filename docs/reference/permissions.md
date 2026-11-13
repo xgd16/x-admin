@@ -2,6 +2,8 @@
 
 权限码格式 `模块:资源:动作`，来自 `sys_menus.permission`。后端 `middleware.Require`、前端 `can()`、菜单按钮节点三处必须一致。
 
+> 多 API 面：`system:*` 等后台权限码只用于 `admin` 面。client / merchant 等自定义面有自己的身份体系，不应复用后台权限码；接入方式见 [多 API 模式](../guide/multi-api.md)。
+
 > 下表的菜单 ID 来自种子数据 `migrations/000001_init.up.sql`。以数据库实际数据为准；新增模块时不要复用这些 ID。
 
 ## 1. 解析规则

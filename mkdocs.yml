@@ -94,6 +94,7 @@ nav:
   - 开发指南:
       - 本地开发与快速上手: guide/getting-started.md
       - 架构与请求生命周期: guide/architecture.md
+      - 多 API 模式: guide/multi-api.md
       - 新增一个业务模块: guide/adding-a-module.md
   - 后端开发:
       - 认证、会话与二次验证: backend/auth.md
@@ -123,6 +124,7 @@ nav:
       - 排错手册: ops/troubleshooting.md
   - 工具链:
       - 框架升级工具: tool/upgrade.md
+      - 代码生成（create）: tool/create.md
   - 参考:
       - 系统实现规格（SPEC）: spec.md
       - API 一览与错误码: reference/api.md

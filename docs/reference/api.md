@@ -1,6 +1,25 @@
 # API 一览与错误码
 
-统一前缀 `/admin/v1`。路由与权限码的**唯一事实来源**是 `internal/router/router.go`；Swagger 定义在 `internal/docs/openapi.yaml`，覆盖核心接口，但异步导出与日志导出以本文和路由为准。
+默认后台前缀 `/admin/v1`。框架支持多个独立 API 面，但默认只挂载 admin；client、merchant、partner 等面由 `go tool xadmin create api` 生成。每个面有独立前缀、限流桶和 JWT issuer，令牌互不通用。路由与权限码的**唯一事实来源**是 `internal/router/`；Swagger 定义在 `internal/docs/openapi.yaml`，覆盖核心接口，但异步导出与日志导出以本文和路由为准。
+
+## 0. API 面
+
+| API 面 | 默认前缀 | JWT issuer | 状态 |
+| --- | --- | --- | --- |
+| `admin` | `/admin/v1` | `jwt.issuer` | 默认唯一内置面，后台接口已实现 |
+| 自定义面 | `create api` 指定 | `jwt.issuer:<name>` | 例如 client、merchant、partner，由用户生成 |
+
+所有面都提供公开的 `GET /ping`，返回 `{api,status}`。生成、启用或修改前缀见 [多 API 模式](../guide/multi-api.md) 与 [代码生成](../tool/create.md)。
+
+`create api --auth` 生成的自定义面额外提供：
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| POST | `/auth/register` | 注册并返回 token |
+| POST | `/auth/login` | 登录 |
+| POST | `/auth/refresh` | 刷新 token |
+| POST | `/auth/logout` | 退出登录（需要 access token） |
+| GET | `/auth/me` | 当前用户资料（需要 access token） |
 
 ## 1. 通用约定
 

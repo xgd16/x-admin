@@ -18,7 +18,7 @@ cmd/server
 | --- | --- | --- | --- |
 | 入口 | `cmd/server` | 加载配置、启动 HTTP、优雅退出 | 写业务 |
 | 装配 | `internal/bootstrap` | 创建基础设施、repo、service、handler、router | 写业务 |
-| 路由 | `internal/router` | 声明全部端点与所需权限码 | 写业务 |
+| 路由 | `internal/router` | 声明全部端点与所需权限码；admin 内置，其他 API 面由 create 生成 | 写业务 |
 | 中间件 | `internal/middleware` | 请求 ID、恢复、日志、CORS、审计、鉴权、限流 | 访问数据库 |
 | 协议 | `internal/handler` | 参数绑定、校验入口、统一响应 | 直接访问 DB、写业务规则 |
 | 业务 | `internal/service` | 业务规则、事务编排、权限约束、通知 | 依赖 Gin |
@@ -96,12 +96,25 @@ handler          response.OK → {code:0,message:"ok",data,request_id}
 
 ### 4.2 权限码
 
-- 路由集中声明在 `internal/router/router.go`，每个受保护路由都带 `middleware.Require("system:xxx:yyy")`。
+- 后台路由集中声明在 `internal/router/admin.go`，每个受保护路由都带 `middleware.Require("system:xxx:yyy")`。
 - `super_admin` 在 `Principal.Has` 中直接返回 true，不走权限集合。
 - 普通用户的权限码来自「启用角色 → 授权菜单 → `sys_menus.permission`」。
 - 前端 `can()` 只决定按钮显隐，最终授权永远以后端 `Require` 为准。
 
 详见 [权限体系（RBAC）](../backend/rbac.md)。
+
+### 4.3 API 面
+
+路由按 API 面拆分，不再把所有接口都写在 `/admin/v1` 下：
+
+| 面 | 前缀 | 认证 |
+| --- | --- | --- |
+| API 面 | 前缀 | 认证 |
+| --- | --- | --- |
+| `admin` | `/admin/v1` | 后台 JWT + `sys_users` + 权限码 |
+| 自定义面 | `create api` 指定 | 按需接入 JWT / API Key / 签名 |
+
+框架默认只内置 `admin`。client、merchant、partner 等面由 `go tool xadmin create api` 生成，生成后写入 `api.<name>` 配置即可挂载。每个面在 `Surface` 中声明前缀、限流桶和认证中间件，公共挂载逻辑在 `internal/router/surface.go`。不同面使用不同 JWT issuer，token 不能跨面使用。接入方式见 [多 API 模式](multi-api.md)，handler 脚手架用 [代码生成](../tool/create.md)。
 
 ## 5. 错误处理
 
@@ -131,7 +144,7 @@ return apperr.Wrap(err, apperr.CodeInternal, "文件保存失败")
 
 ## 7. 前后端边界
 
-- 后端只返回 JSON，统一前缀 `/admin/v1`；文件通过 `/uploads` 提供，但需要鉴权。
+- 后端只返回 JSON：后台默认前缀 `/admin/v1`，自定义 API 面按生成时的前缀挂载；文件通过 `/uploads` 提供，但需要鉴权。
 - 前端 `api/client.ts` 负责令牌注入、401 单飞刷新、错误封装、上传与下载。
 - 登录后 `/auth/me` 返回用户、权限码、菜单树；前端据此生成导航，但页面路由是静态注册的（未知菜单路径不会渲染页面）。
 - 前后端权限码必须一致：新增按钮权限时，后端 `Require`、种子菜单、前端 `can()` 三处都要改。
@@ -145,5 +158,6 @@ return apperr.Wrap(err, apperr.CodeInternal, "文件保存失败")
 | 新增导出模块 | `ExportBuilders()` + `provideExportService` |
 | 替换文件存储为对象存储 | 实现 `storage.Store`，替换 `provideStorage` |
 | 新增缓存实现 | 实现 `cache.Store`，替换 `newCache` |
+| 新增 API 面/接入客户端认证 | 参考 [多 API 模式](multi-api.md)、[代码生成](../tool/create.md) |
 | 新增认证体系（C 端） | 参考 [前台用户认证](../front-auth.md) |
 | 新增前端页面 | `App.tsx` 路由 + `config/nav.ts` + `pages/` |

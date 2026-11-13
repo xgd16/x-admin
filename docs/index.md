@@ -38,6 +38,14 @@ hide:
 
     [:octicons-arrow-right-24: 阅读](guide/architecture.md)
 
+-   :material-api:{ .lg .middle } __多 API 模式__
+
+    ---
+
+    后台默认 API + 用 create 生成带 JWT 的客户端、商户端等并行 API 面，独立前缀、限流与 issuer。
+
+    [:octicons-arrow-right-24: 接入](guide/multi-api.md)
+
 -   :material-puzzle-outline:{ .lg .middle } __新增一个业务模块__
 
     ---

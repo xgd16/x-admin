@@ -56,7 +56,7 @@ api.post('/export-tasks', {
 
 ## 3. API 一览
 
-路由注册在 `internal/router/router.go`（前缀 `/admin/v1`），全部走登录态：
+路由注册在 `internal/router/admin.go`（前缀 `/admin/v1`），全部走登录态：
 
 | 方法 | 路径 | 权限码 | 说明 |
 | --- | --- | --- | --- |

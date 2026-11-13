@@ -45,6 +45,7 @@ type Repos struct {
 	Notifications *repository.NotificationRepo
 	Passkeys      *repository.PasskeyRepo
 	Exports       *repository.ExportTaskRepo
+	APIUsers      *repository.APIUserRepo
 }
 
 type Services struct {
@@ -65,6 +66,7 @@ type Services struct {
 	Exports       *service.ExportService
 	Online        *service.OnlineService
 	Monitor       *service.MonitorService
+	SurfaceAuth   *service.SurfaceAuthService
 }
 
 type App struct {
@@ -123,7 +125,8 @@ func New(t *testing.T) *App {
 		Dicts: repository.NewDictRepo(db), Params: repository.NewParameterRepo(db),
 		Files: repository.NewFileRepo(db), Jobs: repository.NewJobRepo(db), Logs: repository.NewLogRepo(db),
 		Notifications: repository.NewNotificationRepo(db), Passkeys: repository.NewPasskeyRepo(db),
-		Exports: repository.NewExportTaskRepo(db),
+		Exports:  repository.NewExportTaskRepo(db),
+		APIUsers: repository.NewAPIUserRepo(db),
 	}
 	logs := service.NewLogService(repos.Logs, 64)
 	t.Cleanup(logs.Close)
@@ -157,6 +160,12 @@ func New(t *testing.T) *App {
 		Passkeys:      passkeySvc,
 		Dashboard:     service.NewDashboardService(repos.Users, repos.Roles, repos.Menus, repos.Files, repos.Jobs, repos.Logs),
 	}
+	services.SurfaceAuth = service.NewSurfaceAuthService(repos.APIUsers, store, hasher, 8, service.AuthOptions{
+		MaxLoginFails: cfg.Security.MaxLoginFails,
+		LockDuration:  cfg.Security.LockDuration,
+		RefreshTTL:    cfg.JWT.RefreshTTL,
+		SessionTTL:    cfg.JWT.SessionTTL,
+	})
 	scheduler := jobs.New()
 	services.Jobs = service.NewJobService(repos.Jobs, scheduler, func(context.Context, *model.Job) error { return nil }, store)
 	services.Logs = logs
@@ -188,9 +197,17 @@ func New(t *testing.T) *App {
 		Online:       handler.NewOnlineHandler(services.Online),
 		Monitor:      handler.NewMonitorHandler(services.Monitor),
 	}
+	surfaceTokens := map[string]*security.TokenManager{"admin": tokens}
+	for name, sc := range cfg.API.Surfaces() {
+		if name != "admin" {
+			surfaceTokens[name] = security.NewTokenManager(cfg.JWT.Secret, sc.IssuerFor(cfg.JWT.Issuer, name), cfg.JWT.AccessTTL)
+		}
+	}
 	engine := router.New(router.Deps{
 		Config: cfg, Tokens: tokens, Auth: authSvc, Captcha: captchaGen, Cache: store,
 		Recorder: logs, Handlers: handlers, Shares: services.Files, Health: func(context.Context) error { return nil },
+		SurfaceAuthService: services.SurfaceAuth,
+		SurfaceTokens:      surfaceTokens,
 	})
 
 	return &App{

@@ -70,7 +70,7 @@ cp .env.example .env
 make compose-up
 ```
 
-打开 http://localhost 。Compose 会构建后端二进制与前端静态资源，Nginx 托管 SPA 并反代 `/admin/v1`、`/uploads`、`/swagger`、`/healthz`。
+打开 http://localhost 。Compose 会构建后端二进制与前端静态资源，Nginx 托管 SPA 并反代 `/admin/v1`、`/uploads`、`/swagger`、`/healthz`。生成自定义 API 面后再补充对应反代。
 
 ### 3.3 只用环境变量跑后端
 
@@ -111,6 +111,15 @@ go run ./cmd/server -config ""
 | `make dev-infra` / `dev-infra-down` | 启停开发用 MySQL / Redis |
 | `make compose-up` / `compose-down` / `compose-logs` | 完整栈启停与日志 |
 
+代码生成：
+
+```bash
+go tool xadmin create api --name client --version v1 --auth --table client_users
+go tool xadmin create handler --api client --version v1 --name order --path /orders
+```
+
+说明见 [代码生成（create）](../tool/create.md)。
+
 ## 6. 目录速查
 
 ```text
@@ -138,7 +147,7 @@ docs/                 本站源文件
 
 | 你想做的事 | 入口 |
 | --- | --- |
-| 加一个接口 | `internal/router/router.go` → handler → service → repository |
+| 加一个接口 | `internal/router/admin.go`（或 create api 生成的 API 面）→ handler → service → repository |
 | 加一个权限点 | 菜单管理新增按钮节点，或迁移里写 `sys_menus` |
 | 加一个定时任务 handler | `internal/bootstrap/providers.go` 的 `provideJobExecutor` |
 | 加一个导出模块 | 业务 Service 实现 `ExportBuilders()`，在 `provideExportService` 注册 |

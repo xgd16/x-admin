@@ -527,3 +527,14 @@ fields:
 - 生成后运行 `go build ./...` / `go vet ./...` 自检。
 
 这样"新增业务模块"和"升级框架"可以共用同一套版本感知的工具链。
+
+## 代码生成
+
+`go tool xadmin` 还提供按 API 面/版本分层的脚手架生成：
+
+```bash
+go tool xadmin create api --name client --version v1 --auth --table client_users
+go tool xadmin create handler --api client --version v1 --name order --path /orders
+```
+
+详见 [代码生成（create）](create.md)。

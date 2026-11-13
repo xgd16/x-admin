@@ -2,6 +2,7 @@
 
 /**
  * Vite 开发服务器、构建与 Vitest 配置；/admin/v1 和 /uploads 代理到本地 Go 服务。
+ * 生成 client/merchant 等自定义 API 面后，在这里补充对应前缀的代理。
  */
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
