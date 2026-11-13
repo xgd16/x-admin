@@ -79,17 +79,20 @@ GET  /client/v1/auth/me
 
 注册/登录/刷新返回 `access_token`、`refresh_token` 和当前用户；用户表由迁移创建，表名来自 `--table` 或默认 `<name>_users`。迁移编号默认取当前最大编号 + 1（例如只有 `000001_init` 时生成 `000002_client_users`），保证新迁移排在已有迁移之后。
 
-同时打印配置片段：
+同时自动写入 `configs/config.yaml` 的 `api` 段，并按 API 面名称排序：
 
 ```yaml
 api:
+  admin:
+    enabled: true
+    prefix: /admin/v1
   client:
     enabled: true
     prefix: /client/v1
     table: client_users
 ```
 
-把片段加入 `configs/config.yaml` 后，`/client/v1` 面才会挂载。生成的路由工厂通过 `init()` 自动注册，不需要改 `router.go`。
+写入后 `/client/v1` 面才会挂载；重复执行只更新同一个面。排序只移动 API 面的原文块，面内注释和空行原样保留。还没有 `configs/config.yaml` 时工具会退回到打印片段；也可以加 `--no-config` 让它只打印不改文件。生成的路由工厂通过 `init()` 自动注册，不需要改 `router.go`。
 
 继续添加业务 handler：
 

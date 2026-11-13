@@ -181,6 +181,7 @@ func RunDoctor(ctx context.Context, opts DoctorOptions) ([]Check, error) {
 				add("配置差异", CheckWarn, detail)
 			}
 			removed, _ := ConfigRemovedKeys(example, user)
+			removed = filterGeneratedSurfaceKeys(removed)
 			if len(removed) > 0 {
 				add("废弃配置", CheckWarn, fmt.Sprintf("本地有 %d 个模板已不存在的键：%s", len(removed), strings.Join(limitStrings(configKeys(removed), 8), ", ")))
 			}

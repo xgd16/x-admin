@@ -68,7 +68,7 @@ api:
 - 不同 API 面的前缀和 issuer 都不能重复；启动校验会直接拒绝冲突配置。
 - 前缀不能是 `/`，不能以 `/` 结尾，不能包含 `//`，也不能占用 `/healthz`、`/uploads`、`/swagger` 及其子路径。
 - 自定义面生成后先只有 `/ping`，业务路由与认证按 [多 API 模式](../guide/multi-api.md) 接入。
-- `go tool xadmin create api` 会打印对应的 `api.<name>` 配置片段，见 [代码生成](../tool/create.md)。
+- `go tool xadmin create api` 会自动把对应的 `api.<name>` 写入 `configs/config.yaml`，并按名称排序；没有配置文件时只打印片段，见 [代码生成](../tool/create.md)。
 - 修改前缀后要同步 Nginx 反代、Vite 代理和前端 `VITE_API_BASE`。
 
 ## 2. 数据库

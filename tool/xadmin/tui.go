@@ -724,6 +724,7 @@ func (m *tuiModel) viewForm() string {
 			check = "[x]"
 		}
 		b.WriteString("\n  " + check + " 生成 JWT 认证（注册/登录/刷新/登出/me） · ctrl+t 切换\n")
+		b.WriteString("  " + tuiMutedStyle.Render("提交后写入 configs/config.yaml（存在时），api 段按名称排序") + "\n")
 	}
 	b.WriteString("\n")
 	b.WriteString(m.footer("tab 切换 · enter 提交 · esc 返回"))

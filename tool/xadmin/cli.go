@@ -95,6 +95,7 @@ const createHelp = `x-admin 代码生成
     internal/router/<api>_<version>_<name>.go
 
   生成的路由模块通过 init 自动注册，不需要手动修改 router.go。
+  create api 会自动写入 configs/config.yaml 的 api 段，并按名称排序。
   业务逻辑仍需要在 handler 中接入 service。
 
 常用:
@@ -110,6 +111,7 @@ create api:
   --migration <n>     认证表迁移编号，默认取当前最大编号 + 1
   --dir .             项目目录
   --force             覆盖已存在的生成文件
+  --no-config         不写入 configs/config.yaml，只输出配置片段
   --json              输出机器可读 JSON
 
 create handler:
@@ -563,6 +565,7 @@ func runCreateAPI(args []string) int {
 	fs.StringVar(&opts.Table, "table", "", "认证用户表名，默认 <name>_users")
 	fs.StringVar(&opts.Migration, "migration", "", "认证表的迁移编号，默认取当前最大编号 + 1")
 	fs.BoolVar(&opts.Force, "force", false, "覆盖已存在的生成文件")
+	fs.BoolVar(&opts.NoConfig, "no-config", false, "不写入 configs/config.yaml，只输出配置片段")
 	fs.BoolVar(&jsonOut, "json", false, "输出机器可读 JSON")
 	if err := fs.Parse(args); err != nil {
 		return 1
@@ -638,7 +641,9 @@ func printCreateResultTo(w io.Writer, result *CreateResult) {
 	if result.Auth {
 		fmt.Fprintf(w, "\n认证：JWT（表 %s，迁移 %s）\n", result.Table, result.Migration)
 	}
-	if result.Config != "" {
+	if result.ConfigPath != "" {
+		fmt.Fprintf(w, "\n✔ 已写入 %s（api 段按名称排序）\n", result.ConfigPath)
+	} else if result.Config != "" {
 		fmt.Fprintln(w, "\n配置（加入 configs/config.yaml）：")
 		fmt.Fprint(w, result.Config)
 	}

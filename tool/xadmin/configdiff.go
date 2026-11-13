@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -57,6 +58,20 @@ func ConfigRemovedKeys(example, user []byte) ([]ConfigChange, error) {
 	}
 	sort.Slice(removed, func(i, j int) bool { return removed[i].Key < removed[j].Key })
 	return removed, nil
+}
+
+// filterGeneratedSurfaceKeys 过滤 create api 生成的自定义 API 面键。
+// config.example.yaml 只有内置 admin 面，api.client 等键来自 create api，不算废弃配置。
+func filterGeneratedSurfaceKeys(in []ConfigChange) []ConfigChange {
+	out := in[:0]
+	for _, change := range in {
+		parts := strings.Split(change.Key, ".")
+		if len(parts) >= 2 && parts[0] == "api" && parts[1] != "admin" {
+			continue
+		}
+		out = append(out, change)
+	}
+	return out
 }
 
 // FlattenYAML 把嵌套 YAML 展平成 a.b.c -> 值字符串。

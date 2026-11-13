@@ -1071,7 +1071,7 @@ go tool xadmin create api --name client --version v1 --auth --table client_users
 go tool xadmin create handler --api client --version v1 --name order --path /orders
 ```
 
-生成器会创建 `internal/handler/<api>/<version>/` 与 `internal/router/` 下的自动注册文件，详细说明见 [`docs/tool/create.md`](./docs/tool/create.md)。
+生成器会创建 `internal/handler/<api>/<version>/` 与 `internal/router/` 下的自动注册文件，并把 `api.<name>` 自动写入 `configs/config.yaml` 的 `api` 段（按名称排序），详细说明见 [`docs/tool/create.md`](./docs/tool/create.md)。
 
 约定：
 

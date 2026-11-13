@@ -67,6 +67,7 @@ go tool xadmin create api --name client --version v1 --auth --table client_users
 | `--migration` | 否 | 当前最大编号 + 1 | 用户表迁移编号 |
 | `--dir` | 否 | `.` | 项目根目录 |
 | `--force` | 否 | `false` | 覆盖已存在的生成文件 |
+| `--no-config` | 否 | `false` | 不自动写入 `configs/config.yaml`，只输出配置片段 |
 | `--json` | 否 | `false` | 输出机器可读 JSON |
 
 生成内容：
@@ -82,6 +83,9 @@ go tool xadmin create api --name client --version v1 --auth --table client_users
 3. `--auth` 额外生成 `migrations/<number>_<table>.up.sql` / `.down.sql`
    - 按 `<name>_users` 或 `--table` 建表；
    - 编号默认取当前 `migrations/` 的最大编号 + 1，保证新迁移排在已有迁移之后。已有 `001000+` 历史编号时继续往上加，不会回填更小的号。
+4. `configs/config.yaml`
+   - 自动写入 `api.<name>`（`enabled` / `prefix`，`--auth` 时再加 `table`）；
+   - `api` 段按 API 面名称 A-Z 排序，重复执行只更新同一项。
 
 ### 3.1 `--auth` 自动生成的接口
 
@@ -116,17 +120,23 @@ GET  /<prefix>/auth/me         当前用户资料（需要 access token）
 - access token 使用该面的独立 issuer，不能跨面使用；
 - refresh token、登录失败计数、会话缓存 key 都带 `auth:<surface>:` 前缀。
 
-生成后需要把配置片段加入 `configs/config.yaml`：
+`create api` 会自动把该面写入 `configs/config.yaml` 的 `api` 段，并保持该段按名称 A-Z 排序；重复执行只更新同一个面，不会产生重复配置：
 
 ```yaml
 api:
+  admin:
+    enabled: true
+    prefix: /admin/v1
   client:
     enabled: true
     prefix: /client/v1
     table: client_users
 ```
 
-`APIConfig` 支持任意 `api.<name>`；框架内置面只有 `admin`，client / merchant 由 `create api` 生成后写入配置。
+- 只重排 `api` 段内的 API 面原文块，面内字段、注释和空行原样保留，`api` 段外的内容不受影响；
+- 还没有 `configs/config.yaml`（未从模板复制）时退回打印片段，需要手动添加；
+- 不希望工具改动配置时加 `--no-config`，只输出配置片段；
+- `APIConfig` 支持任意 `api.<name>`；框架内置面只有 `admin`，client / merchant 由 `create api` 生成。
 
 ## 4. `create handler`
 

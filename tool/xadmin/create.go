@@ -21,6 +21,8 @@ type CreateAPIOptions struct {
 	Table     string
 	Migration string
 	Force     bool
+	// NoConfig 为 true 时不写入 configs/config.yaml，只输出配置片段。
+	NoConfig bool
 }
 
 // CreateHandlerOptions 描述新建 handler 的参数。
@@ -45,7 +47,9 @@ type CreateResult struct {
 	Migration string   `json:"migration,omitempty"`
 	Files     []string `json:"files"`
 	Config    string   `json:"config,omitempty"`
-	NextSteps []string `json:"next_steps,omitempty"`
+	// ConfigPath 是自动写入的配置文件；为空表示未写入，需要手动添加 Config 片段。
+	ConfigPath string   `json:"config_path,omitempty"`
+	NextSteps  []string `json:"next_steps,omitempty"`
 }
 
 var (
@@ -66,7 +70,8 @@ var builtinSurfaces = map[string]bool{
 //   - internal/router/<name>_<version>.go（init 中注册 Surface）
 //   - 开启 --auth 时额外生成用户表迁移，并在 Surface 中注册注册/登录/刷新/登出/me 接口
 //
-// 生成后需要在 configs/config.yaml 增加 api.<name> 配置才会挂载。
+// 生成后会自动写入 configs/config.yaml 的 api 段（按名称排序）；
+// 没有配置文件时只输出配置片段。
 func CreateAPI(opts CreateAPIOptions) (*CreateResult, error) {
 	workDir, err := prepareCreateDir(opts.Dir)
 	if err != nil {
@@ -154,9 +159,16 @@ func CreateAPI(opts CreateAPIOptions) (*CreateResult, error) {
 	if opts.Auth {
 		config += "    table: " + table + "\n"
 	}
-	steps := []string{
-		"把 config 片段加入 configs/config.yaml",
-		"运行 go build ./... 验证生成代码",
+	configPath := ""
+	if !opts.NoConfig {
+		configPath, err = writeSurfaceConfig(workDir, name, prefix, table)
+		if err != nil {
+			return nil, fmt.Errorf("%w；生成的文件已保留，可手动修正 %s 或加 --no-config 重试", err, surfaceConfigRel)
+		}
+	}
+	steps := []string{"运行 go build ./... 验证生成代码"}
+	if configPath == "" {
+		steps = append([]string{"把 config 片段加入 configs/config.yaml"}, steps...)
 	}
 	if opts.Auth {
 		steps = append(steps,
@@ -167,15 +179,16 @@ func CreateAPI(opts CreateAPIOptions) (*CreateResult, error) {
 	steps = append(steps, "继续用 go tool xadmin create handler --api "+name+" --version "+version+" --name <module> 添加业务接口")
 
 	return &CreateResult{
-		Kind:      "api",
-		Name:      name,
-		Version:   version,
-		Auth:      opts.Auth,
-		Table:     table,
-		Migration: migration,
-		Files:     created,
-		Config:    config,
-		NextSteps: steps,
+		Kind:       "api",
+		Name:       name,
+		Version:    version,
+		Auth:       opts.Auth,
+		Table:      table,
+		Migration:  migration,
+		Files:      created,
+		Config:     config,
+		ConfigPath: configPath,
+		NextSteps:  steps,
 	}, nil
 }
 
