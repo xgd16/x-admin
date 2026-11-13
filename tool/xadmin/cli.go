@@ -5,19 +5,24 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/mattn/go-isatty"
 )
 
 const rootHelp = `xadmin - x-admin 框架工具链
 
 用法:
-  go tool xadmin <command> [flags]
+  go tool xadmin                    打开交互式 TUI（终端中）
+  go tool xadmin <command> [flags]  使用文本命令
 
 命令:
+  tui               打开交互式界面：升级、生成、体检、回滚
   upgrade           一键升级：自动检测 + 计划 + 确认 + 合并 + 校验
   upgrade check     只检查 GitHub 最新 Release，对比当前版本
   upgrade init      写入框架版本基准（新 git init / 复制源码的项目用）
@@ -33,6 +38,7 @@ const rootHelp = `xadmin - x-admin 框架工具链
   version           打印工具和运行环境版本
 
 常用示例:
+  go tool xadmin
   go tool xadmin upgrade
   go tool xadmin upgrade plan --list
   go tool xadmin upgrade --yes
@@ -40,6 +46,7 @@ const rootHelp = `xadmin - x-admin 框架工具链
   go tool xadmin create handler --api client --version v1 --name order
   go tool xadmin doctor --online
 
+非交互环境（管道/CI）直接运行会输出本帮助；也可设置 XADMIN_NO_TUI=1 强制使用文本模式。
 运行 "go tool xadmin <command> -h" 查看命令参数。
 `
 
@@ -118,7 +125,15 @@ create handler:
 
 // Run 是工具入口，返回进程退出码。
 func Run(args []string) int {
+	noTUI := false
+	if len(args) > 0 && args[0] == "--no-tui" {
+		noTUI = true
+		args = args[1:]
+	}
 	if len(args) == 0 {
+		if !noTUI && shouldUseTUI() {
+			return runTUI()
+		}
 		fmt.Print(rootHelp)
 		return 0
 	}
@@ -126,6 +141,16 @@ func Run(args []string) int {
 	case "help", "-h", "--help":
 		fmt.Print(rootHelp)
 		return 0
+	case "tui":
+		if noTUI {
+			fmt.Print(rootHelp)
+			return 0
+		}
+		if !isTerminal(os.Stdin) || !isTerminal(os.Stdout) {
+			fmt.Fprintln(os.Stderr, "tui 需要交互式终端；请在终端中直接运行 go tool xadmin")
+			return 1
+		}
+		return runTUI()
 	case "version", "-v", "--version":
 		printVersion()
 		return 0
@@ -144,10 +169,14 @@ func Run(args []string) int {
 }
 
 func printVersion() {
-	fmt.Printf("xadmin tool %s\n", ToolVersion)
-	fmt.Printf("框架仓库   %s\n", DefaultRepo)
-	fmt.Printf("运行环境   %s/%s\n", runtime.GOOS, runtime.GOARCH)
-	fmt.Printf("Go 版本    %s\n", runtime.Version())
+	printVersionTo(os.Stdout)
+}
+
+func printVersionTo(w io.Writer) {
+	fmt.Fprintf(w, "xadmin tool %s\n", ToolVersion)
+	fmt.Fprintf(w, "框架仓库   %s\n", DefaultRepo)
+	fmt.Fprintf(w, "运行环境   %s/%s\n", runtime.GOOS, runtime.GOARCH)
+	fmt.Fprintf(w, "Go 版本    %s\n", runtime.Version())
 }
 
 func runUpgrade(args []string) int {
@@ -250,30 +279,11 @@ func runUpgradeInit(args []string) int {
 		fmt.Fprintln(os.Stderr, "需要 --from，例如：go tool xadmin upgrade init --from v1.3.0")
 		return 1
 	}
-	workDir, err := absProjectDir(*dir)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "目录无效: %v\n", err)
-		return 1
-	}
-	client := NewGitHubClient(*repo, tokenOrDefault(*token))
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
-	commit, err := client.ResolveCommit(ctx, *from)
+	state, _, err := InitBaseline(ctx, *repo, *token, *from, *dir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "解析版本 %q 失败: %v\n", *from, err)
-		return 1
-	}
-	state := State{Repo: *repo, Ref: strings.TrimSpace(*from), Commit: commit}
-	if err := WriteState(workDir, state); err != nil {
-		fmt.Fprintf(os.Stderr, "写入 %s: %v\n", StatePath, err)
-		return 1
-	}
-	versionRef := state.Ref
-	if _, ok := ParseVersion(versionRef); !ok {
-		versionRef = commit
-	}
-	if err := WriteFrameworkVersion(workDir, versionRef); err != nil {
-		fmt.Fprintf(os.Stderr, "写入 %s: %v\n", VersionPath, err)
+		fmt.Fprintf(os.Stderr, "%v\n", err)
 		return 1
 	}
 	if *jsonOut {
@@ -606,31 +616,36 @@ func runCreateHandler(args []string) int {
 }
 
 func printCreateResult(result *CreateResult) {
+	printCreateResultTo(os.Stdout, result)
+}
+
+// printCreateResultTo 把生成结果写进任意 writer，CLI 与 TUI 共用。
+func printCreateResultTo(w io.Writer, result *CreateResult) {
 	if result == nil {
 		return
 	}
 	switch result.Kind {
 	case "api":
-		fmt.Printf("✔ 已创建 API 面 %s %s\n", result.Name, result.Version)
+		fmt.Fprintf(w, "✔ 已创建 API 面 %s %s\n", result.Name, result.Version)
 	case "handler":
-		fmt.Printf("✔ 已创建 handler %s/%s/%s\n", result.API, result.Version, result.Name)
+		fmt.Fprintf(w, "✔ 已创建 handler %s/%s/%s\n", result.API, result.Version, result.Name)
 	default:
-		fmt.Printf("✔ 已生成 %s\n", result.Kind)
+		fmt.Fprintf(w, "✔ 已生成 %s\n", result.Kind)
 	}
 	for _, f := range result.Files {
-		fmt.Printf("  %s\n", f)
+		fmt.Fprintf(w, "  %s\n", f)
 	}
 	if result.Auth {
-		fmt.Printf("\n认证：JWT（表 %s，迁移 %s）\n", result.Table, result.Migration)
+		fmt.Fprintf(w, "\n认证：JWT（表 %s，迁移 %s）\n", result.Table, result.Migration)
 	}
 	if result.Config != "" {
-		fmt.Println("\n配置（加入 configs/config.yaml）：")
-		fmt.Print(result.Config)
+		fmt.Fprintln(w, "\n配置（加入 configs/config.yaml）：")
+		fmt.Fprint(w, result.Config)
 	}
 	if len(result.NextSteps) > 0 {
-		fmt.Println("\n下一步：")
+		fmt.Fprintln(w, "\n下一步：")
 		for i, step := range result.NextSteps {
-			fmt.Printf("  %d. %s\n", i+1, step)
+			fmt.Fprintf(w, "  %d. %s\n", i+1, step)
 		}
 	}
 }
@@ -720,11 +735,11 @@ func printDirtyWorktree(lines []string) {
 }
 
 func isTerminal(f *os.File) bool {
-	info, err := f.Stat()
-	if err != nil {
+	if f == nil {
 		return false
 	}
-	return info.Mode()&os.ModeCharDevice != 0
+	fd := f.Fd()
+	return isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
 }
 
 func confirm(prompt string) bool {

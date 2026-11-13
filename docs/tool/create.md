@@ -2,6 +2,8 @@
 
 `go tool xadmin create` 用于生成**按 API 面和版本分层**的 handler 脚手架。它不是一次性把所有业务层都生成出来，而是先把目录、处理器和路由注册方式固定下来，业务代码再逐步接入 service。
 
+> 也可以直接运行 `go tool xadmin`，在 TUI 中选择「创建 API 面」或「创建 Handler」填表生成，结果与本文命令一致。
+
 ## 1. 命令
 
 ```bash

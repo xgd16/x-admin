@@ -111,6 +111,8 @@ go run ./cmd/server -config ""
 | `make dev-infra` / `dev-infra-down` | 启停开发用 MySQL / Redis |
 | `make compose-up` / `compose-down` / `compose-logs` | 完整栈启停与日志 |
 
+工具入口：在终端直接运行 `go tool xadmin` 会打开交互式 TUI，也可以继续使用下面的文本命令。非交互环境或 `XADMIN_NO_TUI=1` 会输出帮助。说明见 [交互式界面（TUI）](../tool/tui.md)。
+
 代码生成：
 
 ```bash

@@ -123,6 +123,7 @@ nav:
       - 部署与发布: ops/deploy.md
       - 排错手册: ops/troubleshooting.md
   - 工具链:
+      - 交互式界面（TUI）: tool/tui.md
       - 框架升级工具: tool/upgrade.md
       - 代码生成（create）: tool/create.md
   - 参考:

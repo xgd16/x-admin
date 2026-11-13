@@ -21,8 +21,8 @@
 
 ```
 cmd/server/               进程入口，只做装配
-cmd/xadmin/               框架工具入口（go tool xadmin）
-tool/xadmin/              升级、代码生成（create）与体检工具
+cmd/xadmin/               框架工具入口（go tool xadmin，终端中打开 TUI）
+tool/xadmin/              升级、交互式界面（TUI）、代码生成（create）与体检工具
 .x-admin/framework.json   本地升级缓存（已忽略，不需要提交）
 FRAMEWORK_VERSION         当前项目同步到的框架版本（需要提交）
 internal/

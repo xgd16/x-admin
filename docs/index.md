@@ -90,9 +90,9 @@ hide:
 
     ---
 
-    `go tool xadmin`：三方合并升级、冲突处理、迁移撞号检查与构建校验。
+    `go tool xadmin`：交互式 TUI + 三方合并升级、冲突处理、迁移撞号检查与构建校验。
 
-    [:octicons-arrow-right-24: 阅读](tool/upgrade.md)
+    [:octicons-arrow-right-24: 阅读](tool/tui.md)
 
 -   :material-server-network:{ .lg .middle } __部署与排错__
 

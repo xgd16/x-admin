@@ -40,6 +40,7 @@ x-admin 是一套可直接用于中后台系统的全栈脚手架：后端提供
 - **前后端分离**：React SPA 由 Nginx 托管，后端以 `/admin/v1` 提供后台 JSON API。
 - **多 API 面**：默认只挂载后台 `/admin/v1`；`go tool xadmin create api` 可按需生成 client、merchant、partner 等独立 API 面，各自限流并使用不同 JWT issuer，令牌与后台互不通用。
 - **分层代码生成**：`go tool xadmin create api --auth` 直接生成独立用户表、完整 JWT 注册/登录/刷新/登出接口；`create handler` 按 API 面与版本生成 handler，新增接口不必改路由总表。
+- **交互式工具链**：终端直接运行 `go tool xadmin` 打开 TUI，集中完成升级、检查更新、代码生成、体检与回滚；文本命令仍然可用。
 - **RBAC 权限模型**：用户 → 角色 → 菜单/按钮；`super_admin` 跳过权限判断，其余按权限码授权。
 - **开箱即用的安全能力**：图形验证码、登录锁定、JWT + refresh 轮换、TOTP 双重验证、一次性恢复码、Passkey（WebAuthn）、限流、操作审计。
 - **完整业务模块**：看板、用户、角色、菜单、部门、字典、参数、文件、定时任务、操作/登录日志、个人中心、站内通知。
@@ -1055,6 +1056,8 @@ Cron 在进程内运行，每个副本都会注册任务。改为单副本、主
 7. **路由与权限**：后台路由在 `internal/router/admin.go` 注册并绑定权限码；生成器创建的自定义 API 面模块会自动挂载。
 8. **文档**：同步更新 `internal/docs/openapi.yaml`。
 9. **测试**：在 `tests/unit/service` 增加单测，必要时补 `tests/integration`。
+
+**交互式 TUI**：在终端直接运行 `go tool xadmin` 会打开交互式界面，集中提供升级、检查更新、创建 API/handler、项目体检、构建校验、回滚和初始化基准。文本命令保持不变；非交互环境（管道/CI）或设置 `XADMIN_NO_TUI=1` 时输出文本帮助。详见 [`docs/tool/tui.md`](./docs/tool/tui.md)。
 
 **升级框架版本**：在项目根目录运行 `go tool xadmin upgrade`，它会自动检测版本、生成计划、提示确认并完成三方合并与构建校验。需要先看计划用 `go tool xadmin upgrade plan`；新 `git init` 的项目先运行 `go tool xadmin upgrade init --from v1.3.0` 登记基准，不知道版本时直接跑 `upgrade`，工具会按文件指纹推断。完整说明见 [`docs/tool/upgrade.md`](./docs/tool/upgrade.md)。
 
