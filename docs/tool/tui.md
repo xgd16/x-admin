@@ -49,6 +49,7 @@ TUI 与文本命令调用的是同一套核心函数（`PrepareUpgrade`、`Execu
 | 表单 | `tab` / `↓` | 下一个字段 |
 | 表单 | `shift+tab` / `↑` | 上一个字段 |
 | 表单 | `ctrl+t` | 切换“生成 JWT 认证”（创建 API 面时） |
+| 表单 | `ctrl+j` | 切换“独立 JWT 配置”并自动生成 secret（创建 API 面时） |
 | 表单 | `enter` | 提交 |
 | 表单 | `esc` | 返回菜单 |
 | 计划/输出 | `↑` / `↓` / `pgup` / `pgdown` | 纵向滚动 |
@@ -87,7 +88,11 @@ go tool xadmin upgrade --in-place --with-tests
 - 路径前缀（默认 `/<name>/<version>`）
 - 认证用户表（默认 `<name>_users`）
 - 迁移编号（默认当前最大编号 + 1）
-- 是否生成 JWT 认证
+- 是否生成 JWT 认证（`ctrl+t`）
+- 是否使用独立 JWT 配置（`ctrl+j`）
+- 独立 JWT 的 secret、`access_ttl`、`refresh_ttl`、`session_ttl`
+
+开启独立 JWT 时会自动开启认证并生成 32 字节随机 secret；secret 留空会在提交时重新生成，TTL 默认 `2h` / `168h` / `12h`，支持 `30m`、`24h`、`30d`。提交后 `api.<name>.jwt` 会随其他配置一起写入 `configs/config.yaml`。
 
 提交后会在输出页展示生成的文件、配置写入结果和下一步操作。生成的迁移编号、路由注册方式与命令行完全一致；`configs/config.yaml` 存在时会自动写入 `api.<name>`，并按名称排序。
 

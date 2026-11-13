@@ -1,6 +1,8 @@
 package xadmin
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"go/format"
 	"os"
@@ -9,6 +11,14 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
+	"time"
+)
+
+// 独立 JWT 配置的默认有效期，与 internal/config.Default 保持一致。
+const (
+	defaultJWTAccessTTL  = 2 * time.Hour
+	defaultJWTRefreshTTL = 7 * 24 * time.Hour
+	defaultJWTSessionTTL = 12 * time.Hour
 )
 
 // CreateAPIOptions 描述新建 API 面的参数。
@@ -23,6 +33,100 @@ type CreateAPIOptions struct {
 	Force     bool
 	// NoConfig 为 true 时不写入 configs/config.yaml，只输出配置片段。
 	NoConfig bool
+	// JWT 不为空时为该 API 面生成独立的 JWT 配置（secret + 有效期）。
+	JWT *SurfaceJWTOptions
+}
+
+// SurfaceJWTOptions 是单个 API 面的独立 JWT 配置。
+type SurfaceJWTOptions struct {
+	Secret     string        `json:"secret,omitempty"`
+	AccessTTL  time.Duration `json:"access_ttl"`
+	RefreshTTL time.Duration `json:"refresh_ttl"`
+	SessionTTL time.Duration `json:"session_ttl"`
+}
+
+// NewSurfaceJWTOptions 构造面级 JWT 配置。
+// secret 为空时自动生成 32 字节随机密钥；TTL 为空时使用默认有效期。
+func NewSurfaceJWTOptions(secret, accessTTL, refreshTTL, sessionTTL string) (*SurfaceJWTOptions, error) {
+	out := &SurfaceJWTOptions{Secret: strings.TrimSpace(secret)}
+	var err error
+	if out.AccessTTL, err = parseJWTDuration(accessTTL, defaultJWTAccessTTL); err != nil {
+		return nil, fmt.Errorf("access_ttl: %w", err)
+	}
+	if out.RefreshTTL, err = parseJWTDuration(refreshTTL, defaultJWTRefreshTTL); err != nil {
+		return nil, fmt.Errorf("refresh_ttl: %w", err)
+	}
+	if out.SessionTTL, err = parseJWTDuration(sessionTTL, defaultJWTSessionTTL); err != nil {
+		return nil, fmt.Errorf("session_ttl: %w", err)
+	}
+	return normalizeSurfaceJWTOptions(out)
+}
+
+func parseJWTDuration(value string, fallback time.Duration) (time.Duration, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return fallback, nil
+	}
+	// 配置里用 time.Duration 语法，额外支持 d（天）和 w（周）方便输入。
+	lower := strings.ToLower(value)
+	if strings.HasSuffix(lower, "d") || strings.HasSuffix(lower, "w") {
+		unit := 24 * time.Hour
+		if strings.HasSuffix(lower, "w") {
+			unit = 7 * 24 * time.Hour
+		}
+		count, err := strconv.Atoi(strings.TrimSpace(value[:len(value)-1]))
+		if err != nil || count <= 0 {
+			return 0, fmt.Errorf("%q 不是有效时长，例如 30m、24h、30d", value)
+		}
+		return time.Duration(count) * unit, nil
+	}
+	d, err := time.ParseDuration(value)
+	if err != nil {
+		return 0, fmt.Errorf("%q 不是有效时长，例如 30m、24h、30d", value)
+	}
+	if d <= 0 {
+		return 0, fmt.Errorf("必须大于 0")
+	}
+	return d, nil
+}
+
+func normalizeSurfaceJWTOptions(in *SurfaceJWTOptions) (*SurfaceJWTOptions, error) {
+	if in == nil {
+		return nil, nil
+	}
+	out := *in
+	if out.Secret == "" {
+		secret, err := GenerateJWTSecret()
+		if err != nil {
+			return nil, err
+		}
+		out.Secret = secret
+	}
+	if len(out.Secret) < 16 {
+		return nil, fmt.Errorf("JWT secret 至少 16 个字符")
+	}
+	if out.AccessTTL < 0 || out.RefreshTTL < 0 || out.SessionTTL < 0 {
+		return nil, fmt.Errorf("JWT 有效期不能为负数")
+	}
+	if out.AccessTTL == 0 {
+		out.AccessTTL = defaultJWTAccessTTL
+	}
+	if out.RefreshTTL == 0 {
+		out.RefreshTTL = defaultJWTRefreshTTL
+	}
+	if out.SessionTTL == 0 {
+		out.SessionTTL = defaultJWTSessionTTL
+	}
+	return &out, nil
+}
+
+// GenerateJWTSecret 生成 32 字节随机密钥（hex 编码，64 个字符）。
+func GenerateJWTSecret() (string, error) {
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		return "", fmt.Errorf("生成 JWT 密钥: %w", err)
+	}
+	return hex.EncodeToString(buf), nil
 }
 
 // CreateHandlerOptions 描述新建 handler 的参数。
@@ -48,8 +152,9 @@ type CreateResult struct {
 	Files     []string `json:"files"`
 	Config    string   `json:"config,omitempty"`
 	// ConfigPath 是自动写入的配置文件；为空表示未写入，需要手动添加 Config 片段。
-	ConfigPath string   `json:"config_path,omitempty"`
-	NextSteps  []string `json:"next_steps,omitempty"`
+	ConfigPath string             `json:"config_path,omitempty"`
+	JWT        *SurfaceJWTOptions `json:"jwt,omitempty"`
+	NextSteps  []string           `json:"next_steps,omitempty"`
 }
 
 var (
@@ -98,6 +203,13 @@ func CreateAPI(opts CreateAPIOptions) (*CreateResult, error) {
 	}
 	if !opts.Auth && (opts.Table != "" || opts.Migration != "") {
 		return nil, fmt.Errorf("--table / --migration 只能与 --auth 一起使用")
+	}
+	if !opts.Auth && opts.JWT != nil {
+		return nil, fmt.Errorf("独立 JWT 配置只能与 --auth 一起使用")
+	}
+	jwt, err := normalizeSurfaceJWTOptions(opts.JWT)
+	if err != nil {
+		return nil, err
 	}
 
 	table := ""
@@ -159,9 +271,12 @@ func CreateAPI(opts CreateAPIOptions) (*CreateResult, error) {
 	if opts.Auth {
 		config += "    table: " + table + "\n"
 	}
+	if jwt != nil {
+		config += formatSurfaceJWTBlock(jwt)
+	}
 	configPath := ""
 	if !opts.NoConfig {
-		configPath, err = writeSurfaceConfig(workDir, name, prefix, table)
+		configPath, err = writeSurfaceConfigWithJWT(workDir, name, prefix, table, jwt)
 		if err != nil {
 			return nil, fmt.Errorf("%w；生成的文件已保留，可手动修正 %s 或加 --no-config 重试", err, surfaceConfigRel)
 		}
@@ -188,6 +303,7 @@ func CreateAPI(opts CreateAPIOptions) (*CreateResult, error) {
 		Files:      created,
 		Config:     config,
 		ConfigPath: configPath,
+		JWT:        jwt,
 		NextSteps:  steps,
 	}, nil
 }
@@ -612,6 +728,9 @@ import (
 
 func init() {
 	RegisterSurface("{{.APIName}}", func(d Deps, cfg config.APISurfaceConfig) Surface {
+		if !cfg.Enabled {
+			return Surface{Name: "{{.APIName}}", Prefix: cfg.Prefix, Enabled: false, Version: "{{.Version}}"}
+		}
 		tokens := d.SurfaceTokens["{{.APIName}}"]
 		if tokens == nil {
 			panic("api surface {{.APIName}}: token manager is not configured")

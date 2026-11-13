@@ -38,7 +38,7 @@ x-admin 是一套可直接用于中后台系统的全栈脚手架：后端提供
 ## 1. 项目简介
 
 - **前后端分离**：React SPA 由 Nginx 托管，后端以 `/admin/v1` 提供后台 JSON API。
-- **多 API 面**：默认只挂载后台 `/admin/v1`；`go tool xadmin create api` 可按需生成 client、merchant、partner 等独立 API 面，各自限流并使用不同 JWT issuer，令牌与后台互不通用。
+- **多 API 面**：默认只挂载后台 `/admin/v1`；`go tool xadmin create api` 可按需生成 client、merchant、partner 等独立 API 面，各自限流、独立 JWT issuer 和令牌密钥，令牌与后台互不通用；每个面还可以单独配置 secret 和 access/refresh/session 有效期。
 - **分层代码生成**：`go tool xadmin create api --auth` 直接生成独立用户表、完整 JWT 注册/登录/刷新/登出接口；`create handler` 按 API 面与版本生成 handler，新增接口不必改路由总表。
 - **交互式工具链**：终端直接运行 `go tool xadmin` 打开 TUI，集中完成升级、检查更新、代码生成、体检与回滚；文本命令仍然可用。
 - **RBAC 权限模型**：用户 → 角色 → 菜单/按钮；`super_admin` 跳过权限判断，其余按权限码授权。
@@ -1067,11 +1067,15 @@ Cron 在进程内运行，每个副本都会注册任务。改为单副本、主
 # 新建带完整 JWT 认证的 API 面（注册/登录/刷新/登出/me）
 go tool xadmin create api --name client --version v1 --auth --table client_users
 
+# 同时生成独立 JWT 配置：随机 secret + 独立过期时间
+go tool xadmin create api --name merchant --version v1 --auth --jwt-independent \
+  --jwt-access-ttl 30m --jwt-refresh-ttl 30d --jwt-session-ttl 6h
+
 # 在已生成的 API 面上新建 handler
 go tool xadmin create handler --api client --version v1 --name order --path /orders
 ```
 
-生成器会创建 `internal/handler/<api>/<version>/` 与 `internal/router/` 下的自动注册文件，并把 `api.<name>` 自动写入 `configs/config.yaml` 的 `api` 段（按名称排序），详细说明见 [`docs/tool/create.md`](./docs/tool/create.md)。
+生成器会创建 `internal/handler/<api>/<version>/` 与 `internal/router/` 下的自动注册文件，并把 `api.<name>`（含可选的 `jwt` 覆盖）自动写入 `configs/config.yaml` 的 `api` 段（按名称排序），详细说明见 [`docs/tool/create.md`](./docs/tool/create.md)。
 
 约定：
 

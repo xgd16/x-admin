@@ -79,7 +79,24 @@ type APISurfaceConfig struct {
 	Table string `yaml:"table"`
 	// Issuer 是可选的自定义 JWT issuer。为空时 admin 使用 jwt.issuer，
 	// 其他面使用 jwt.issuer:<name>，保证不同面的 access token 互不通用。
+	// 新配置推荐写在 jwt.issuer，两者同时存在时 jwt.issuer 优先。
 	Issuer string `yaml:"issuer"`
+	// JWT 覆盖该 API 面的令牌设置；未填写的字段沿用全局 jwt 配置。
+	JWT SurfaceJWTConfig `yaml:"jwt"`
+}
+
+// SurfaceJWTConfig 是单个 API 面的 JWT 覆盖配置。
+//
+// 所有字段都是可选的：
+//   - secret 为空时使用 jwt.secret；
+//   - access_ttl / refresh_ttl / session_ttl 为 0 时使用全局值；
+//   - issuer 为空时沿用 api.<name>.issuer 或 jwt.issuer(:<name>)。
+type SurfaceJWTConfig struct {
+	Secret     string        `yaml:"secret"`
+	Issuer     string        `yaml:"issuer"`
+	AccessTTL  time.Duration `yaml:"access_ttl"`
+	RefreshTTL time.Duration `yaml:"refresh_ttl"`
+	SessionTTL time.Duration `yaml:"session_ttl"`
 }
 
 // apiTableRe 限制 create api --auth 生成的表名，避免 SQL 注入和非法标识符。
@@ -100,6 +117,9 @@ func (c APIConfig) Surfaces() map[string]APISurfaceConfig {
 // IssuerFor 返回该 API 面使用的 JWT issuer。
 // admin 保持与旧版本一致直接使用 jwt.issuer；其他面追加面名称作为命名空间。
 func (s APISurfaceConfig) IssuerFor(baseIssuer, name string) string {
+	if issuer := strings.TrimSpace(s.JWT.Issuer); issuer != "" {
+		return issuer
+	}
 	if s.Issuer != "" {
 		return s.Issuer
 	}
@@ -107,6 +127,26 @@ func (s APISurfaceConfig) IssuerFor(baseIssuer, name string) string {
 		return baseIssuer
 	}
 	return baseIssuer + ":" + name
+}
+
+// JWTFor 返回该 API 面实际生效的 JWT 配置。
+// 面级字段优先，未填写的字段沿用全局 jwt。
+func (s APISurfaceConfig) JWTFor(base JWTConfig, name string) JWTConfig {
+	out := base
+	out.Issuer = s.IssuerFor(base.Issuer, name)
+	if s.JWT.Secret != "" {
+		out.Secret = s.JWT.Secret
+	}
+	if s.JWT.AccessTTL > 0 {
+		out.AccessTTL = s.JWT.AccessTTL
+	}
+	if s.JWT.RefreshTTL > 0 {
+		out.RefreshTTL = s.JWT.RefreshTTL
+	}
+	if s.JWT.SessionTTL > 0 {
+		out.SessionTTL = s.JWT.SessionTTL
+	}
+	return out
 }
 
 // DatabaseConfig 描述 MySQL DSN 与连接池参数。
@@ -313,6 +353,9 @@ func validateAPI(cfg Config) error {
 	tables := make(map[string]string)
 	reserved := map[string]bool{"/healthz": true, "/uploads": true, "/swagger": true}
 	for name, surface := range cfg.API.Surfaces() {
+		if err := validateSurfaceJWT(cfg, name, surface); err != nil {
+			return err
+		}
 		if !surface.Enabled {
 			continue
 		}
@@ -350,6 +393,36 @@ func validateAPI(cfg Config) error {
 				return fmt.Errorf("config: api.%s.table conflicts with api.%s.table", name, prev)
 			}
 			tables[table] = name
+		}
+	}
+	return nil
+}
+
+// validateSurfaceJWT 校验面级 JWT 覆盖配置。
+// 空值表示沿用全局配置；显式配置时必须满足与全局密钥相同的安全要求。
+func validateSurfaceJWT(cfg Config, name string, surface APISurfaceConfig) error {
+	if secret := surface.JWT.Secret; secret != "" {
+		if len(secret) < 16 {
+			return fmt.Errorf("config: api.%s.jwt.secret must be at least 16 chars", name)
+		}
+		if cfg.App.Env == "production" {
+			switch secret {
+			case Default().JWT.Secret, "change-me-x-admin-production-secret-2026":
+				return fmt.Errorf("config: default jwt secret is not allowed for api.%s in production", name)
+			}
+		}
+	}
+	durations := []struct {
+		name  string
+		value time.Duration
+	}{
+		{name: "access_ttl", value: surface.JWT.AccessTTL},
+		{name: "refresh_ttl", value: surface.JWT.RefreshTTL},
+		{name: "session_ttl", value: surface.JWT.SessionTTL},
+	}
+	for _, item := range durations {
+		if item.value < 0 {
+			return fmt.Errorf("config: api.%s.jwt.%s must not be negative", name, item.name)
 		}
 	}
 	return nil

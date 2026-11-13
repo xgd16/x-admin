@@ -48,14 +48,15 @@ func provideStorage(cfg config.Config) (storage.Store, error) {
 }
 
 func provideTokens(cfg config.Config) *security.TokenManager {
-	return security.NewTokenManager(cfg.JWT.Secret, cfg.JWT.Issuer, cfg.JWT.AccessTTL)
+	jwt := cfg.API.Admin.JWTFor(cfg.JWT, "admin")
+	return security.NewTokenManager(jwt.Secret, jwt.Issuer, jwt.AccessTTL)
 }
 
-// buildSurfaceTokens 为每个启用的 API 面创建独立 issuer 的 JWT 管理器。
+// buildSurfaceTokens 为每个启用的 API 面创建独立的 JWT 管理器。
 //
 // admin 继续使用原来的 TokenManager，保证升级后已有后台令牌仍然有效；
 // client / merchant 默认使用 jwt.issuer:<name>，签发的 access token 无法跨面使用。
-// 预留的 SurfaceAuth 接入时直接取对应的 TokenManager。
+// 面级 api.<name>.jwt 可以覆盖 secret、issuer 和 access_ttl。
 func buildSurfaceTokens(cfg config.Config, admin *security.TokenManager) map[string]*security.TokenManager {
 	out := make(map[string]*security.TokenManager, len(cfg.API.Surfaces()))
 	for name, surface := range cfg.API.Surfaces() {
@@ -66,8 +67,8 @@ func buildSurfaceTokens(cfg config.Config, admin *security.TokenManager) map[str
 		if !surface.Enabled {
 			continue
 		}
-		issuer := surface.IssuerFor(cfg.JWT.Issuer, name)
-		out[name] = security.NewTokenManager(cfg.JWT.Secret, issuer, cfg.JWT.AccessTTL)
+		jwt := surface.JWTFor(cfg.JWT, name)
+		out[name] = security.NewTokenManager(jwt.Secret, jwt.Issuer, jwt.AccessTTL)
 	}
 	return out
 }
@@ -98,16 +99,18 @@ func provideWebAuthn(cfg config.Config) *webauthn.WebAuthn {
 // ---- 服务适配：构造参数里的配置原语 / 字面量在这里现取 ----
 
 func provideAuthOptions(cfg config.Config) service.AuthOptions {
+	jwt := cfg.API.Admin.JWTFor(cfg.JWT, "admin")
 	return service.AuthOptions{
 		MaxLoginFails: cfg.Security.MaxLoginFails,
 		LockDuration:  cfg.Security.LockDuration,
-		RefreshTTL:    cfg.JWT.RefreshTTL,
-		SessionTTL:    cfg.JWT.SessionTTL,
+		RefreshTTL:    jwt.RefreshTTL,
+		SessionTTL:    jwt.SessionTTL,
 	}
 }
 
 // provideSurfaceAuthService 为 create api --auth 生成的自定义面提供认证服务。
-// 账号表由生成命令创建，服务只负责按 scope.Table 读写。
+// 账号表由生成命令创建，服务只负责按 scope.Table 读写；refresh/session 有效期
+// 按 API 面从 api.<name>.jwt 读取，未配置时沿用全局 jwt。
 func provideSurfaceAuthService(
 	users service.APIUserRepository,
 	store cache.Store,
@@ -115,7 +118,23 @@ func provideSurfaceAuthService(
 	cfg config.Config,
 	opts service.AuthOptions,
 ) *service.SurfaceAuthService {
-	return service.NewSurfaceAuthService(users, store, hasher, cfg.Security.PasswordMinLen, opts)
+	svc := service.NewSurfaceAuthService(users, store, hasher, cfg.Security.PasswordMinLen, opts)
+	svc.SetSurfaceOptions(buildSurfaceAuthOptions(cfg))
+	return svc
+}
+
+func buildSurfaceAuthOptions(cfg config.Config) map[string]service.AuthOptions {
+	out := make(map[string]service.AuthOptions, len(cfg.API.Surfaces()))
+	for name, surface := range cfg.API.Surfaces() {
+		jwt := surface.JWTFor(cfg.JWT, name)
+		out[name] = service.AuthOptions{
+			MaxLoginFails: cfg.Security.MaxLoginFails,
+			LockDuration:  cfg.Security.LockDuration,
+			RefreshTTL:    jwt.RefreshTTL,
+			SessionTTL:    jwt.SessionTTL,
+		}
+	}
+	return out
 }
 
 // provideLogService 审计日志队列长度固定为 2048；清理函数关闭审计队列。
@@ -299,7 +318,8 @@ func provideAuthHandler(
 	tokens *security.TokenManager,
 	cfg config.Config,
 ) *handler.AuthHandler {
-	return handler.NewAuthHandler(auth, gen, passkeys, tokens, cfg.App.Env == "production", cfg.JWT.RefreshTTL)
+	jwt := cfg.API.Admin.JWTFor(cfg.JWT, "admin")
+	return handler.NewAuthHandler(auth, gen, passkeys, tokens, cfg.App.Env == "production", jwt.RefreshTTL)
 }
 
 // provideRouter 装配 Gin 引擎；健康检查同时探测数据库与缓存。

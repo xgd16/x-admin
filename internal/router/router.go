@@ -57,7 +57,8 @@ type Deps struct {
 	Health   func(ctx context.Context) error // 健康检查依赖探测
 
 	// SurfaceTokens 是各 API 面的 JWT 管理器，键为面名称。
-	// admin 与 Tokens 指向同一个实例；自定义面使用独立 issuer。
+	// admin 与 Tokens 指向同一个实例；自定义面使用独立 issuer，
+	// 并可通过 api.<name>.jwt 覆盖 secret 和有效期。
 	SurfaceTokens map[string]*security.TokenManager
 	// SurfaceAuth 按 API 面提供认证中间件。未提供时该面只注册公开路由。
 	SurfaceAuth map[string]gin.HandlerFunc

@@ -52,6 +52,11 @@ api:
   #   enabled: true
   #   prefix: /client/v1
   #   table: client_users
+  #   jwt:
+  #     secret: 至少16个字符的独立密钥
+  #     access_ttl: 30m
+  #     refresh_ttl: 720h
+  #     session_ttl: 6h
 ```
 
 | 字段 | 默认 | 环境变量 | 说明 |
@@ -62,8 +67,16 @@ api:
 | `api.<name>.enabled` | `false` | — | 自定义面是否挂载 |
 | `api.<name>.prefix` | — | — | 自定义面路径前缀 |
 | `api.<name>.table` | — | — | `create api --auth` 生成的用户表名 |
-| `api.<name>.issuer` | `jwt.issuer:<name>` | — | 自定义面令牌 issuer |
+| `api.<name>.issuer` | `jwt.issuer:<name>` | — | 自定义面令牌 issuer（旧字段，`jwt.issuer` 优先） |
+| `api.<name>.jwt.secret` | `jwt.secret` | — | 面级 JWT 密钥，至少 16 字符 |
+| `api.<name>.jwt.issuer` | `api.<name>.issuer` / `jwt.issuer:<name>` | — | 面级令牌 issuer |
+| `api.<name>.jwt.access_ttl` | `jwt.access_ttl` | — | access token 有效期 |
+| `api.<name>.jwt.refresh_ttl` | `jwt.refresh_ttl` | — | 勾选“记住我”时的 refresh 有效期 |
+| `api.<name>.jwt.session_ttl` | `jwt.session_ttl` | — | 未勾选“记住我”时的 refresh 有效期 |
 
+- 面级 `api.<name>.jwt` 只覆盖写出的字段，其余继续沿用全局 `jwt`；`admin` 也支持覆盖。
+- 不同面的 issuer 不能重复；面级 `secret` 与全局密钥一样必须至少 16 字符，生产环境禁止使用默认值。
+- 独立 JWT 的 `refresh_ttl` / `session_ttl` 决定该面 refresh token 和登录会话的缓存有效期，`access_ttl` 决定 access token 过期时间。
 - 框架不预置 client / merchant 路由；先运行 `go tool xadmin create api --name client --version v1`。
 - 不同 API 面的前缀和 issuer 都不能重复；启动校验会直接拒绝冲突配置。
 - 前缀不能是 `/`，不能以 `/` 结尾，不能包含 `//`，也不能占用 `/healthz`、`/uploads`、`/swagger` 及其子路径。

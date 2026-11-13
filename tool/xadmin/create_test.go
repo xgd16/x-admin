@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func createTestProject(t *testing.T) string {
@@ -179,6 +180,69 @@ func TestCreateAPIAuthDefaultTableAndMigration(t *testing.T) {
 	}
 	if result.Migration != "001006" {
 		t.Fatalf("migration = %q, want 001006", result.Migration)
+	}
+}
+
+func TestCreateAPIWithIndependentJWT(t *testing.T) {
+	dir := createTestProject(t)
+	writeTestFile(t, dir, "configs/config.yaml", "api:\n  admin:\n    enabled: true\n    prefix: /admin/v1\n")
+
+	result, err := CreateAPI(CreateAPIOptions{
+		Dir: dir, Name: "client", Version: "v1", Auth: true,
+		JWT: &SurfaceJWTOptions{
+			Secret:     "0123456789abcdef0123456789abcdef",
+			AccessTTL:  30 * time.Minute,
+			RefreshTTL: 30 * 24 * time.Hour,
+			SessionTTL: 6 * time.Hour,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.JWT == nil {
+		t.Fatal("result.JWT is nil")
+	}
+	for _, want := range []string{
+		"secret: 0123456789abcdef0123456789abcdef",
+		"access_ttl: 30m",
+		"refresh_ttl: 720h",
+		"session_ttl: 6h",
+	} {
+		if !strings.Contains(result.Config, want) {
+			t.Fatalf("config snippet missing %q:\n%s", want, result.Config)
+		}
+	}
+	config := readCreateFile(t, dir, "configs/config.yaml")
+	if !strings.Contains(config, result.Config[strings.Index(result.Config, "    jwt:"):]) {
+		t.Fatalf("jwt block not written to config:\n%s", config)
+	}
+}
+
+func TestNewSurfaceJWTOptionsGeneratesSecret(t *testing.T) {
+	opts, err := NewSurfaceJWTOptions("", "", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(opts.Secret) != 64 {
+		t.Fatalf("secret length = %d, want 64", len(opts.Secret))
+	}
+	if opts.AccessTTL != 2*time.Hour || opts.RefreshTTL != 168*time.Hour || opts.SessionTTL != 12*time.Hour {
+		t.Fatalf("unexpected defaults: %+v", opts)
+	}
+	if _, err := NewSurfaceJWTOptions("short", "2h", "24h", "12h"); err == nil {
+		t.Fatal("expected short secret error")
+	}
+	if _, err := NewSurfaceJWTOptions("0123456789abcdef", "bad", "24h", "12h"); err == nil {
+		t.Fatal("expected invalid duration error")
+	}
+}
+
+func TestCreateAPIRejectsJWTWithoutAuth(t *testing.T) {
+	dir := createTestProject(t)
+	if _, err := CreateAPI(CreateAPIOptions{
+		Dir: dir, Name: "client", JWT: &SurfaceJWTOptions{Secret: "0123456789abcdef"},
+	}); err == nil {
+		t.Fatal("expected JWT without auth error")
 	}
 }
 

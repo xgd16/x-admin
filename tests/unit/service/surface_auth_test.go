@@ -2,6 +2,8 @@ package service_test
 
 import (
 	"context"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -10,6 +12,7 @@ import (
 
 	"x-admin/internal/model"
 	"x-admin/internal/pkg/apperr"
+	"x-admin/internal/pkg/cache"
 	"x-admin/internal/pkg/security"
 	"x-admin/internal/repository"
 	"x-admin/internal/service"
@@ -81,6 +84,77 @@ func TestSurfaceAuthRegisterLoginRefreshLogout(t *testing.T) {
 	active, err = auth.SessionActive(ctx, scope, claims.UserID, claims.SessionID)
 	require.NoError(t, err)
 	assert.False(t, active)
+}
+
+func TestSurfaceAuthUsesPerSurfaceTTL(t *testing.T) {
+	app := testsupport.New(t)
+	scope := service.SurfaceScope{Name: "client", Table: "client_users"}
+	require.NoError(t, app.DB.Table(scope.Table).AutoMigrate(&model.APIUser{}))
+
+	recorder := &ttlRecorder{Store: app.Cache, ttls: make(map[string]time.Duration)}
+	repo := repository.NewAPIUserRepo(app.DB)
+	auth := service.NewSurfaceAuthService(repo, recorder, app.Hasher, 8, service.AuthOptions{
+		MaxLoginFails: 5,
+		LockDuration:  15 * time.Minute,
+		RefreshTTL:    time.Hour,
+		SessionTTL:    time.Hour,
+	})
+	auth.SetSurfaceOptions(map[string]service.AuthOptions{
+		"client": {
+			MaxLoginFails: 5,
+			LockDuration:  15 * time.Minute,
+			RefreshTTL:    3 * time.Hour,
+			SessionTTL:    45 * time.Minute,
+		},
+	})
+	tokens := security.NewTokenManager(app.Config.JWT.Secret, app.Config.JWT.Issuer+":client", time.Hour)
+	ctx := context.Background()
+
+	// 不勾选“记住我”时使用面级 session_ttl。
+	_, err := auth.Register(ctx, scope, service.SurfaceRegisterInput{
+		Username: "customer", Password: "Client@123",
+	}, tokens, service.LoginMeta{})
+	require.NoError(t, err)
+	assert.Equal(t, 45*time.Minute, recorder.lastTTL("auth:client:refresh:"))
+
+	// 勾选“记住我”时使用面级 refresh_ttl。
+	recorder.reset()
+	_, err = auth.Login(ctx, scope, service.SurfaceLoginInput{
+		Username: "customer", Password: "Client@123", RememberMe: true,
+	}, tokens, service.LoginMeta{})
+	require.NoError(t, err)
+	assert.Equal(t, 3*time.Hour, recorder.lastTTL("auth:client:refresh:"))
+}
+
+// ttlRecorder 记录写入 refresh token 时的有效期，用于验证面级 JWT 配置生效。
+type ttlRecorder struct {
+	cache.Store
+	mu   sync.Mutex
+	ttls map[string]time.Duration
+}
+
+func (r *ttlRecorder) Set(ctx context.Context, key, value string, ttl time.Duration) error {
+	r.mu.Lock()
+	r.ttls[key] = ttl
+	r.mu.Unlock()
+	return r.Store.Set(ctx, key, value, ttl)
+}
+
+func (r *ttlRecorder) lastTTL(prefix string) time.Duration {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for key, ttl := range r.ttls {
+		if strings.HasPrefix(key, prefix) {
+			return ttl
+		}
+	}
+	return 0
+}
+
+func (r *ttlRecorder) reset() {
+	r.mu.Lock()
+	r.ttls = make(map[string]time.Duration)
+	r.mu.Unlock()
 }
 
 func TestSurfaceAuthWrongPasswordAndDisabledUser(t *testing.T) {

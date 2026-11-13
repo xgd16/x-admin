@@ -36,11 +36,14 @@ func TestTUIAPIFormAuthToggle(t *testing.T) {
 	if m.screen != screenAPIForm {
 		t.Fatalf("screen = %v, want API form", m.screen)
 	}
-	if len(m.inputs) != 5 {
-		t.Fatalf("fields = %d, want 5", len(m.inputs))
+	if len(m.inputs) != 9 {
+		t.Fatalf("fields = %d, want 9", len(m.inputs))
 	}
 	if got := m.inputs[1].Value(); got != "v1" {
 		t.Fatalf("default version = %q, want v1", got)
+	}
+	if got := m.inputs[6].Value(); got != "2h" {
+		t.Fatalf("default access_ttl = %q, want 2h", got)
 	}
 	if m.auth {
 		t.Fatal("auth should default to false")
@@ -56,6 +59,36 @@ func TestTUIAPIFormAuthToggle(t *testing.T) {
 	m = model.(*tuiModel)
 	if m.formFocus != 1 {
 		t.Fatalf("formFocus = %d, want 1", m.formFocus)
+	}
+}
+
+func TestTUIAPIFormIndependentJWT(t *testing.T) {
+	m := newTUIModel()
+	m.width, m.height = 100, 30
+	m.openAPIForm()
+
+	// 未开启独立 JWT 时，焦点在 5 个基础字段之间循环。
+	m.focusField(4)
+	model, _ := m.Update(tea.KeyMsg{Type: tea.KeyTab})
+	m = model.(*tuiModel)
+	if m.formFocus != 0 {
+		t.Fatalf("formFocus = %d, want 0 without independent JWT", m.formFocus)
+	}
+
+	model, _ = m.Update(tea.KeyMsg{Type: tea.KeyCtrlJ})
+	m = model.(*tuiModel)
+	if !m.jwtIndependent || !m.auth {
+		t.Fatalf("jwtIndependent = %v, auth = %v, want both true", m.jwtIndependent, m.auth)
+	}
+	if got := len(m.inputs[5].Value()); got != 64 {
+		t.Fatalf("generated secret length = %d, want 64", got)
+	}
+
+	m.focusField(4)
+	model, _ = m.Update(tea.KeyMsg{Type: tea.KeyTab})
+	m = model.(*tuiModel)
+	if m.formFocus != 5 {
+		t.Fatalf("formFocus = %d, want 5 after enabling independent JWT", m.formFocus)
 	}
 }
 

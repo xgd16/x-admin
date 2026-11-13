@@ -94,7 +94,7 @@ go tool xadmin create handler --api client --version v1 --name order --path /ord
 
 ## 4. API
 
-采用多 API 面：框架默认只挂载后台 `/admin/v1`。client、merchant、partner 等面由用户运行 `go tool xadmin create api` 生成后写入 `api.<name>` 配置。每个面拥有独立前缀、限流桶和 JWT issuer，令牌不能跨面使用。
+采用多 API 面：框架默认只挂载后台 `/admin/v1`。client、merchant、partner 等面由用户运行 `go tool xadmin create api` 生成后写入 `api.<name>` 配置。每个面拥有独立前缀、限流桶和 JWT issuer，令牌不能跨面使用；`api.<name>.jwt` 可单独覆盖 secret、issuer、access/refresh/session 有效期。
 
 ```yaml
 api:
@@ -125,7 +125,7 @@ api:
 
 ### 认证
 
-后台使用 `jwt.issuer` 签发令牌；自定义面默认使用 `jwt.issuer:<name>`。`middleware.Auth` 每请求重新加载身份，不同面的路由必须传入对应的 `TokenManager`，否则隔离失效。自定义面的业务认证按 `docs/guide/multi-api.md` 接入。
+后台使用 `jwt.issuer` 签发令牌；自定义面默认使用 `jwt.issuer:<name>`，也可以通过 `api.<name>.jwt` 覆盖密钥、issuer 和有效期。`middleware.Auth` 每请求重新加载身份，不同面的路由必须传入对应的 `TokenManager`，否则隔离失效。自定义面的业务认证按 `docs/guide/multi-api.md` 接入。
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |

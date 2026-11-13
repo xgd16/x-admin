@@ -109,6 +109,11 @@ create api:
   --auth              生成完整 JWT 认证（注册/登录/刷新/登出/me）
   --table <table>     认证用户表名，默认 <name>_users
   --migration <n>     认证表迁移编号，默认取当前最大编号 + 1
+  --jwt-independent   为该 API 面生成独立 JWT 配置（secret + 独立有效期）
+  --jwt-secret <s>    独立 JWT 密钥；留空自动生成 32 字节随机密钥
+  --jwt-access-ttl    独立 access token 有效期，默认 2h
+  --jwt-refresh-ttl   独立 remember-me refresh 有效期，默认 168h
+  --jwt-session-ttl   独立普通会话 refresh 有效期，默认 12h
   --dir .             项目目录
   --force             覆盖已存在的生成文件
   --no-config         不写入 configs/config.yaml，只输出配置片段
@@ -564,11 +569,28 @@ func runCreateAPI(args []string) int {
 	fs.BoolVar(&opts.Auth, "auth", false, "生成完整 JWT 认证：注册、登录、刷新、登出、me")
 	fs.StringVar(&opts.Table, "table", "", "认证用户表名，默认 <name>_users")
 	fs.StringVar(&opts.Migration, "migration", "", "认证表的迁移编号，默认取当前最大编号 + 1")
+	jwtIndependent := fs.Bool("jwt-independent", false, "为该 API 面生成独立 JWT 配置（secret + 独立有效期）")
+	jwtSecret := fs.String("jwt-secret", "", "独立 JWT 密钥，留空自动生成 32 字节随机密钥")
+	jwtAccessTTL := fs.String("jwt-access-ttl", "", "独立 access token 有效期，默认 2h")
+	jwtRefreshTTL := fs.String("jwt-refresh-ttl", "", "独立 remember-me refresh 有效期，默认 168h")
+	jwtSessionTTL := fs.String("jwt-session-ttl", "", "独立普通会话 refresh 有效期，默认 12h")
 	fs.BoolVar(&opts.Force, "force", false, "覆盖已存在的生成文件")
 	fs.BoolVar(&opts.NoConfig, "no-config", false, "不写入 configs/config.yaml，只输出配置片段")
 	fs.BoolVar(&jsonOut, "json", false, "输出机器可读 JSON")
 	if err := fs.Parse(args); err != nil {
 		return 1
+	}
+	if !*jwtIndependent && (*jwtSecret != "" || *jwtAccessTTL != "" || *jwtRefreshTTL != "" || *jwtSessionTTL != "") {
+		fmt.Fprintln(os.Stderr, "--jwt-secret / --jwt-*-ttl 需要与 --jwt-independent 一起使用")
+		return 1
+	}
+	if *jwtIndependent {
+		jwt, err := NewSurfaceJWTOptions(*jwtSecret, *jwtAccessTTL, *jwtRefreshTTL, *jwtSessionTTL)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "独立 JWT 配置无效: %v\n", err)
+			return 1
+		}
+		opts.JWT = jwt
 	}
 	result, err := CreateAPI(opts)
 	if err != nil {
@@ -640,6 +662,15 @@ func printCreateResultTo(w io.Writer, result *CreateResult) {
 	}
 	if result.Auth {
 		fmt.Fprintf(w, "\n认证：JWT（表 %s，迁移 %s）\n", result.Table, result.Migration)
+	}
+	if result.JWT != nil {
+		fmt.Fprintf(w, "独立 JWT：access_ttl %s · refresh_ttl %s · session_ttl %s\n",
+			formatDuration(result.JWT.AccessTTL),
+			formatDuration(result.JWT.RefreshTTL),
+			formatDuration(result.JWT.SessionTTL))
+		if result.ConfigPath != "" {
+			fmt.Fprintf(w, "  secret 已写入 %s，请勿提交\n", result.ConfigPath)
+		}
 	}
 	if result.ConfigPath != "" {
 		fmt.Fprintf(w, "\n✔ 已写入 %s（api 段按名称排序）\n", result.ConfigPath)

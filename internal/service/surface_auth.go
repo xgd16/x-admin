@@ -53,6 +53,7 @@ type SurfaceAuthService struct {
 	hasher         security.PasswordHasher
 	passwordMinLen int
 	opts           AuthOptions
+	surfaceOpts    map[string]AuthOptions
 }
 
 // NewSurfaceAuthService 创建自定义 API 面认证服务。
@@ -66,6 +67,26 @@ func NewSurfaceAuthService(
 	if passwordMinLen <= 0 {
 		passwordMinLen = 8
 	}
+	return &SurfaceAuthService{
+		users: users, store: store, hasher: hasher,
+		passwordMinLen: passwordMinLen, opts: normalizeAuthOptions(opts),
+	}
+}
+
+// SetSurfaceOptions 为不同 API 面设置独立的 refresh/session 有效期与登录策略。
+// 未配置的面沿用构造时的默认 opts。必须在服务开始处理请求前调用。
+func (s *SurfaceAuthService) SetSurfaceOptions(opts map[string]AuthOptions) {
+	if len(opts) == 0 {
+		return
+	}
+	normalized := make(map[string]AuthOptions, len(opts))
+	for name, item := range opts {
+		normalized[name] = normalizeAuthOptions(item)
+	}
+	s.surfaceOpts = normalized
+}
+
+func normalizeAuthOptions(opts AuthOptions) AuthOptions {
 	if opts.MaxLoginFails <= 0 {
 		opts.MaxLoginFails = 5
 	}
@@ -78,10 +99,15 @@ func NewSurfaceAuthService(
 	if opts.SessionTTL <= 0 {
 		opts.SessionTTL = 12 * time.Hour
 	}
-	return &SurfaceAuthService{
-		users: users, store: store, hasher: hasher,
-		passwordMinLen: passwordMinLen, opts: opts,
+	return opts
+}
+
+// optionsFor 返回某个 API 面实际使用的认证策略。
+func (s *SurfaceAuthService) optionsFor(surface string) AuthOptions {
+	if opts, ok := s.surfaceOpts[surface]; ok {
+		return opts
 	}
+	return s.opts
 }
 
 // Register 注册一个自定义 API 面账号并直接签发令牌。
@@ -147,8 +173,9 @@ func (s *SurfaceAuthService) Login(
 	if tokens == nil {
 		return nil, apperr.New(apperr.CodeInternal, "API 面令牌未配置")
 	}
-	if n, _ := s.failures(ctx, scope.Name, in.Username); n >= int64(s.opts.MaxLoginFails) {
-		return nil, apperr.Newf(apperr.CodeLocked, "账号已锁定，请 %d 分钟后再试", int(s.opts.LockDuration.Minutes()))
+	opts := s.optionsFor(scope.Name)
+	if n, _ := s.failures(ctx, scope.Name, in.Username); n >= int64(opts.MaxLoginFails) {
+		return nil, apperr.Newf(apperr.CodeLocked, "账号已锁定，请 %d 分钟后再试", int(opts.LockDuration.Minutes()))
 	}
 
 	user, err := s.users.FindByUsername(ctx, scope.Table, in.Username)
@@ -292,7 +319,7 @@ func (s *SurfaceAuthService) issue(
 	if err != nil {
 		return nil, apperr.Wrap(err, apperr.CodeInternal, "签发令牌失败")
 	}
-	ttl := s.refreshTTL(remember)
+	ttl := s.refreshTTL(scope.Name, remember)
 	if err := s.store.Set(ctx, surfaceRefreshKey(scope.Name, refresh), surfaceRefreshValue(user, sessionID, remember), ttl); err != nil {
 		return nil, apperr.Wrap(err, apperr.CodeInternal, "保存登录状态失败")
 	}
@@ -317,11 +344,12 @@ func (s *SurfaceAuthService) issue(
 	}, nil
 }
 
-func (s *SurfaceAuthService) refreshTTL(remember bool) time.Duration {
+func (s *SurfaceAuthService) refreshTTL(surface string, remember bool) time.Duration {
+	opts := s.optionsFor(surface)
 	if remember {
-		return s.opts.RefreshTTL
+		return opts.RefreshTTL
 	}
-	return s.opts.SessionTTL
+	return opts.SessionTTL
 }
 
 func (s *SurfaceAuthService) failures(ctx context.Context, surface, username string) (int64, error) {
@@ -333,7 +361,8 @@ func (s *SurfaceAuthService) failures(ctx context.Context, surface, username str
 }
 
 func (s *SurfaceAuthService) bumpFailure(ctx context.Context, surface, username string) int64 {
-	n, _ := s.store.Incr(ctx, surfaceLoginFailKey(surface, username), s.opts.LockDuration)
+	opts := s.optionsFor(surface)
+	n, _ := s.store.Incr(ctx, surfaceLoginFailKey(surface, username), opts.LockDuration)
 	return n
 }
 

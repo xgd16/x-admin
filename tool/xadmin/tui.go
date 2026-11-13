@@ -106,12 +106,13 @@ type tuiModel struct {
 	statusErr bool
 	spinner   spinner.Model
 
-	inputs      []textinput.Model
-	fieldLabels []string
-	fieldHints  []string
-	formKind    string
-	formFocus   int
-	auth        bool
+	inputs         []textinput.Model
+	fieldLabels    []string
+	fieldHints     []string
+	formKind       string
+	formFocus      int
+	auth           bool
+	jwtIndependent bool
 
 	viewport    viewport.Model
 	outputTitle string
@@ -264,10 +265,17 @@ func (m *tuiModel) activateMenu() (tea.Model, tea.Cmd) {
 
 func (m *tuiModel) openAPIForm() {
 	m.formKind = "api"
-	m.fieldLabels = []string{"API 面名称 *", "版本", "路径前缀", "认证用户表", "迁移编号"}
-	m.fieldHints = []string{"client", "v1", "/client/v1", "client_users", "自动 max+1"}
-	m.setInputs([]string{"", "v1", "", "", ""})
+	m.fieldLabels = []string{
+		"API 面名称 *", "版本", "路径前缀", "认证用户表", "迁移编号",
+		"JWT secret", "access_ttl", "refresh_ttl", "session_ttl",
+	}
+	m.fieldHints = []string{
+		"client", "v1", "/client/v1", "client_users", "自动 max+1",
+		"留空自动生成", "2h", "168h", "12h",
+	}
+	m.setInputs([]string{"", "v1", "", "", "", "", "2h", "168h", "12h"})
 	m.auth = false
+	m.jwtIndependent = false
 	m.formFocus = 0
 	m.screen = screenAPIForm
 }
@@ -324,6 +332,28 @@ func (m *tuiModel) focusField(index int) tea.Cmd {
 	return cmd
 }
 
+func (m *tuiModel) fieldEnabled(index int) bool {
+	if m.formKind == "api" && index >= 5 {
+		return m.jwtIndependent
+	}
+	return true
+}
+
+// moveFocus 在可见字段之间循环切换，跳过未启用的独立 JWT 字段。
+func (m *tuiModel) moveFocus(delta int) tea.Cmd {
+	if len(m.inputs) == 0 {
+		return nil
+	}
+	index := m.formFocus
+	for i := 0; i < len(m.inputs); i++ {
+		index = (index + delta + len(m.inputs)) % len(m.inputs)
+		if m.fieldEnabled(index) {
+			return m.focusField(index)
+		}
+	}
+	return m.focusField(m.formFocus)
+}
+
 func (m *tuiModel) updateForm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
@@ -331,12 +361,37 @@ func (m *tuiModel) updateForm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.status = ""
 		return m, nil
 	case "tab", "down":
-		return m, m.focusField(m.formFocus + 1)
+		return m, m.moveFocus(1)
 	case "shift+tab", "up":
-		return m, m.focusField(m.formFocus - 1)
+		return m, m.moveFocus(-1)
 	case "ctrl+t":
 		if m.formKind == "api" {
 			m.auth = !m.auth
+			if !m.auth && m.jwtIndependent {
+				m.jwtIndependent = false
+				if m.formFocus >= 5 {
+					return m, m.focusField(0)
+				}
+			}
+		}
+		return m, nil
+	case "ctrl+j":
+		if m.formKind == "api" {
+			m.jwtIndependent = !m.jwtIndependent
+			if m.jwtIndependent {
+				m.auth = true
+				if strings.TrimSpace(m.inputs[5].Value()) == "" {
+					secret, err := GenerateJWTSecret()
+					if err != nil {
+						m.status = err.Error()
+						m.statusErr = true
+					} else {
+						m.inputs[5].SetValue(secret)
+					}
+				}
+			} else if m.formFocus >= 5 {
+				return m, m.focusField(0)
+			}
 		}
 		return m, nil
 	case "enter":
@@ -373,9 +428,21 @@ func (m *tuiModel) submitForm() (tea.Model, tea.Cmd) {
 			opts.Table = value(3)
 			opts.Migration = value(4)
 		}
+		if m.jwtIndependent {
+			jwt, err := NewSurfaceJWTOptions(value(5), value(6), value(7), value(8))
+			if err != nil {
+				m.status = err.Error()
+				m.statusErr = true
+				return m, nil
+			}
+			opts.JWT = jwt
+		}
 		status := "正在生成 handler 与路由…"
 		if m.auth {
 			status = "正在生成 handler、路由和认证迁移…"
+			if m.jwtIndependent {
+				status = "正在生成 handler、路由、认证迁移和独立 JWT 配置…"
+			}
 		}
 		tick := m.startBusy("创建 API 面", status)
 		return m, tea.Batch(tick, m.cmdCreateAPI(opts))
@@ -712,6 +779,9 @@ func (m *tuiModel) viewForm() string {
 	b.WriteString(tuiTitleStyle.Render(m.formTitle()))
 	b.WriteString("\n\n")
 	for i := range m.inputs {
+		if !m.fieldEnabled(i) {
+			continue
+		}
 		marker := "  "
 		if i == m.formFocus {
 			marker = "› "
@@ -719,11 +789,19 @@ func (m *tuiModel) viewForm() string {
 		b.WriteString("  " + marker + padRight(m.fieldLabels[i], 18) + m.inputs[i].View() + "\n")
 	}
 	if m.formKind == "api" {
-		check := "[ ]"
+		authCheck := "[ ]"
 		if m.auth {
-			check = "[x]"
+			authCheck = "[x]"
 		}
-		b.WriteString("\n  " + check + " 生成 JWT 认证（注册/登录/刷新/登出/me） · ctrl+t 切换\n")
+		jwtCheck := "[ ]"
+		if m.jwtIndependent {
+			jwtCheck = "[x]"
+		}
+		b.WriteString("\n  " + authCheck + " 生成 JWT 认证（注册/登录/刷新/登出/me） · ctrl+t 切换\n")
+		b.WriteString("  " + jwtCheck + " 独立 JWT 配置（secret + 独立有效期） · ctrl+j 切换\n")
+		if m.jwtIndependent {
+			b.WriteString("  " + tuiMutedStyle.Render("secret 留空会自动生成；独立配置会覆盖全局 jwt 的有效期") + "\n")
+		}
 		b.WriteString("  " + tuiMutedStyle.Render("提交后写入 configs/config.yaml（存在时），api 段按名称排序") + "\n")
 	}
 	b.WriteString("\n")

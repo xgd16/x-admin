@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -344,6 +345,74 @@ security:
 	}
 	if !strings.Contains(got, "\n\nsecurity:\n  bcrypt_cost: 10\n") {
 		t.Fatalf("following section changed:\n%s", got)
+	}
+	var parsed map[string]any
+	if err := yaml.Unmarshal(out, &parsed); err != nil {
+		t.Fatalf("result is not valid YAML: %v\n%s", err, got)
+	}
+}
+
+func TestUpsertSurfaceConfigJWTKeepsComments(t *testing.T) {
+	src := `api:
+  client:
+    enabled: true
+    jwt: # 独立配置
+      secret: old-secret-at-least-16
+      access_ttl: 1h # 旧值
+`
+	out, err := upsertSurfaceConfigWithJWT([]byte(src), "client", "/client/v1", "", &SurfaceJWTOptions{
+		Secret:     "new-secret-at-least-16",
+		AccessTTL:  30 * time.Minute,
+		RefreshTTL: 24 * time.Hour,
+		SessionTTL: 2 * time.Hour,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(out)
+	want := `    jwt: # 独立配置
+      secret: new-secret-at-least-16
+      access_ttl: 30m # 旧值
+      refresh_ttl: 24h
+      session_ttl: 2h
+`
+	if !strings.Contains(got, want) {
+		t.Fatalf("jwt block not updated as expected:\n%s", got)
+	}
+	var parsed map[string]any
+	if err := yaml.Unmarshal(out, &parsed); err != nil {
+		t.Fatalf("result is not valid YAML: %v\n%s", err, got)
+	}
+}
+
+func TestUpsertSurfaceConfigAddsJWTBlock(t *testing.T) {
+	src := `api:
+  merchant:
+    enabled: true
+    prefix: /merchant/v1
+`
+	out, err := upsertSurfaceConfigWithJWT([]byte(src), "client", "/client/v1", "client_users", &SurfaceJWTOptions{
+		Secret:     "generated-secret-at-least-16",
+		AccessTTL:  2 * time.Hour,
+		RefreshTTL: 7 * 24 * time.Hour,
+		SessionTTL: 12 * time.Hour,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(out)
+	want := `  client:
+    enabled: true
+    prefix: /client/v1
+    table: client_users
+    jwt:
+      secret: generated-secret-at-least-16
+      access_ttl: 2h
+      refresh_ttl: 168h
+      session_ttl: 12h
+`
+	if !strings.Contains(got, want) {
+		t.Fatalf("missing jwt block:\n%s", got)
 	}
 	var parsed map[string]any
 	if err := yaml.Unmarshal(out, &parsed); err != nil {

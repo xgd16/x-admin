@@ -65,6 +65,11 @@ go tool xadmin create api --name client --version v1 --auth --table client_users
 | `--auth` | 否 | `false` | 生成完整 JWT 认证接口和用户表迁移 |
 | `--table` | 否 | `<name>_users` | 认证用户表名，例如 `client_users` |
 | `--migration` | 否 | 当前最大编号 + 1 | 用户表迁移编号 |
+| `--jwt-independent` | 否 | `false` | 为该面生成独立 JWT 配置（secret + 独立有效期） |
+| `--jwt-secret` | 否 | 自动生成 | 独立 JWT 密钥，留空自动生成 32 字节随机密钥 |
+| `--jwt-access-ttl` | 否 | `2h` | 独立 access token 有效期 |
+| `--jwt-refresh-ttl` | 否 | `168h` | 独立 remember-me refresh 有效期 |
+| `--jwt-session-ttl` | 否 | `12h` | 独立普通会话 refresh 有效期 |
 | `--dir` | 否 | `.` | 项目根目录 |
 | `--force` | 否 | `false` | 覆盖已存在的生成文件 |
 | `--no-config` | 否 | `false` | 不自动写入 `configs/config.yaml`，只输出配置片段 |
@@ -85,6 +90,7 @@ go tool xadmin create api --name client --version v1 --auth --table client_users
    - 编号默认取当前 `migrations/` 的最大编号 + 1，保证新迁移排在已有迁移之后。已有 `001000+` 历史编号时继续往上加，不会回填更小的号。
 4. `configs/config.yaml`
    - 自动写入 `api.<name>`（`enabled` / `prefix`，`--auth` 时再加 `table`）；
+   - 使用 `--jwt-independent` 时写入面级 `jwt` 块（`secret` / `access_ttl` / `refresh_ttl` / `session_ttl`）；
    - `api` 段按 API 面名称 A-Z 排序，重复执行只更新同一项。
 
 ### 3.1 `--auth` 自动生成的接口
@@ -137,6 +143,37 @@ api:
 - 还没有 `configs/config.yaml`（未从模板复制）时退回打印片段，需要手动添加；
 - 不希望工具改动配置时加 `--no-config`，只输出配置片段；
 - `APIConfig` 支持任意 `api.<name>`；框架内置面只有 `admin`，client / merchant 由 `create api` 生成。
+
+### 3.2 独立 JWT 配置
+
+默认情况下，自定义面沿用全局 `jwt` 的密钥和有效期，只把 issuer 隔离为 `jwt.issuer:<name>`。需要单独设置过期时间或密钥时：
+
+```bash
+go tool xadmin create api --name client --version v1 --auth \
+  --jwt-independent --jwt-access-ttl 30m --jwt-refresh-ttl 30d --jwt-session-ttl 6h
+```
+
+生成的配置：
+
+```yaml
+api:
+  client:
+    enabled: true
+    prefix: /client/v1
+    table: client_users
+    jwt:
+      secret: 64位十六进制随机密钥
+      access_ttl: 30m
+      refresh_ttl: 720h
+      session_ttl: 6h
+```
+
+- `--jwt-independent` 会自动生成 32 字节随机 secret；也可以用 `--jwt-secret` 指定（至少 16 字符）。
+- 三个 TTL 只影响该面：`access_ttl` 是 access token 有效期，`refresh_ttl` / `session_ttl` 分别是“记住我”和普通会话的 refresh 有效期。
+- TTL 支持 `30m`、`24h`，也支持 `7d`、`2w`；写入配置时会换算成更易读的单位（`h` / `m`）。
+- 未写出的字段继续沿用全局 `jwt`；之后修改全局配置时，已写出的面级字段不会跟着变。
+- 面级 secret 和 issuer 同样参与启动校验；生产环境不允许使用默认密钥。
+- `configs/config.yaml` 已被 `.gitignore` 忽略；如果项目改成了提交本地配置，不要把 `jwt.secret` 提交到仓库。
 
 ## 4. `create handler`
 

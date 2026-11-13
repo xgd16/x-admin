@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -14,11 +15,11 @@ import (
 // surfaceConfigRel 是 create api --auth 自动写入的本地配置文件。
 const surfaceConfigRel = "configs/config.yaml"
 
-// writeSurfaceConfig 把 API 面写入 configs/config.yaml 的 api 段。
+// writeSurfaceConfigWithJWT 写入 API 面配置，可选附带独立 JWT 配置。
 //
 // 返回写入的相对路径；配置文件不存在时返回空字符串，由调用方提示手动添加。
 // 写入时按 API 面名称 A-Z 排序，方便对比和排查。
-func writeSurfaceConfig(workDir, name, prefix, table string) (string, error) {
+func writeSurfaceConfigWithJWT(workDir, name, prefix, table string, jwt *SurfaceJWTOptions) (string, error) {
 	path := filepath.Join(workDir, filepath.FromSlash(surfaceConfigRel))
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -27,7 +28,7 @@ func writeSurfaceConfig(workDir, name, prefix, table string) (string, error) {
 		}
 		return "", fmt.Errorf("读取 %s: %w", surfaceConfigRel, err)
 	}
-	updated, err := upsertSurfaceConfig(data, name, prefix, table)
+	updated, err := upsertSurfaceConfigWithJWT(data, name, prefix, table, jwt)
 	if err != nil {
 		return "", fmt.Errorf("更新 %s: %w", surfaceConfigRel, err)
 	}
@@ -46,6 +47,10 @@ func writeSurfaceConfig(workDir, name, prefix, table string) (string, error) {
 // 常规块状配置按原文行块重排，原有注释、空行和缩进都会保留；
 // 只有内联写法（api: {client: ...}）等特殊情况才退回 YAML 节点重写。
 func upsertSurfaceConfig(data []byte, name, prefix, table string) ([]byte, error) {
+	return upsertSurfaceConfigWithJWT(data, name, prefix, table, nil)
+}
+
+func upsertSurfaceConfigWithJWT(data []byte, name, prefix, table string, jwt *SurfaceJWTOptions) ([]byte, error) {
 	text := string(data)
 	trailingNewline := strings.HasSuffix(text, "\n")
 	crlf := strings.Contains(text, "\r\n")
@@ -66,17 +71,17 @@ func upsertSurfaceConfig(data []byte, name, prefix, table string) ([]byte, error
 	start, end := findTopLevelSection(lines, "api")
 	if start < 0 && api == nil {
 		// 没有 api 段时直接追加，保留文件其余内容。
-		joined := appendAPISection(lines, name, prefix, table)
+		joined := appendAPISection(lines, name, prefix, table, jwt)
 		return finishSurfaceConfig(joined, crlf, trailingNewline), nil
 	}
 	if start >= 0 {
-		if out, ok := upsertSurfaceText(lines, start, end, api, name, prefix, table); ok {
+		if out, ok := upsertSurfaceText(lines, start, end, api, name, prefix, table, jwt); ok {
 			return finishSurfaceConfig(out, crlf, trailingNewline), nil
 		}
 	}
 
 	// 内联 api 段等非常规写法：退回节点重写。
-	updated, err := upsertSurfaceConfigYAML([]byte(text), name, prefix, table)
+	updated, err := upsertSurfaceConfigYAML([]byte(text), name, prefix, table, jwt)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +166,7 @@ func (e *surfaceTextEntry) fieldIndent() int {
 // upsertSurfaceText 按原文行块插入/更新 API 面并排序。
 //
 // 返回 ok=false 时表示当前写法不适合按行处理，由调用方退回 YAML 节点重写。
-func upsertSurfaceText(lines []string, start, end int, api *yaml.Node, name, prefix, table string) ([]string, bool) {
+func upsertSurfaceText(lines []string, start, end int, api *yaml.Node, name, prefix, table string, jwt *SurfaceJWTOptions) ([]string, bool) {
 	if api != nil && api.Kind != yaml.MappingNode {
 		return nil, false
 	}
@@ -176,6 +181,7 @@ func upsertSurfaceText(lines []string, start, end int, api *yaml.Node, name, pre
 			continue
 		}
 		entries[i].setFields(prefix, table)
+		entries[i].setJWT(jwt)
 		found = true
 		break
 	}
@@ -185,7 +191,7 @@ func upsertSurfaceText(lines []string, start, end int, api *yaml.Node, name, pre
 			keyIndent = entries[0].keyIndent()
 		}
 		unit := detectIndentUnit(lines)
-		entries = append(entries, newSurfaceTextEntry(name, prefix, table, keyIndent, unit))
+		entries = append(entries, newSurfaceTextEntry(name, prefix, table, jwt, keyIndent, unit))
 	}
 	sort.SliceStable(entries, func(i, j int) bool { return entries[i].name < entries[j].name })
 
@@ -358,7 +364,7 @@ func sameSurfaceNames(api *yaml.Node, entries []surfaceTextEntry) bool {
 	return true
 }
 
-func newSurfaceTextEntry(name, prefix, table string, keyIndent, unit int) surfaceTextEntry {
+func newSurfaceTextEntry(name, prefix, table string, jwt *SurfaceJWTOptions, keyIndent, unit int) surfaceTextEntry {
 	if keyIndent <= 0 {
 		keyIndent = unit
 	}
@@ -372,7 +378,46 @@ func newSurfaceTextEntry(name, prefix, table string, keyIndent, unit int) surfac
 	if table != "" {
 		lines = append(lines, field+"table: "+table)
 	}
+	if jwt != nil {
+		lines = append(lines, jwtBlockLines(jwt, keyIndent+unit, unit)...)
+	}
 	return surfaceTextEntry{name: name, lines: lines}
+}
+
+// jwtBlockLines 生成一个面级 jwt 配置块。
+func jwtBlockLines(jwt *SurfaceJWTOptions, parentIndent, unit int) []string {
+	child := strings.Repeat(" ", parentIndent+unit)
+	return []string{
+		strings.Repeat(" ", parentIndent) + "jwt:",
+		child + "secret: " + jwt.Secret,
+		child + "access_ttl: " + formatDuration(jwt.AccessTTL),
+		child + "refresh_ttl: " + formatDuration(jwt.RefreshTTL),
+		child + "session_ttl: " + formatDuration(jwt.SessionTTL),
+	}
+}
+
+// formatSurfaceJWTBlock 生成打印到终端的配置片段（位于 api.<name> 下）。
+func formatSurfaceJWTBlock(jwt *SurfaceJWTOptions) string {
+	var b strings.Builder
+	b.WriteString("    jwt:\n")
+	fmt.Fprintf(&b, "      secret: %s\n", jwt.Secret)
+	fmt.Fprintf(&b, "      access_ttl: %s\n", formatDuration(jwt.AccessTTL))
+	fmt.Fprintf(&b, "      refresh_ttl: %s\n", formatDuration(jwt.RefreshTTL))
+	fmt.Fprintf(&b, "      session_ttl: %s\n", formatDuration(jwt.SessionTTL))
+	return b.String()
+}
+
+func formatDuration(d time.Duration) string {
+	switch {
+	case d%time.Hour == 0:
+		return fmt.Sprintf("%dh", int64(d/time.Hour))
+	case d%time.Minute == 0:
+		return fmt.Sprintf("%dm", int64(d/time.Minute))
+	case d%time.Second == 0:
+		return fmt.Sprintf("%ds", int64(d/time.Second))
+	default:
+		return d.String()
+	}
 }
 
 // setFields 更新 enabled/prefix/table，保留字段行尾注释和其他字段。
@@ -438,6 +483,140 @@ func (e *surfaceTextEntry) findField(field string, indent int) int {
 	return -1
 }
 
+// setJWT 插入或更新面级 jwt 配置；已有注释和其他字段保持不变。
+func (e *surfaceTextEntry) setJWT(jwt *SurfaceJWTOptions) {
+	if jwt == nil {
+		return
+	}
+	indent := e.fieldIndent()
+	index := e.findField("jwt", indent)
+	if index < 0 {
+		unit := indent - e.keyIndent()
+		if unit <= 0 {
+			unit = 2
+		}
+		block := jwtBlockLines(jwt, indent, unit)
+		position := e.lastKnownField(indent) + 1
+		e.lines = insertLines(e.lines, position, block)
+		return
+	}
+	e.lines = setNestedFields(e.lines, index, indent, []mappingField{
+		{name: "secret", value: jwt.Secret},
+		{name: "access_ttl", value: formatDuration(jwt.AccessTTL)},
+		{name: "refresh_ttl", value: formatDuration(jwt.RefreshTTL)},
+		{name: "session_ttl", value: formatDuration(jwt.SessionTTL)},
+	})
+}
+
+func (e *surfaceTextEntry) lastKnownField(indent int) int {
+	last := e.keyPos
+	for _, name := range []string{"enabled", "prefix", "table"} {
+		if index := e.findField(name, indent); index > last {
+			last = index
+		}
+	}
+	return last
+}
+
+type mappingField struct {
+	name  string
+	value string
+}
+
+// setNestedFields 更新 parent 下的子字段；缺少的字段插在已有字段之后。
+func setNestedFields(lines []string, parent, parentIndent int, fields []mappingField) []string {
+	end := len(lines)
+	for i := parent + 1; i < len(lines); i++ {
+		trimmed := strings.TrimSpace(lines[i])
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if leadingSpaces(lines[i]) <= parentIndent {
+			end = i
+			break
+		}
+	}
+	indent := -1
+	for i := parent + 1; i < end; i++ {
+		trimmed := strings.TrimSpace(lines[i])
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		current := leadingSpaces(lines[i])
+		if current > parentIndent && (indent < 0 || current < indent) {
+			indent = current
+		}
+	}
+	if indent < 0 {
+		indent = parentIndent + 2
+		key, _ := mappingKey(strings.TrimSpace(lines[parent]))
+		line := strings.Repeat(" ", parentIndent) + key + ":"
+		if comment := lineComment(lines[parent]); comment != "" {
+			line += " " + comment
+		}
+		lines[parent] = line
+		block := make([]string, 0, len(fields))
+		for _, field := range fields {
+			block = append(block, strings.Repeat(" ", indent)+field.name+": "+field.value)
+		}
+		return insertLines(lines, parent+1, block)
+	}
+
+	last := parent
+	for _, field := range fields {
+		index := findFieldInRange(lines, parent+1, end, indent, field.name)
+		if index < 0 {
+			continue
+		}
+		lines[index] = replaceFieldValue(lines[index], field.value)
+		if index > last {
+			last = index
+		}
+	}
+	var inserts []string
+	for _, field := range fields {
+		if findFieldInRange(lines, parent+1, end, indent, field.name) >= 0 {
+			continue
+		}
+		inserts = append(inserts, strings.Repeat(" ", indent)+field.name+": "+field.value)
+	}
+	if len(inserts) > 0 {
+		lines = insertLines(lines, last+1, inserts)
+	}
+	return lines
+}
+
+func findFieldInRange(lines []string, start, end, indent int, field string) int {
+	for i := start; i < end; i++ {
+		trimmed := strings.TrimSpace(lines[i])
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if leadingSpaces(lines[i]) != indent {
+			continue
+		}
+		key, ok := mappingKey(trimmed)
+		if ok && key == field {
+			return i
+		}
+	}
+	return -1
+}
+
+func insertLines(lines []string, at int, add []string) []string {
+	if at < 0 {
+		at = 0
+	}
+	if at > len(lines) {
+		at = len(lines)
+	}
+	out := make([]string, 0, len(lines)+len(add))
+	out = append(out, lines[:at]...)
+	out = append(out, add...)
+	out = append(out, lines[at:]...)
+	return out
+}
+
 func replaceFieldValue(line, value string) string {
 	trimmed := strings.TrimSpace(line)
 	index := strings.Index(trimmed, ":")
@@ -463,10 +642,10 @@ func commentSuffix(rest string) string {
 }
 
 // appendAPISection 在文件末尾追加新的 api 段。
-func appendAPISection(lines []string, name, prefix, table string) []string {
+func appendAPISection(lines []string, name, prefix, table string, jwt *SurfaceJWTOptions) []string {
 	lines = trimTrailingBlank(lines)
 	unit := detectIndentUnit(lines)
-	entry := newSurfaceTextEntry(name, prefix, table, unit, unit)
+	entry := newSurfaceTextEntry(name, prefix, table, jwt, unit, unit)
 	var out []string
 	out = append(out, lines...)
 	if len(out) > 0 {
@@ -571,7 +750,7 @@ func detectIndentUnit(lines []string) int {
 }
 
 // upsertSurfaceConfigYAML 是内联 api 段的回退实现：按 YAML 节点重写 api 段。
-func upsertSurfaceConfigYAML(data []byte, name, prefix, table string) ([]byte, error) {
+func upsertSurfaceConfigYAML(data []byte, name, prefix, table string, jwt *SurfaceJWTOptions) ([]byte, error) {
 	text := string(data)
 	crlf := strings.Contains(text, "\r\n")
 	if crlf {
@@ -615,7 +794,7 @@ func upsertSurfaceConfigYAML(data []byte, name, prefix, table string) ([]byte, e
 	}
 	// 统一输出块状映射，避免沿用原来的流式写法导致换行后难以阅读。
 	api.Style = 0
-	upsertSurface(api, name, prefix, table)
+	upsertSurface(api, name, prefix, table, jwt)
 	sortMapping(api)
 
 	body, err := encodeYAMLNode(api)
@@ -701,7 +880,7 @@ func scalarNode(value string) *yaml.Node {
 }
 
 // upsertSurface 插入或更新一个 API 面配置。
-func upsertSurface(api *yaml.Node, name, prefix, table string) {
+func upsertSurface(api *yaml.Node, name, prefix, table string, jwt *SurfaceJWTOptions) {
 	value := mappingValue(api, name)
 	if value == nil {
 		value = &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
@@ -715,6 +894,9 @@ func upsertSurface(api *yaml.Node, name, prefix, table string) {
 	if table != "" {
 		setSurfaceField(value, "table", scalarNode(table))
 	}
+	if jwt != nil {
+		setSurfaceJWTNode(value, jwt)
+	}
 	// enabled/prefix/table 固定在前面，issuer 等其他字段保持原有顺序。
 	order := []string{"enabled", "prefix", "table"}
 	pairs := mappingPairs(value)
@@ -725,6 +907,30 @@ func upsertSurface(api *yaml.Node, name, prefix, table string) {
 	for _, pair := range pairs {
 		value.Content = append(value.Content, pair.key, pair.value)
 	}
+}
+
+// setSurfaceJWTNode 写入面级 jwt 覆盖配置。
+func setSurfaceJWTNode(surface *yaml.Node, jwt *SurfaceJWTOptions) {
+	jwtNode := mappingValue(surface, "jwt")
+	if jwtNode == nil || jwtNode.Kind != yaml.MappingNode {
+		jwtNode = &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+		replaced := false
+		for i := 0; i+1 < len(surface.Content); i += 2 {
+			if surface.Content[i].Value == "jwt" {
+				surface.Content[i+1] = jwtNode
+				replaced = true
+				break
+			}
+		}
+		if !replaced {
+			surface.Content = append(surface.Content, scalarNode("jwt"), jwtNode)
+		}
+	}
+	jwtNode.Style = 0
+	setSurfaceField(jwtNode, "secret", scalarNode(jwt.Secret))
+	setSurfaceField(jwtNode, "access_ttl", scalarNode(formatDuration(jwt.AccessTTL)))
+	setSurfaceField(jwtNode, "refresh_ttl", scalarNode(formatDuration(jwt.RefreshTTL)))
+	setSurfaceField(jwtNode, "session_ttl", scalarNode(formatDuration(jwt.SessionTTL)))
 }
 
 func setSurfaceField(mapping *yaml.Node, key string, value *yaml.Node) {

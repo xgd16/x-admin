@@ -145,7 +145,34 @@ api:
 | `api.<name>.enabled` | `false` | — | 自定义面是否挂载 |
 | `api.<name>.prefix` | — | — | 自定义面路径前缀 |
 | `api.<name>.table` | — | — | `--auth` 生成面的用户表名 |
-| `api.<name>.issuer` | `jwt.issuer:<name>` | — | 自定义面令牌 issuer |
+| `api.<name>.issuer` | `jwt.issuer:<name>` | — | 自定义面令牌 issuer（旧字段，`jwt.issuer` 优先） |
+| `api.<name>.jwt.secret` | `jwt.secret` | — | 面级密钥，至少 16 字符 |
+| `api.<name>.jwt.issuer` | `api.<name>.issuer` / `jwt.issuer:<name>` | — | 面级 issuer |
+| `api.<name>.jwt.access_ttl` | `jwt.access_ttl` | — | access token 有效期 |
+| `api.<name>.jwt.refresh_ttl` | `jwt.refresh_ttl` | — | 记住我时的 refresh 有效期 |
+| `api.<name>.jwt.session_ttl` | `jwt.session_ttl` | — | 普通会话的 refresh 有效期 |
+
+面级 `jwt` 只覆盖写出的字段，其余沿用全局配置：
+
+```yaml
+api:
+  client:
+    enabled: true
+    prefix: /client/v1
+    table: client_users
+    jwt:
+      secret: 至少16个字符的独立密钥
+      access_ttl: 30m
+      refresh_ttl: 720h
+      session_ttl: 6h
+  merchant:
+    enabled: true
+    prefix: /merchant/v1
+    table: merchant_users
+    # 不写 jwt：继续沿用全局 jwt
+```
+
+`go tool xadmin create api --auth --jwt-independent` 会自动生成 secret 并写入上述配置；TUI 中按 `ctrl+j` 选择独立 JWT。
 
 启动校验会拒绝：
 
@@ -162,12 +189,12 @@ api:
 
 ```go
 surfaceTokens := map[string]*security.TokenManager{
-    "admin":  adminTokens, // issuer = jwt.issuer
-    "client": security.NewTokenManager(secret, issuer+":client", ttl),
+    "admin":  adminTokens, // 可使用 api.admin.jwt 覆盖
+    "client": security.NewTokenManager(clientJWT.Secret, clientJWT.Issuer, clientJWT.AccessTTL),
 }
 ```
 
-`security.TokenManager.Parse` 会校验 issuer，因此：
+`clientJWT` 来自 `api.client.jwt`，未配置的字段回退到全局 `jwt`。`security.TokenManager.Parse` 会校验 issuer，因此：
 
 - 后台 token 调 `/client/v1` → `40101`；
 - 客户端 token 调 `/admin/v1` → `40101`；

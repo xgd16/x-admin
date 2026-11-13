@@ -166,6 +166,17 @@ func New(t *testing.T) *App {
 		RefreshTTL:    cfg.JWT.RefreshTTL,
 		SessionTTL:    cfg.JWT.SessionTTL,
 	})
+	surfaceOptions := make(map[string]service.AuthOptions)
+	for name, surface := range cfg.API.Surfaces() {
+		jwt := surface.JWTFor(cfg.JWT, name)
+		surfaceOptions[name] = service.AuthOptions{
+			MaxLoginFails: cfg.Security.MaxLoginFails,
+			LockDuration:  cfg.Security.LockDuration,
+			RefreshTTL:    jwt.RefreshTTL,
+			SessionTTL:    jwt.SessionTTL,
+		}
+	}
+	services.SurfaceAuth.SetSurfaceOptions(surfaceOptions)
 	scheduler := jobs.New()
 	services.Jobs = service.NewJobService(repos.Jobs, scheduler, func(context.Context, *model.Job) error { return nil }, store)
 	services.Logs = logs

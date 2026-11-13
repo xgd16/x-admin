@@ -29,10 +29,20 @@ server:
 # 生成后会自动写入 configs/config.yaml 的 api 段（按名称排序）。
 #
 # 每个面拥有独立路径前缀、限流桶和 JWT issuer；--auth 生成面还需要 table。
+# 面级 jwt 可以覆盖全局 jwt 的 secret / issuer / 有效期（未写出的字段沿用全局）：
+#   jwt:
+#     secret: 至少 16 个字符；create api --jwt-independent 可自动生成
+#     access_ttl: 30m
+#     refresh_ttl: 720h
+#     session_ttl: 24h
 api:
   admin:
     enabled: true
     prefix: /admin/v1
+    # jwt:
+    #   access_ttl: 2h
+    #   refresh_ttl: 168h
+    #   session_ttl: 12h
 
 database:
   dsn: root:change-me@tcp(127.0.0.1:3306)/xadmin?charset=utf8mb4&parseTime=True&loc=Local
