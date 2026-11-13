@@ -1046,7 +1046,7 @@ Cron 在进程内运行，每个副本都会注册任务。改为单副本、主
 
 新增一个业务模块时，按以下顺序落地：
 
-1. **迁移**：在 `migrations/` 增加 `NNNNNN_name.up.sql` / `.down.sql`。`000001_init` 是合并后的冻结基线，下一个版本号从 `000002` 开始，不要修改已发布的迁移；旧库升级说明见 `migrations/README.md`。**下游项目建议业务迁移从 `001000` 开始**，把 `000002`~`000999` 留给框架升级，避免与上游新增迁移撞号。
+1. **迁移**：在 `migrations/` 增加 `NNNNNN_name.up.sql` / `.down.sql`。`000001_init` 是合并后的冻结基线，不要修改已发布的迁移；新迁移的编号始终取当前最大编号 + 1，旧库升级说明见 `migrations/README.md`。
 2. **模型**：在 `internal/model/` 增加 GORM 模型与过滤器。
 3. **仓储**：在 `internal/repository/` 实现数据访问，复用 `Base[T]`。
 4. **接口**：在 `internal/service/ports.go` 声明 service 需要的仓储方法。

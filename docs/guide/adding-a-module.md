@@ -20,7 +20,7 @@
 
 在 `migrations/` 新增一对文件，编号接着现有最大值：
 
-> **下游项目注意**：业务迁移建议从 `001000` 开始编号，把 `000002`~`000999` 留给框架升级。否则你新增的 `000002_xxx` 可能和上游新版本的 `000002_yyy` 撞号，且已经执行过的本地迁移会让上游后补的低编号迁移被 `golang-migrate` 跳过。详见 [框架升级工具](../tool/upgrade.md)。
+> **编号规则**：始终使用 `migrations/` 当前最大编号 + 1。`golang-migrate` 只执行版本号大于 `schema_migrations` 当前值的迁移，插入更小的编号会被直接跳过。`go tool xadmin create api --auth` 会自动按这个规则取号。详见 [框架升级工具](../tool/upgrade.md)。
 
 ```sql
 -- migrations/000017_announcements.up.sql

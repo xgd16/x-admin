@@ -63,8 +63,8 @@ internal/router/client_v1.go
 带 `--auth` 时额外生成：
 
 ```text
-migrations/001000_client_users.up.sql
-migrations/001000_client_users.down.sql
+migrations/000002_client_users.up.sql
+migrations/000002_client_users.down.sql
 ```
 
 并自动注册：
@@ -77,7 +77,7 @@ POST /client/v1/auth/logout
 GET  /client/v1/auth/me
 ```
 
-注册/登录/刷新返回 `access_token`、`refresh_token` 和当前用户；用户表由迁移创建，表名来自 `--table` 或默认 `<name>_users`。迁移编号默认从 `001000` 开始，自动避开已有编号，不会占用框架保留的 `000002`~`000999`。
+注册/登录/刷新返回 `access_token`、`refresh_token` 和当前用户；用户表由迁移创建，表名来自 `--table` 或默认 `<name>_users`。迁移编号默认取当前最大编号 + 1（例如只有 `000001_init` 时生成 `000002_client_users`），保证新迁移排在已有迁移之后。
 
 同时打印配置片段：
 

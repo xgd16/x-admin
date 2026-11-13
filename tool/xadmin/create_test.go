@@ -11,6 +11,8 @@ func createTestProject(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 	writeTestFile(t, dir, "go.mod", "module example.com/app\n\ngo 1.27\n")
+	writeTestFile(t, dir, "migrations/000001_init.up.sql", "-- init\n")
+	writeTestFile(t, dir, "migrations/000001_init.down.sql", "-- down\n")
 	if err := os.MkdirAll(filepath.Join(dir, "internal"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +166,7 @@ func TestCreateAPIAuthDefaultTableAndMigration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Table != "merchant_users" || result.Migration != "001000" {
+	if result.Table != "merchant_users" || result.Migration != "000002" {
 		t.Fatalf("unexpected defaults: %+v", result)
 	}
 

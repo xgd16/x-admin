@@ -3,6 +3,7 @@ package database_test
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -49,11 +50,26 @@ func serverDSN(dsn string) string {
 
 // TestOpenMigrateHealthWithMySQL 走通 Open 成功路径（含 Ping、连接池参数）
 // 以及 Migrate / MigrateSQL 的正常升级路径。
+//
+// 测试使用独立的临时数据库，避免开发库里的 schema_migrations 状态影响结果。
 func TestOpenMigrateHealthWithMySQL(t *testing.T) {
 	cfg := testMySQLConfig(t)
 	cfg.Database.MaxOpenConns = 2
 	cfg.Database.MaxIdleConns = 1
 	cfg.Database.ConnMaxLifetime = time.Minute
+
+	admin, err := sql.Open("mysql", serverDSN(cfg.Database.DSN))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = admin.Close() })
+
+	parsed, err := mysql.ParseDSN(cfg.Database.DSN)
+	require.NoError(t, err)
+	dbName := fmt.Sprintf("xadmin_migrate_test_%d", time.Now().UnixNano())
+	_, err = admin.Exec("CREATE DATABASE `" + dbName + "` DEFAULT CHARACTER SET utf8mb4")
+	require.NoError(t, err)
+	t.Cleanup(func() { _, _ = admin.Exec("DROP DATABASE IF EXISTS `" + dbName + "`") })
+	parsed.DBName = dbName
+	cfg.Database.DSN = parsed.FormatDSN()
 
 	db, err := database.Open(cfg.Database, "test")
 	require.NoError(t, err)

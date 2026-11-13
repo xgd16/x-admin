@@ -396,7 +396,7 @@ func normalizeTable(value, fallback string) (string, error) {
 }
 
 // normalizeMigration 返回六位迁移编号。
-// 未指定时从 1000 开始取下一个可用编号，避开框架保留的 000002-000999。
+// 未指定时取当前最大编号 + 1，保证新迁移永远排在已有迁移之后。
 func normalizeMigration(value, workDir string) (string, error) {
 	if strings.TrimSpace(value) != "" {
 		n, err := strconv.Atoi(strings.TrimSpace(value))
@@ -419,11 +419,11 @@ func nextMigrationNumber(workDir string) (int, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return 1000, nil
+			return 1, nil
 		}
 		return 0, err
 	}
-	max := 999
+	max := 0
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue

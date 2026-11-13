@@ -8,9 +8,10 @@
 
 ## 新增迁移
 
-- 下一个版本号从 `000002` 开始，文件名格式为 `NNNNNN_name.up.sql` / `NNNNNN_name.down.sql`。
-- 下游项目建议业务迁移从 `001000` 开始，把 `000002`~`000999` 留给框架升级，避免撞号；详见 `docs/tool/upgrade.md`。
-- `go tool xadmin create api --auth --table <table>` 会自动生成 `001000+` 的账号表迁移；已有业务迁移时会自动顺延编号。
+- 文件名格式为 `NNNNNN_name.up.sql` / `NNNNNN_name.down.sql`。
+- 新迁移的编号必须取当前 `migrations/` 下的**最大编号 + 1**，保持递增；不要插入比当前最大值更小的编号。
+- `go tool xadmin create api --auth --table <table>` 会自动按 max+1 生成账号表迁移，例如现有 `000001_init` 时生成 `000002_client_users`。
+- 如果项目里已经有历史的高编号（例如旧的 `001000+`），继续往上加，不要回填更小的号。
 - `up` 与 `down` 必须成对存在。
 - 迁移会在应用启动时由 golang-migrate 自动执行；单个文件可以包含多条语句（DSN 会自动追加 `multiStatements=true`）。
 - 涉及种子数据的语句建议使用 `INSERT IGNORE` 或 `WHERE NOT EXISTS`，避免重复执行时报错。

@@ -249,20 +249,21 @@ go tool xadmin upgrade rollback
 - `frontend/package-lock.json` 冲突时不要手工拼 JSON，删除冲突标记后运行 `cd frontend && npm install` 重新生成锁文件。
 - 二进制文件（图片、字体等）冲突时，工具不会自动合并，会保留本地并写入 `.upstream`。
 
-## 迁移编号：下游项目请从 1000 开始
+## 迁移编号：始终使用最大编号 + 1
 
 这是升级中最容易踩的坑。
 
 `golang-migrate` 只执行版本号**大于** `schema_migrations` 当前值的迁移。假设：
 
-1. 你在本地新增了 `000002_announcements` 并已在数据库执行，当前 schema version = 2；
+1. 你在本地新增了 `000005_announcements` 并已在数据库执行，当前 schema version = 5；
 2. 上游 v1.4.0 新增了 `000002_notifications`；
-3. 新版启动时，这个上游迁移的版本号不大于 2，会被**直接跳过**。
+3. 新版启动时，这个上游迁移的版本号不大于 5，会被**直接跳过**。
 
 因此约定：
 
-- **框架自身的迁移**使用 `000002` ~ `000999`；
-- **下游业务迁移**从 `1000` 开始，例如 `001000_announcements`、`001001_orders`；
+- 新迁移的编号始终取当前 `migrations/` 下的**最大编号 + 1**；
+- `go tool xadmin create api --auth` 已按这个规则自动取号；
+- 不要预留区间、不要跳号、不要回填比当前最大值更小的编号；
 - 不要修改已发布的迁移文件。
 
 `upgrade plan` 会检测两类问题：
@@ -270,7 +271,7 @@ go tool xadmin upgrade rollback
 - 同编号冲突（error）：本地 `000002_x` 与上游 `000002_y`；
 - 上游新增编号低于本地最大编号（warning）：存在被跳过的风险。
 
-出现 **error** 时，`upgrade` 默认拒绝执行，必须先处理编号；确认要强制继续时加 `--allow-migration-conflict`（不推荐）。出现 warning 时，先备份数据库，再决定处理方式。最稳妥的做法是：在升级前把本地迁移编号调整到框架预留区间之外；如果本地迁移已经执行，需要同步处理 `schema_migrations`，或重建数据库。
+出现 **error** 时，`upgrade` 默认拒绝执行，必须先处理编号；确认要强制继续时加 `--allow-migration-conflict`（不推荐）。出现 warning 时，先备份数据库，再决定处理方式。如果本地已经有执行过的迁移，正确做法是把**上游新增的迁移**重编号到本地最大编号之后（up/down 成对改），再启动应用；不要调低本地已执行的编号，也不要直接改 `schema_migrations` 来“补跑”低编号迁移。
 
 工具不会自动改迁移编号，也不会自动执行 SQL。
 

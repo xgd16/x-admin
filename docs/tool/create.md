@@ -38,7 +38,7 @@ internal/
 │   ├── partner_v1.go         # create api：注册 Surface
 │   └── partner_v1_order.go   # create handler：注册路由模块
 └── migrations/
-    └── 001000_client_users.up.sql / .down.sql   # create api --auth 生成
+    └── 000002_client_users.up.sql / .down.sql   # create api --auth 生成
 ```
 
 `create api --auth` 不生成独立的 model/repository/service 文件：账号读写由框架内置的 `SurfaceAuthService` 按表名处理，表结构由生成的 SQL 迁移创建。
@@ -62,7 +62,7 @@ go tool xadmin create api --name client --version v1 --auth --table client_users
 | `--prefix` | 否 | `/<name>/<version>` | URL 前缀 |
 | `--auth` | 否 | `false` | 生成完整 JWT 认证接口和用户表迁移 |
 | `--table` | 否 | `<name>_users` | 认证用户表名，例如 `client_users` |
-| `--migration` | 否 | 自动取 `1000` 之后 | 用户表迁移编号 |
+| `--migration` | 否 | 当前最大编号 + 1 | 用户表迁移编号 |
 | `--dir` | 否 | `.` | 项目根目录 |
 | `--force` | 否 | `false` | 覆盖已存在的生成文件 |
 | `--json` | 否 | `false` | 输出机器可读 JSON |
@@ -79,7 +79,7 @@ go tool xadmin create api --name client --version v1 --auth --table client_users
    - 开启 `--auth` 时自动使用该面的 `SurfaceTokens[name]` 和 `SurfaceAuthService`。
 3. `--auth` 额外生成 `migrations/<number>_<table>.up.sql` / `.down.sql`
    - 按 `<name>_users` 或 `--table` 建表；
-   - 默认从 `001000` 开始，自动避开已有迁移编号，不会占用框架的 `000002`~`000999`。
+   - 编号默认取当前 `migrations/` 的最大编号 + 1，保证新迁移排在已有迁移之后。已有 `001000+` 历史编号时继续往上加，不会回填更小的号。
 
 ### 3.1 `--auth` 自动生成的接口
 

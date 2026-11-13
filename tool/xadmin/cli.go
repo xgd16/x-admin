@@ -100,7 +100,7 @@ create api:
   --prefix /client/v1 路径前缀，默认 /<name>/<version>
   --auth              生成完整 JWT 认证（注册/登录/刷新/登出/me）
   --table <table>     认证用户表名，默认 <name>_users
-  --migration <n>     认证表迁移编号，默认自动取 1000 之后的下一个
+  --migration <n>     认证表迁移编号，默认取当前最大编号 + 1
   --dir .             项目目录
   --force             覆盖已存在的生成文件
   --json              输出机器可读 JSON
@@ -551,7 +551,7 @@ func runCreateAPI(args []string) int {
 	fs.StringVar(&opts.Prefix, "prefix", "", "路径前缀，默认 /<name>/<version>")
 	fs.BoolVar(&opts.Auth, "auth", false, "生成完整 JWT 认证：注册、登录、刷新、登出、me")
 	fs.StringVar(&opts.Table, "table", "", "认证用户表名，默认 <name>_users")
-	fs.StringVar(&opts.Migration, "migration", "", "认证表的迁移编号，默认自动取 1000 之后的下一个")
+	fs.StringVar(&opts.Migration, "migration", "", "认证表的迁移编号，默认取当前最大编号 + 1")
 	fs.BoolVar(&opts.Force, "force", false, "覆盖已存在的生成文件")
 	fs.BoolVar(&jsonOut, "json", false, "输出机器可读 JSON")
 	if err := fs.Parse(args); err != nil {

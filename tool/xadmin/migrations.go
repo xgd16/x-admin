@@ -42,7 +42,7 @@ func parseMigrationFiles(tree Tree) []migrationFile {
 // detectMigrationIssues 检测上游新增迁移与本地迁移的编号关系。
 //
 // 为什么重要：golang-migrate 只执行版本号大于 schema_migrations 当前值的迁移。
-// 如果本地迁移已经执行到 1000，上游后补的 000002 会被直接跳过。
+// 如果本地迁移已经执行到较大编号，上游后补的较小号会被直接跳过。
 func detectMigrationIssues(base, target, local Tree) []MigrationIssue {
 	basePaths := make(map[string]bool, len(base))
 	for p := range base {
@@ -113,8 +113,8 @@ func detectMigrationIssues(base, target, local Tree) []MigrationIssue {
 				Severity: "warning",
 				Number:   minUpstream,
 				Message: fmt.Sprintf(
-					"上游新增迁移 %s 的编号低于本地最大编号 %06d；如果本地迁移已在数据库执行，golang-migrate 会跳过这些上游迁移。执行前请先备份，并参考 docs/tool/upgrade.md 的迁移编号约定。",
-					strings.Join(lower, ", "), localMax,
+					"上游新增迁移 %s 的编号低于本地最大编号 %06d；如果本地迁移已在数据库执行，golang-migrate 会跳过这些上游迁移。建议把上游新增迁移按原顺序重编号为 %06d 及之后（up/down 成对修改），并先备份数据库。详见 docs/tool/upgrade.md。",
+					strings.Join(lower, ", "), localMax, localMax+1,
 				),
 			})
 		}
